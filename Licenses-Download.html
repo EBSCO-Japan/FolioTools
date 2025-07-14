@@ -93,6 +93,13 @@
         border-radius: 4px;
         margin: 10px 0;
       }
+      .table-wrapper {
+        overflow-x: auto; /* ✅ 横スクロール許可 */
+        overflow-y: hidden; /* ❌ 縦スクロール禁止 */
+        margin-top: 20px;
+        border: 1px solid #ddd;
+      }
+      
     </style>
   </head>
   <body>
@@ -122,17 +129,19 @@
     <div class="form-container">
       <h2>ライセンステーブル</h2>
       <div id="message"></div>
-      <table id="licensesTable">
-        <thead id="licensesHeader">
-          <tr>
-            <th>ID</th>
-            <th>Created</th>
-            <th>Name</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div class="table-wrapper">
+        <table id="licensesTable">
+          <thead id="licensesHeader">
+            <tr>
+              <th>ID</th>
+              <th>Created</th>
+              <th>Name</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ✅ jQuery & DataTables JS -->
@@ -265,6 +274,9 @@
             searching: true,
             ordering: true,
             info: false,
+            scrollX: true,        // ✅ 横スクロール有効
+            scrollCollapse: true,
+            fixedHeader: true
           });
         } else {
           messageEl.innerHTML =
