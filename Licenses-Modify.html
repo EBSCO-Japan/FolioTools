@@ -74,7 +74,8 @@
         border-collapse: collapse;
         margin-top: 20px;
       }
-      th, td {
+      th,
+      td {
         border: 1px solid #ddd;
         padding: 8px;
         text-align: left;
@@ -90,7 +91,11 @@
       <h2>FOLIO Licenses CSV Manager</h2>
       <label>
         Base URL:
-        <input type="text" id="baseUrl" value="https://folio-quesnelia-okapi.dev.folio.org" />
+        <input
+          type="text"
+          id="baseUrl"
+          value="https://folio-quesnelia-okapi.dev.folio.org"
+        />
       </label>
       <label>
         Tenant:
@@ -116,8 +121,12 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script>
-      document.getElementById("fetchBtn").addEventListener("click", fetchAndDownload);
-      document.getElementById("uploadBtn").addEventListener("click", uploadFromCSV);
+      document
+        .getElementById("fetchBtn")
+        .addEventListener("click", fetchAndDownload);
+      document
+        .getElementById("uploadBtn")
+        .addEventListener("click", uploadFromCSV);
 
       async function fetchAndDownload() {
         const baseUrl = document.getElementById("baseUrl").value;
@@ -134,7 +143,10 @@
         try {
           const loginRes = await fetch(`${baseUrl}/authn/login`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-okapi-tenant": tenant },
+            headers: {
+              "Content-Type": "application/json",
+              "x-okapi-tenant": tenant,
+            },
             body: JSON.stringify({ username, password }),
           });
           if (!loginRes.ok) throw new Error("認証失敗");
@@ -162,49 +174,56 @@
             totalPages = data.totalPages || 1;
             data.results.forEach((lic) => {
               const base = {
-                ID: lic.id,
-                Created: lic.dateCreated?.slice(0, 10) || "",
-                Name: lic.name,
-                Status: lic.status?.label || "",
+                id: lic.id,
+                created: lic.dateCreated?.slice(0, 10) || "",
+                name: lic.name,
+                status: lic.status?.label || "",
               };
               const custom = {};
-              Object.entries(lic.customProperties || {}).forEach(([key, items]) => {
-                if (!Array.isArray(items) || items.length === 0) return;
-                customKeys.add(key);
-                const selected = items.reduce((prev, curr) => (prev.id > curr.id ? prev : curr));
-                const v = selected.value;
-                let displayValue = "";
-                if (Array.isArray(v)) {
-                  displayValue = v.map(x => x.label || String(x)).join("; ");
-                } else if (v && typeof v === "object") {
-                  displayValue = v.label || "";
-                } else {
-                  displayValue = String(v);
+              Object.entries(lic.customProperties || {}).forEach(
+                ([key, items]) => {
+                  if (!Array.isArray(items) || items.length === 0) return;
+                  customKeys.add(key);
+                  const selected = items.reduce((prev, curr) =>
+                    prev.id > curr.id ? prev : curr
+                  );
+                  const v = selected.value;
+                  let displayValue = "";
+                  if (Array.isArray(v)) {
+                    displayValue = v
+                      .map((x) => x.label || String(x))
+                      .join("; ");
+                  } else if (v && typeof v === "object") {
+                    displayValue = v.label || "";
+                  } else {
+                    displayValue = String(v);
+                  }
+                  custom[key] = displayValue;
                 }
-                custom[key] = displayValue;
-              });
+              );
               licenseRows.push({ base, custom });
             });
             page++;
           } while (page <= totalPages);
 
           if (!licenseRows.length) {
-            messageEl.innerHTML = '<div class="error">ライセンスが見つかりませんでした。</div>';
+            messageEl.innerHTML =
+              '<div class="error">ライセンスが見つかりませんでした。</div>';
             fetchBtn.disabled = false;
             return;
           }
 
           const headers = [
-            "ID",
-            "Created",
-            "Name",
-            "Status",
-            ...Array.from(customKeys).map(k => `customProperties.${k}`),
+            "id",
+            "created",
+            "name",
+            "status",
+            ...Array.from(customKeys).map((k) => `customProperties.${k}`),
           ];
           const csv = [headers.join(",")];
           licenseRows.forEach(({ base, custom }) => {
             const row = [];
-            headers.forEach(h => {
+            headers.forEach((h) => {
               let val = "";
               if (base[h] !== undefined) val = base[h];
               else if (h.startsWith("customProperties.")) {
@@ -217,12 +236,18 @@
             csv.push(row.join(","));
           });
 
-          const blob = new Blob(["\uFEFF" + csv.join("\n")], { type: "text/csv;charset=utf-8;" });
+          const blob = new Blob(["\uFEFF" + csv.join("\n")], {
+            type: "text/csv;charset=utf-8;",
+          });
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           const now = new Date();
-          const pad = n => String(n).padStart(2, "0");
-          const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+          const pad = (n) => String(n).padStart(2, "0");
+          const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(
+            now.getDate()
+          )}${pad(now.getHours())}${pad(now.getMinutes())}${pad(
+            now.getSeconds()
+          )}`;
           a.href = url;
           a.download = `licenses_${ts}.csv`;
           document.body.appendChild(a);
@@ -230,7 +255,8 @@
           a.remove();
           URL.revokeObjectURL(url);
 
-          messageEl.innerHTML = '<div class="success">CSVのダウンロードが完了しました！</div>';
+          messageEl.innerHTML =
+            '<div class="success">CSVのダウンロードが完了しました！</div>';
         } catch (err) {
           console.error(err);
           messageEl.innerHTML = '<div class="error">エラーが発生しました</div>';
@@ -250,7 +276,8 @@
         const uploadBtn = document.getElementById("uploadBtn");
 
         if (!fileInput.files.length) {
-          messageEl.innerHTML = '<div class="error">CSVファイルを選択してください</div>';
+          messageEl.innerHTML =
+            '<div class="error">CSVファイルを選択してください</div>';
           return;
         }
         uploadBtn.disabled = true;
@@ -261,7 +288,10 @@
         try {
           const loginRes = await fetch(`${baseUrl}/authn/login`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-okapi-tenant": tenant },
+            headers: {
+              "Content-Type": "application/json",
+              "x-okapi-tenant": tenant,
+            },
             body: JSON.stringify({ username, password }),
           });
           if (!loginRes.ok) throw new Error("認証失敗");
@@ -276,27 +306,33 @@
         Papa.parse(file, {
           header: true,
           skipEmptyLines: true,
-          complete: async function(results) {
+          // ヘッダー名の先頭にある \uFEFF を取り除く
+          transformHeader: (header) => header.replace(/^\uFEFF/, ""),
+          complete: async function (results) {
             const data = results.data;
             const tableRows = [];
 
             for (const row of data) {
-              const id = row["ID"];
+              const id = row["id"];
               if (!id) continue;
               // Build payload
               const payload = {};
               // Base fields: Name, Status
-              if (row["Name"] !== undefined) payload.name = row["Name"];
-              if (row["Status"] !== undefined) payload.status = { label: row["Status"] };
+              if (row["id"] !== undefined) payload.id = row["id"];
+              if (row["name"] !== undefined) payload.name = row["name"];
+              if (row["status"] !== undefined)
+                payload.status = row["status"];
 
               // Custom properties
               payload.customProperties = {};
-              Object.keys(row).forEach(col => {
+              Object.keys(row).forEach((col) => {
                 if (!col.startsWith("customProperties.")) return;
                 const key = col.replace("customProperties.", "");
                 const val = row[col].trim();
                 if (val) {
-                  payload.customProperties[key] = [{ _delete: false, value: val }];
+                  payload.customProperties[key] = [
+                    { _delete: false, value: val },
+                  ];
                 } else {
                   payload.customProperties[key] = [{ _delete: true }];
                 }
@@ -304,36 +340,47 @@
 
               // PUT request
               try {
+                console.log(JSON.stringify(payload))
                 const res = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
                   method: "PUT",
                   headers: {
                     "Content-Type": "application/json",
                     "x-okapi-tenant": tenant,
-                    "x-okapi-token": token
+                    "x-okapi-token": token,
                   },
-                  body: JSON.stringify(payload)
+                  body: JSON.stringify(payload),
                 });
                 const result = await res.json();
-                tableRows.push({ ID: id, status: res.ok ? 'OK' : 'Error', detail: res.ok ? JSON.stringify(result) : res.statusText });
+                tableRows.push({
+                  ID: id,
+                  status: res.ok ? "OK" : "Error",
+                  detail: res.ok ? JSON.stringify(result) : res.statusText,
+                });
               } catch (err) {
-                tableRows.push({ ID: id, status: 'Error', detail: err.message });
+                tableRows.push({
+                  ID: id,
+                  status: "Error",
+                  detail: err.message,
+                });
               }
             }
 
             // Render results table
-            let html = '<table><thead><tr><th>ID</th><th>結果</th><th>詳細</th></tr></thead><tbody>';
-            tableRows.forEach(r => {
+            let html =
+              "<table><thead><tr><th>ID</th><th>結果</th><th>詳細</th></tr></thead><tbody>";
+            tableRows.forEach((r) => {
               html += `<tr><td>${r.ID}</td><td>${r.status}</td><td>${r.detail}</td></tr>`;
             });
-            html += '</tbody></table>';
+            html += "</tbody></table>";
             resultsEl.innerHTML = html;
-            messageEl.innerHTML = '<div class="success">アップロード完了！</div>';
+            messageEl.innerHTML =
+              '<div class="success">アップロード完了！</div>';
             uploadBtn.disabled = false;
           },
-          error: function(err) {
+          error: function (err) {
             messageEl.innerHTML = `<div class="error">CSV解析エラー: ${err.message}</div>`;
             uploadBtn.disabled = false;
-          }
+          },
         });
       }
     </script>
