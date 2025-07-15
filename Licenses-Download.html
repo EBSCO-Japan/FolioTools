@@ -3,7 +3,6 @@
   <head>
     <meta charset="UTF-8" />
     <title>FOLIO Licenses Viewer</title>
-    <!-- ✅ DataTables CSS -->
     <link
       rel="stylesheet"
       href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"
@@ -23,16 +22,10 @@
         background: white;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
-      .form-container h2 {
-        margin-top: 0;
-        color: #333;
-        margin-bottom: 20px;
-      }
       label {
         display: block;
         margin: 10px 0;
         font-size: 14px;
-        color: #333;
       }
       input[type="text"],
       input[type="password"] {
@@ -40,20 +33,17 @@
         width: 100%;
         max-width: 400px;
         box-sizing: border-box;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 14px;
         margin-top: 5px;
       }
       button {
         padding: 10px 20px;
+        margin-top: 10px;
+        margin-right: 10px;
         background: #007bff;
         color: white;
         border: none;
         border-radius: 4px;
         cursor: pointer;
-        margin-top: 10px;
-        margin-right: 10px;
       }
       button:disabled {
         background: #ccc;
@@ -62,68 +52,55 @@
       button:hover:not(:disabled) {
         background: #0056b3;
       }
+      .table-wrapper {
+        overflow-x: auto;
+      }
       table {
         border-collapse: collapse;
         margin-top: 20px;
         width: 100%;
         background: white;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
-      th,
-      td {
+      th, td {
         border: 1px solid #ddd;
-        padding: 12px;
-        text-align: left;
+        padding: 8px;
       }
       th {
         background-color: #f8f8f8;
-        font-weight: 600;
       }
       .success {
         color: #155724;
         background: #d4edda;
-        padding: 15px;
-        border-radius: 4px;
+        padding: 10px;
         margin: 10px 0;
+        border-radius: 4px;
       }
       .error {
         color: #721c24;
         background: #f8d7da;
-        padding: 15px;
-        border-radius: 4px;
+        padding: 10px;
         margin: 10px 0;
+        border-radius: 4px;
       }
-      .table-wrapper {
-        overflow-x: auto; /* ✅ 横スクロール許可 */
-        overflow-y: hidden; /* ❌ 縦スクロール禁止 */
-        margin-top: 20px;
-        border: 1px solid #ddd;
-      }
-      
     </style>
   </head>
   <body>
     <div class="form-container">
       <h2>FOLIO Licenses</h2>
-      <label>
-        Base URL:
-        <input
-          type="text"
-          id="baseUrl"
-          value="https://folio-quesnelia-okapi.dev.folio.org"
-        />
+      <label>Base URL:
+        <input type="text" id="baseUrl" value="https://folio-quesnelia-okapi.dev.folio.org" />
       </label>
-      <label>Tenant: <input type="text" id="tenant" value="diku" /></label>
-      <label
-        >Username: <input type="text" id="username" value="diku_admin"
-      /></label>
-      <label
-        >Password: <input type="password" id="password" value="admin"
-      /></label>
+      <label>Tenant:
+        <input type="text" id="tenant" value="diku" />
+      </label>
+      <label>Username:
+        <input type="text" id="username" value="diku_admin" />
+      </label>
+      <label>Password:
+        <input type="password" id="password" value="admin" />
+      </label>
       <button onclick="fetchLicenses()">ライセンスを取得</button>
-      <button id="downloadBtn" onclick="downloadCSV()" disabled>
-        CSVダウンロード
-      </button>
+      <button id="downloadBtn" onclick="downloadCSV()" disabled>CSVダウンロード</button>
     </div>
 
     <div class="form-container">
@@ -131,23 +108,14 @@
       <div id="message"></div>
       <div class="table-wrapper">
         <table id="licensesTable">
-          <thead id="licensesHeader">
-            <tr>
-              <th>ID</th>
-              <th>Created</th>
-              <th>Name</th>
-              <th>Status</th>
-            </tr>
-          </thead>
+          <thead><tr></tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </div>
 
-    <!-- ✅ jQuery & DataTables JS -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-
     <script>
       async function fetchLicenses() {
         const baseUrl = document.getElementById("baseUrl").value;
@@ -155,9 +123,12 @@
         const username = document.getElementById("username").value;
         const password = document.getElementById("password").value;
         const messageEl = document.getElementById("message");
+        const downloadBtn = document.getElementById("downloadBtn");
 
         messageEl.innerHTML = "";
+        downloadBtn.disabled = true;
 
+        // 認証
         const loginResponse = await fetch(`${baseUrl}/authn/login`, {
           method: "POST",
           headers: {
@@ -174,165 +145,137 @@
 
         const token = loginResponse.headers.get("x-okapi-token");
 
+        // 既存DataTable破棄 & テーブル再作成
+        if ($.fn.DataTable.isDataTable("#licensesTable")) {
+          $("#licensesTable").DataTable().destroy();
+        }
+        $(".table-wrapper").html(
+          '<table id="licensesTable"><thead><tr></tr></thead><tbody></tbody></table>'
+        );
+
         const table = document.getElementById("licensesTable");
+        const tableHead = table.querySelector("thead");
         const tableBody = table.querySelector("tbody");
-        const tableHeader = document
-          .getElementById("licensesHeader")
-          .querySelector("tr");
-        const downloadBtn = document.getElementById("downloadBtn");
-        tableBody.innerHTML = "";
-        messageEl.innerHTML = "";
-        downloadBtn.disabled = true;
+
+        // ヘッダー作成
+        const headerRow = tableHead.querySelector("tr");
+        const defaultHeaders = ["ID", "Created", "Name", "Status"];
+        defaultHeaders.forEach(label => {
+          const th = document.createElement("th");
+          th.textContent = label;
+          headerRow.appendChild(th);
+        });
 
         const customPropLabels = new Set();
         const licenseRows = [];
-
         let page = 1;
         const perPage = 100;
         let totalPages = 1;
 
+        // ライセンス取得ループ
         do {
-          const res = await fetch(
-            `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
-            {
-              headers: { "x-okapi-token": token },
-            }
-          );
-
+          const res = await fetch(`${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`, {
+            headers: { "x-okapi-token": token }
+          });
           if (!res.ok) break;
-
           const data = await res.json();
           totalPages = data.totalPages || 1;
-
-          for (const lic of data.results) {
+          data.results.forEach(lic => {
             const rowData = {
               baseCells: [
                 lic.id,
                 lic.dateCreated?.substring(0, 10) || "",
                 lic.name,
-                lic.status?.label || "",
+                lic.status?.label || ""
               ],
-              customProps: {},
+              customProps: {}
             };
-
-            for (const key in lic.customProperties) {
-              for (const item of lic.customProperties[key]) {
-                const label = item.type?.label || key;
-                customPropLabels.add(label);
-                const val =
-                  typeof item.value === "object" && item.value !== null
-                    ? item.value.label || JSON.stringify(item.value)
-                    : item.value;
-                rowData.customProps[label] = val;
-              }
-            }
-
+            Object.entries(lic.customProperties || {}).forEach(([key, items]) => {
+              if (!Array.isArray(items)) return;
+              const label = items[0]?.type?.label || key;
+              customPropLabels.add(label);
+              const values = items.map(item => {
+                const val = item.value;
+                if (Array.isArray(val)) {
+                  return val.map(v => (typeof v === "object" && v !== null ? v.label : String(v))).join(";");
+                } else if (typeof val === "object" && val !== null) {
+                  return val.label || JSON.stringify(val);
+                } else {
+                  return String(val);
+                }
+              });
+              rowData.customProps[label] = values.join("; ");
+            });
             licenseRows.push(rowData);
-          }
-
+          });
           page++;
         } while (page <= totalPages);
 
-        const customPropLabelList = Array.from(customPropLabels);
+        // カスタムプロパティ列作成
+        const customLabels = Array.from(customPropLabels);
+        customLabels.forEach(label => {
+          const th = document.createElement("th");
+          th.textContent = label;
+          headerRow.appendChild(th);
+        });
 
-        // ヘッダーに追加
-        for (const label of customPropLabelList) {
-          if (!tableHeader.querySelector(`th[data-label="${label}"]`)) {
-            const th = document.createElement("th");
-            th.setAttribute("data-label", label);
-            th.textContent = label;
-            tableHeader.appendChild(th);
-          }
-        }
-
-        // 行を出力
-        for (const lic of licenseRows) {
+        // データ行追加
+        licenseRows.forEach(({ baseCells, customProps }) => {
           const row = tableBody.insertRow();
-          for (const val of lic.baseCells) {
+          baseCells.forEach(val => {
             const td = document.createElement("td");
             td.textContent = val;
             row.appendChild(td);
-          }
-          for (const label of customPropLabelList) {
+          });
+          customLabels.forEach(label => {
             const td = document.createElement("td");
-            td.textContent = lic.customProps[label] || "";
+            td.textContent = customProps[label] || "";
             row.appendChild(td);
-          }
-        }
+          });
+        });
 
+        // DataTable再初期化
         if (licenseRows.length > 0) {
-          downloadBtn.disabled = false;
-          messageEl.innerHTML =
-            '<div class="success">ライセンスの取得が完了しました！</div>';
-          // ✅ DataTablesを初期化（再読み込み防止のため destroy: true）
-          if ($.fn.DataTable.isDataTable("#licensesTable")) {
-            $("#licensesTable").DataTable().destroy();
-          }
-          $("#licensesTable").DataTable({
+          const dt = $("#licensesTable").DataTable({
             paging: false,
-            lengthChange: false,
             searching: true,
             ordering: true,
             info: false,
-            scrollX: true,        // ✅ 横スクロール有効
-            scrollCollapse: true,
-            fixedHeader: true
+            scrollX: true,
+            autoWidth: false
           });
+          // 列幅を再調整
+          dt.columns.adjust();
+          messageEl.innerHTML = '<div class="success">ライセンスの取得が完了しました！</div>';
+          downloadBtn.disabled = false;
         } else {
-          messageEl.innerHTML =
-            '<div class="error">ライセンスが見つかりませんでした。</div>';
+          messageEl.innerHTML = '<div class="error">ライセンスが見つかりませんでした。</div>';
         }
       }
 
       function downloadCSV() {
-        const table = document.getElementById("licensesTable");
-        const rows = Array.from(table.querySelectorAll("tbody tr"));
-
-        if (rows.length === 0) {
+        const rows = Array.from(document.querySelectorAll("#licensesTable tbody tr"));
+        if (!rows.length) {
           alert("CSVに出力するデータがありません。");
           return;
         }
-
-        const headerCells = Array.from(table.querySelectorAll("thead tr th"));
-        const header = headerCells
-          .map((th) => `"${th.innerText.replace(/"/g, '""')}"`)
-          .join(",");
-
-        const csvRows = rows.map((row) => {
-          const cells = Array.from(row.querySelectorAll("td"));
-          return cells
-            .map((cell) => {
-              let text = cell.innerText;
-              if (
-                text.includes('"') ||
-                text.includes(",") ||
-                text.includes("\n")
-              ) {
-                text = '"' + text.replace(/"/g, '""') + '"';
-              }
-              return text;
-            })
-            .join(",");
-        });
-
+        const header = Array.from(document.querySelectorAll("#licensesTable thead th")).map(th => `"${th.innerText.replace(/"/g,'""')}"`).join(",");
+        const csvRows = rows.map(row =>
+          Array.from(row.cells).map(cell => {
+            let text = cell.innerText;
+            if (/[",\n]/.test(text)) text = `"${text.replace(/"/g,'""')}"`;
+            return text;
+          }).join(",")
+        );
         const csv = [header, ...csvRows].join("\n");
-
         const now = new Date();
-        const pad = (num) => String(num).padStart(2, "0");
-        const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(
-          now.getDate()
-        )}${pad(now.getHours())}${pad(now.getMinutes())}${pad(
-          now.getSeconds()
-        )}`;
-        const filename = `licenses_${timestamp}.csv`;
-
-        const blob = new Blob(["\uFEFF" + csv], {
-          type: "text/csv;charset=utf-8;",
-        });
+        const pad = n => String(n).padStart(2, "0");
+        const timestamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = filename;
+        a.download = `licenses_${timestamp}.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
