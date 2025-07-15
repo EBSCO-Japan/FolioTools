@@ -82,6 +82,13 @@
         margin: 10px 0;
         border-radius: 4px;
       }
+      .info {
+        color: #004085;
+        background: #cce5ff;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
     </style>
   </head>
   <body>
@@ -125,7 +132,8 @@
         const messageEl = document.getElementById("message");
         const downloadBtn = document.getElementById("downloadBtn");
 
-        messageEl.innerHTML = "";
+        // 取得中メッセージ表示
+        messageEl.innerHTML = '<div class="info">取得中…</div>';
         downloadBtn.disabled = true;
 
         // 認証
@@ -142,10 +150,9 @@
           messageEl.innerHTML = '<div class="error">認証に失敗しました</div>';
           return;
         }
-
         const token = loginResponse.headers.get("x-okapi-token");
 
-        // 既存DataTable破棄 & テーブル再作成
+        // テーブルリセット
         if ($.fn.DataTable.isDataTable("#licensesTable")) {
           $("#licensesTable").DataTable().destroy();
         }
@@ -154,11 +161,10 @@
         );
 
         const table = document.getElementById("licensesTable");
-        const tableHead = table.querySelector("thead");
+        const headerRow = table.querySelector("thead tr");
         const tableBody = table.querySelector("tbody");
 
-        // ヘッダー作成
-        const headerRow = tableHead.querySelector("tr");
+        // ヘッダー定義
         const defaultHeaders = ["ID", "Created", "Name", "Status"];
         defaultHeaders.forEach(label => {
           const th = document.createElement("th");
@@ -172,46 +178,44 @@
         const perPage = 100;
         let totalPages = 1;
 
-        // ライセンス取得ループ
+        // データ取得ループ
         do {
-          const res = await fetch(`${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`, {
-            headers: { "x-okapi-token": token }
-          });
+          const res = await fetch(
+            `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
+            { headers: { "x-okapi-token": token } }
+          );
           if (!res.ok) break;
           const data = await res.json();
           totalPages = data.totalPages || 1;
           data.results.forEach(lic => {
-            const rowData = {
-              baseCells: [
-                lic.id,
-                lic.dateCreated?.substring(0, 10) || "",
-                lic.name,
-                lic.status?.label || ""
-              ],
-              customProps: {}
-            };
+            const baseCells = [
+              lic.id,
+              lic.dateCreated?.slice(0, 10) || "",
+              lic.name,
+              lic.status?.label || ""
+            ];
+            const customProps = {};
             Object.entries(lic.customProperties || {}).forEach(([key, items]) => {
               if (!Array.isArray(items)) return;
               const label = items[0]?.type?.label || key;
               customPropLabels.add(label);
               const values = items.map(item => {
-                const val = item.value;
-                if (Array.isArray(val)) {
-                  return val.map(v => (typeof v === "object" && v !== null ? v.label : String(v))).join(";");
-                } else if (typeof val === "object" && val !== null) {
-                  return val.label || JSON.stringify(val);
-                } else {
-                  return String(val);
+                const v = item.value;
+                if (Array.isArray(v)) {
+                  return v.map(x => (x && x.label) || x).join(';');
+                } else if (v && typeof v === 'object') {
+                  return v.label || JSON.stringify(v);
                 }
-              });
-              rowData.customProps[label] = values.join("; ");
+                return String(v);
+              }).join('; ');
+              customProps[label] = values;
             });
-            licenseRows.push(rowData);
+            licenseRows.push({ baseCells, customProps });
           });
           page++;
         } while (page <= totalPages);
 
-        // カスタムプロパティ列作成
+        // カスタム列追加
         const customLabels = Array.from(customPropLabels);
         customLabels.forEach(label => {
           const th = document.createElement("th");
@@ -219,23 +223,23 @@
           headerRow.appendChild(th);
         });
 
-        // データ行追加
+        // 行描画
         licenseRows.forEach(({ baseCells, customProps }) => {
-          const row = tableBody.insertRow();
-          baseCells.forEach(val => {
+          const tr = tableBody.insertRow();
+          baseCells.forEach(text => {
             const td = document.createElement("td");
-            td.textContent = val;
-            row.appendChild(td);
+            td.textContent = text;
+            tr.appendChild(td);
           });
           customLabels.forEach(label => {
             const td = document.createElement("td");
-            td.textContent = customProps[label] || "";
-            row.appendChild(td);
+            td.textContent = customProps[label] || '';
+            tr.appendChild(td);
           });
         });
 
-        // DataTable再初期化
-        if (licenseRows.length > 0) {
+        // DataTable初期化
+        if (licenseRows.length) {
           const dt = $("#licensesTable").DataTable({
             paging: false,
             searching: true,
@@ -244,7 +248,6 @@
             scrollX: true,
             autoWidth: false
           });
-          // 列幅を再調整
           dt.columns.adjust();
           messageEl.innerHTML = '<div class="success">ライセンスの取得が完了しました！</div>';
           downloadBtn.disabled = false;
@@ -254,32 +257,22 @@
       }
 
       function downloadCSV() {
-        const rows = Array.from(document.querySelectorAll("#licensesTable tbody tr"));
-        if (!rows.length) {
-          alert("CSVに出力するデータがありません。");
-          return;
-        }
-        const header = Array.from(document.querySelectorAll("#licensesTable thead th")).map(th => `"${th.innerText.replace(/"/g,'""')}"`).join(",");
-        const csvRows = rows.map(row =>
-          Array.from(row.cells).map(cell => {
-            let text = cell.innerText;
-            if (/[",\n]/.test(text)) text = `"${text.replace(/"/g,'""')}"`;
-            return text;
-          }).join(",")
-        );
-        const csv = [header, ...csvRows].join("\n");
-        const now = new Date();
-        const pad = n => String(n).padStart(2, "0");
-        const timestamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `licenses_${timestamp}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const rows=Array.from(document.querySelectorAll("#licensesTable tbody tr"));
+        if (!rows.length) { alert("CSVに出力するデータがありません。"); return; }
+        const headers=Array.from(document.querySelectorAll("#licensesTable thead th")).map(th=>`"${th.innerText.replace(/"/g,'""')}"`).join(',');
+        const csvRows=rows.map(tr=> Array.from(tr.cells).map(td=>{
+          let txt=td.innerText;
+          if(/[",\n]/.test(txt)) txt=`"${txt.replace(/"/g,'""')}"`;
+          return txt;
+        }).join(','));
+        const csv=[headers,...csvRows].join('\n');
+        const now=new Date(); const pad=n=>String(n).padStart(2,'0');
+        const timestamp=`${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        const filename=`licenses_${timestamp}.csv`;
+        const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a'); a.href=url; a.download=filename;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
       }
     </script>
   </body>
