@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FOLIO Licenses Uploader</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .form-container {
+        margin: 20px 0;
+        padding: 20px;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .form-container h2 {
+        margin-top: 0;
+        color: #333;
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin: 10px 0;
+        font-size: 14px;
+        color: #333;
+      }
+      input[type="text"],
+      input[type="password"],
+      input[type="file"] {
+        padding: 10px;
+        width: 100%;
+        max-width: 400px;
+        box-sizing: border-box;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        margin-top: 5px;
+      }
+      button {
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+        margin-right: 10px;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      button:hover:not(:disabled) {
+        background: #0056b3;
+      }
+      table {
+        border-collapse: collapse;
+        margin-top: 20px;
+        width: 100%;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #f8f8f8;
+        font-weight: 600;
+      }
+      .success {
+        color: #155724;
+        background: #d4edda;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 10px 0;
+      }
+      .error {
+        color: #721c24;
+        background: #f8d7da;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 認証フォーム -->
+    <div class="form-container">
+      <h2>FOLIO 接続設定</h2>
+      <label>
+        Base URL:
+        <input
+          type="text"
+          id="baseUrl"
+          value="https://folio-quesnelia-okapi.dev.folio.org"
+        />
+      </label>
+      <label>
+        Tenant:
+        <input type="text" id="tenant" value="diku" />
+      </label>
+      <label>
+        Username:
+        <input type="text" id="username" value="diku_admin" />
+      </label>
+      <label>
+        Password:
+        <input type="password" id="password" value="admin" />
+      </label>
+      <button id="loginBtn">ログイン</button>
+      <div id="authMessage"></div>
+    </div>
+
+    <!-- CSV アップロード -->
+    <div class="form-container">
+      <h2>CSV からライセンス一括登録</h2>
+      <label>
+        CSV ファイルを選択：
+        <input type="file" id="csvFile" accept=".csv" />
+      </label>
+      <button id="uploadBtn" disabled>CSV を読み込んで POST</button>
+      <div id="postMessage"></div>
+    </div>
+
+    <!-- POST 結果表示 -->
+    <div class="form-container">
+      <h2>登録結果</h2>
+      <table id="resultTable">
+        <thead>
+          <tr>
+            <th>行</th>
+            <th>Name</th>
+            <th>ステータス</th>
+            <th>レスポンス</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <script>
+      let okapiToken = null;
+
+      // ——— 認証処理 ———
+      document
+        .getElementById("loginBtn")
+        .addEventListener("click", async () => {
+          const baseUrl = document.getElementById("baseUrl").value;
+          const tenant = document.getElementById("tenant").value;
+          const username = document.getElementById("username").value;
+          const password = document.getElementById("password").value;
+          const msgEl = document.getElementById("authMessage");
+          msgEl.innerHTML = "";
+
+          const res = await fetch(`${baseUrl}/authn/login`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-okapi-tenant": tenant,
+            },
+            body: JSON.stringify({ username, password }),
+          });
+          if (!res.ok) {
+            msgEl.innerHTML = '<div class="error">認証に失敗しました</div>';
+            return;
+          }
+          okapiToken = res.headers.get("x-okapi-token");
+          msgEl.innerHTML =
+            '<div class="success">ログイン成功！CSV アップロードが可能です。</div>';
+          document.getElementById("uploadBtn").disabled = false;
+        });
+
+      // ——— CSV アップロード起点 ———
+      document.getElementById("uploadBtn").addEventListener("click", () => {
+        const fileInput = document.getElementById("csvFile");
+        if (!fileInput.files.length) {
+          alert("CSV を選択してください");
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => processCsv(reader.result);
+        reader.readAsText(fileInput.files[0], "utf-8");
+      });
+
+      // ——— CSV をパースして POST ———
+      async function processCsv(csvText) {
+        // CRLF / LF 両対応で行を分割
+        const lines = csvText.trim().split(/\r?\n/);
+
+        // ヘッダーをトリムして \r を除去
+        const headers = lines[0]
+          .split(",")
+          .map((h) => h.trim().replace(/\r/g, ""));
+        const tableBody = document.querySelector("#resultTable tbody");
+        tableBody.innerHTML = "";
+        const baseUrl = document.getElementById("baseUrl").value;
+        const tenant = document.getElementById("tenant").value;
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(",");
+          const rowNum = i;
+          const entry = {};
+          const customProps = {};
+
+          // ヘッダー毎に振り分け
+          headers.forEach((h, idx) => {
+            const val = cols[idx] ? cols[idx].trim() : "";
+            if (h.startsWith("customProperties.")) {
+              const propName = h.slice("customProperties.".length);
+              if (!customProps[propName]) customProps[propName] = [];
+              customProps[propName].push({
+                _delete: false,
+                value: val,
+              });
+            } else {
+              entry[h] = val;
+            }
+          });
+
+          // 固定フィールド
+          entry.openEnded = false;
+          entry.customProperties = customProps;
+
+          // POST 実行
+          let statusText = "";
+          let respText = "";
+          try {
+            const res = await fetch(`${baseUrl}/licenses/licenses`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-okapi-tenant": tenant,
+                "x-okapi-token": okapiToken,
+              },
+              body: JSON.stringify(entry),
+            });
+            statusText = res.status;
+            respText = await res.json().then((j) => JSON.stringify(j, null, 2));
+          } catch (err) {
+            statusText = "error";
+            respText = err.message;
+          }
+
+          // テーブルに結果追加
+          const tr = tableBody.insertRow();
+          tr.innerHTML = `
+            <td>${rowNum}</td>
+            <td>${entry.name || ""}</td>
+            <td>${statusText}</td>
+            <td><pre style="white-space:pre-wrap;">${respText}</pre></td>
+          `;
+        }
+
+        document.getElementById("postMessage").innerHTML =
+          '<div class="success">CSV の POST が完了しました。</div>';
+      }
+    </script>
+  </body>
+</html>
