@@ -58,6 +58,15 @@
       button:hover:not(:disabled) {
         background: #0056b3;
       }
+      .hint-text {
+        display: inline-block;
+        margin-left: 10px;
+        padding: 10px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        font-size: 13px;
+        color: #555;
+      }
       table {
         border-collapse: collapse;
         margin-top: 20px;
@@ -124,6 +133,7 @@
       </label>
       <button id="uploadBtn" disabled>CSV を読み込んで POST</button>
       <button id="downloadTemplateBtn" disabled>テンプレート CSV ダウンロード</button>
+      <span class="hint-text">※ 1行めは入力する値のヒント、2行めはヘッダーです。構成は変えずにアップロードしてください。</span>
       <div id="postMessage"></div>
     </div>
 
@@ -190,7 +200,7 @@
 
       // ——— CSV をパースして POST ———
       async function processCsv(csvText) {
-        const lines   = csvText.trim().split(/\r?\n/);
+        const lines = csvText.trim().split(/\r?\n/);
         if (lines.length < 2) {
           alert('CSV にヘッダー行が必要です。');
           return;
@@ -228,7 +238,7 @@
           }
 
           let statusText = '';
-          let respText   = '';
+          let respText = '';
           try {
             const res = await fetch(`${baseUrl}/licenses/licenses`, {
               method: 'POST',
@@ -240,10 +250,10 @@
               body: JSON.stringify(entry)
             });
             statusText = res.status;
-            respText   = await res.json().then(j => JSON.stringify(j, null, 2));
+            respText = await res.json().then(j => JSON.stringify(j, null, 2));
           } catch (err) {
             statusText = 'error';
-            respText   = err.message;
+            respText = err.message;
           }
 
           const tr = tableBody.insertRow();
@@ -263,11 +273,11 @@
       async function downloadTemplate() {
         const baseUrl = document.getElementById('baseUrl').value;
         const tenant  = document.getElementById('tenant').value;
-        let page       = 1;
+        let page = 1;
         let totalPages = 1;
         const propNames = [];
         const choicesMap = {};
-        const typesMap   = {};
+        const typesMap = {};
 
         while (page <= totalPages) {
           const res = await fetch(
