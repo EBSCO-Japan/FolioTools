@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FOLIO Licenses CSV Downloader</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .form-container {
+        margin: 20px 0;
+        padding: 20px;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      label {
+        display: block;
+        margin: 10px 0;
+        font-size: 14px;
+      }
+      input[type="text"],
+      input[type="password"] {
+        padding: 10px;
+        width: 100%;
+        max-width: 400px;
+        box-sizing: border-box;
+        margin-top: 5px;
+      }
+      button {
+        padding: 10px 20px;
+        margin-top: 10px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      button:hover:not(:disabled) {
+        background: #0056b3;
+      }
+      .success {
+        color: #155724;
+        background: #d4edda;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .error {
+        color: #721c24;
+        background: #f8d7da;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .info {
+        color: #004085;
+        background: #cce5ff;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="form-container">
+      <h2>FOLIO Licenses CSV Downloader</h2>
+      <label>Base URL:
+        <input type="text" id="baseUrl" value="https://folio-quesnelia-okapi.dev.folio.org" />
+      </label>
+      <label>Tenant:
+        <input type="text" id="tenant" value="diku" />
+      </label>
+      <label>Username:
+        <input type="text" id="username" value="diku_admin" />
+      </label>
+      <label>Password:
+        <input type="password" id="password" value="admin" />
+      </label>
+      <button id="fetchBtn">CSVダウンロード</button>
+      <div id="message"></div>
+    </div>
+
+    <script>
+      document.getElementById('fetchBtn').addEventListener('click', fetchAndDownload);
+
+      async function fetchAndDownload() {
+        const baseUrl = document.getElementById("baseUrl").value;
+        const tenant = document.getElementById("tenant").value;
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        const messageEl = document.getElementById("message");
+        const fetchBtn = document.getElementById('fetchBtn');
+
+        // 状態リセット
+        messageEl.innerHTML = '<div class="info">取得中…</div>';
+        fetchBtn.disabled = true;
+
+        // 認証
+        let token;
+        try {
+          const loginRes = await fetch(`${baseUrl}/authn/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-okapi-tenant': tenant
+            },
+            body: JSON.stringify({ username, password })
+          });
+          if (!loginRes.ok) throw new Error('認証失敗');
+          token = loginRes.headers.get('x-okapi-token');
+        } catch (err) {
+          messageEl.innerHTML = '<div class="error">認証に失敗しました</div>';
+          fetchBtn.disabled = false;
+          return;
+        }
+
+        // データ取得
+        const licenseRows = [];
+        const customKeys = new Set();
+        let page = 1;
+        const perPage = 100;
+        let totalPages = 1;
+
+        try {
+          do {
+            const res = await fetch(
+              `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
+              { headers: { 'x-okapi-token': token, 'x-okapi-tenant': tenant } }
+            );
+            if (!res.ok) break;
+            const data = await res.json();
+            totalPages = data.totalPages || 1;
+            data.results.forEach(lic => {
+              const base = {
+                ID: lic.id,
+                Created: lic.dateCreated?.slice(0,10) || '',
+                Name: lic.name,
+                Status: lic.status?.label || ''
+              };
+              const custom = {};
+              Object.entries(lic.customProperties || {}).forEach(([key, items]) => {
+                if (!Array.isArray(items)) return;
+                customKeys.add(key);
+                const values = items.map(item => {
+                  const v = item.value;
+                  if (Array.isArray(v)) return v.map(x => x?.label || x).join('; ');
+                  if (v && typeof v === 'object') return v.label || JSON.stringify(v);
+                  return String(v);
+                }).join('; ');
+                custom[key] = values;
+              });
+              licenseRows.push({ base, custom });
+            });
+            page++;
+          } while (page <= totalPages);
+
+          if (!licenseRows.length) {
+            messageEl.innerHTML = '<div class="error">ライセンスが見つかりませんでした。</div>';
+            fetchBtn.disabled = false;
+            return;
+          }
+
+          // CSV生成
+          const headers = ['ID','Created','Name','Status', ...Array.from(customKeys).map(k => `customProperties.${k}`)];
+          const csv = [headers.join(',')];
+          licenseRows.forEach(({ base, custom }) => {
+            const row = [];
+            headers.forEach(h => {
+              let val = '';
+              if (base[h] !== undefined) val = base[h];
+              else if (h.startsWith('customProperties.')) {
+                const key = h.replace('customProperties.','');
+                val = custom[key] || '';
+              }
+              // エスケープ
+              if (/[",\n]/.test(val)) val = `"${val.replace(/"/g,'""')}"`;
+              row.push(val);
+            });
+            csv.push(row.join(','));
+          });
+
+          // ダウンロード
+          const blob = new Blob(["\uFEFF" + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const now = new Date();
+          const pad = n => String(n).padStart(2,'0');
+          const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+          a.href = url;
+          a.download = `licenses_${ts}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+
+          messageEl.innerHTML = '<div class="success">CSVのダウンロードが完了しました！</div>';
+        } catch (err) {
+          console.error(err);
+          messageEl.innerHTML = '<div class="error">エラーが発生しました</div>';
+        } finally {
+          fetchBtn.disabled = false;
+        }
+      }
+    </script>
+  </body>
+</html>
