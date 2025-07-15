@@ -7,7 +7,7 @@
 
 ## リスト
 ### ライセンス系
-* Licenses-BulkCreate: ライセンスの一括アップロード
+* Licenses-BulkCreate: ライセンスの一括登録
 * Licenses-Download: ライセンスのダウンロード
 
 ## 使い方
