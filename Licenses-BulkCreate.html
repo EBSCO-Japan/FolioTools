@@ -97,11 +97,7 @@
       <h2>FOLIO 接続設定</h2>
       <label>
         Base URL:
-        <input
-          type="text"
-          id="baseUrl"
-          value="https://folio-quesnelia-okapi.dev.folio.org"
-        />
+        <input type="text" id="baseUrl" value="https://folio-quesnelia-okapi.dev.folio.org" />
       </label>
       <label>
         Tenant:
@@ -119,7 +115,7 @@
       <div id="authMessage"></div>
     </div>
 
-    <!-- CSV アップロード -->
+    <!-- CSV アップロード & テンプレートダウンロード -->
     <div class="form-container">
       <h2>CSV からライセンス一括登録</h2>
       <label>
@@ -127,6 +123,7 @@
         <input type="file" id="csvFile" accept=".csv" />
       </label>
       <button id="uploadBtn" disabled>CSV を読み込んで POST</button>
+      <button id="downloadTemplateBtn" disabled>テンプレート CSV ダウンロード</button>
       <div id="postMessage"></div>
     </div>
 
@@ -150,117 +147,150 @@
       let okapiToken = null;
 
       // ——— 認証処理 ———
-      document
-        .getElementById("loginBtn")
-        .addEventListener("click", async () => {
-          const baseUrl = document.getElementById("baseUrl").value;
-          const tenant = document.getElementById("tenant").value;
-          const username = document.getElementById("username").value;
-          const password = document.getElementById("password").value;
-          const msgEl = document.getElementById("authMessage");
-          msgEl.innerHTML = "";
+      document.getElementById('loginBtn').addEventListener('click', async () => {
+        const baseUrl = document.getElementById('baseUrl').value;
+        const tenant  = document.getElementById('tenant').value;
+        const username= document.getElementById('username').value;
+        const password= document.getElementById('password').value;
+        const msgEl   = document.getElementById('authMessage');
+        msgEl.innerHTML = '';
 
-          const res = await fetch(`${baseUrl}/authn/login`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-okapi-tenant": tenant,
-            },
-            body: JSON.stringify({ username, password }),
-          });
-          if (!res.ok) {
-            msgEl.innerHTML = '<div class="error">認証に失敗しました</div>';
-            return;
-          }
-          okapiToken = res.headers.get("x-okapi-token");
-          msgEl.innerHTML =
-            '<div class="success">ログイン成功！CSV アップロードが可能です。</div>';
-          document.getElementById("uploadBtn").disabled = false;
+        const res = await fetch(`${baseUrl}/authn/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-okapi-tenant': tenant
+          },
+          body: JSON.stringify({ username, password })
         });
+        if (!res.ok) {
+          msgEl.innerHTML = '<div class="error">認証に失敗しました</div>';
+          return;
+        }
+        okapiToken = res.headers.get('x-okapi-token');
+        msgEl.innerHTML = '<div class="success">ログイン成功！CSV アップロード & テンプレートダウンロードが可能です。</div>';
+        document.getElementById('uploadBtn').disabled = false;
+        document.getElementById('downloadTemplateBtn').disabled = false;
+      });
 
       // ——— CSV アップロード起点 ———
-      document.getElementById("uploadBtn").addEventListener("click", () => {
-        const fileInput = document.getElementById("csvFile");
+      document.getElementById('uploadBtn').addEventListener('click', () => {
+        const fileInput = document.getElementById('csvFile');
         if (!fileInput.files.length) {
-          alert("CSV を選択してください");
+          alert('CSV を選択してください');
           return;
         }
         const reader = new FileReader();
         reader.onload = () => processCsv(reader.result);
-        reader.readAsText(fileInput.files[0], "utf-8");
+        reader.readAsText(fileInput.files[0], 'utf-8');
       });
+
+      // ——— テンプレートダウンロード起点 ———
+      document.getElementById('downloadTemplateBtn').addEventListener('click', downloadTemplate);
 
       // ——— CSV をパースして POST ———
       async function processCsv(csvText) {
-        // CRLF / LF 両対応で行を分割
-        const lines = csvText.trim().split(/\r?\n/);
-
-        // ヘッダーをトリムして \r を除去
-        const headers = lines[0]
-          .split(",")
-          .map((h) => h.trim().replace(/\r/g, ""));
-        const tableBody = document.querySelector("#resultTable tbody");
-        tableBody.innerHTML = "";
-        const baseUrl = document.getElementById("baseUrl").value;
-        const tenant = document.getElementById("tenant").value;
+        const lines   = csvText.trim().split(/\r?\n/);
+        const headers = lines[0].split(',').map(h => h.trim().replace(/\r/g,''));
+        const tableBody = document.querySelector('#resultTable tbody');
+        tableBody.innerHTML = '';
+        const baseUrl = document.getElementById('baseUrl').value;
+        const tenant  = document.getElementById('tenant').value;
 
         for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(",");
+          const cols = lines[i].split(',').map(c => c.trim().replace(/\r/g,''));
           const rowNum = i;
           const entry = {};
           const customProps = {};
 
-          // ヘッダー毎に振り分け
           headers.forEach((h, idx) => {
-            const val = cols[idx] ? cols[idx].trim() : "";
-            if (h.startsWith("customProperties.")) {
-              const propName = h.slice("customProperties.".length);
+            const val = cols[idx] || '';
+            if (h.startsWith('customProperties.')) {
+              const propName = h.slice('customProperties.'.length);
               if (!customProps[propName]) customProps[propName] = [];
-              customProps[propName].push({
-                _delete: false,
-                value: val,
-              });
+              customProps[propName].push({ _delete: false, value: val });
             } else {
               entry[h] = val;
             }
           });
 
-          // 固定フィールド
           entry.openEnded = false;
           entry.customProperties = customProps;
 
-          // POST 実行
-          let statusText = "";
-          let respText = "";
+          let statusText = '';
+          let respText   = '';
           try {
             const res = await fetch(`${baseUrl}/licenses/licenses`, {
-              method: "POST",
+              method: 'POST',
               headers: {
-                "Content-Type": "application/json",
-                "x-okapi-tenant": tenant,
-                "x-okapi-token": okapiToken,
+                'Content-Type': 'application/json',
+                'x-okapi-tenant': tenant,
+                'x-okapi-token': okapiToken
               },
-              body: JSON.stringify(entry),
+              body: JSON.stringify(entry)
             });
             statusText = res.status;
-            respText = await res.json().then((j) => JSON.stringify(j, null, 2));
+            respText   = await res.json().then(j => JSON.stringify(j, null, 2));
           } catch (err) {
-            statusText = "error";
-            respText = err.message;
+            statusText = 'error';
+            respText   = err.message;
           }
 
-          // テーブルに結果追加
           const tr = tableBody.insertRow();
           tr.innerHTML = `
             <td>${rowNum}</td>
-            <td>${entry.name || ""}</td>
+            <td>${entry.name || ''}</td>
             <td>${statusText}</td>
             <td><pre style="white-space:pre-wrap;">${respText}</pre></td>
           `;
         }
 
-        document.getElementById("postMessage").innerHTML =
+        document.getElementById('postMessage').innerHTML =
           '<div class="success">CSV の POST が完了しました。</div>';
+      }
+
+      // ——— テンプレート CSV を取得・生成してダウンロード ———
+      async function downloadTemplate() {
+        const baseUrl = document.getElementById('baseUrl').value;
+        const tenant  = document.getElementById('tenant').value;
+        let page       = 1;
+        let totalPages = 1;
+        const names    = [];
+
+        while (page <= totalPages) {
+          const res = await fetch(
+            `${baseUrl}/licenses/custprops?sort=weight%3Basc&max=10&stats=true&filters=retired%3D%3Dfalse&page=${page}`,
+            {
+              headers: {
+                'x-okapi-tenant': tenant,
+                'x-okapi-token': okapiToken
+              }
+            }
+          );
+          if (!res.ok) {
+            alert('カスタムプロパティ取得に失敗しました（コード ' + res.status + '）');
+            return;
+          }
+          const data = await res.json();
+          totalPages = data.totalPages || 1;
+          data.results.forEach(item => names.push(item.name));
+          page++;
+        }
+
+        // ヘッダー組み立て
+        const headers = ['name', 'type', 'status', ...names.map(n => `customProperties.${n}`)];
+        const csv = headers.join(',');
+
+        // ダウンロード
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'license_template.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
     </script>
   </body>
