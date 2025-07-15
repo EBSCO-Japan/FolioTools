@@ -2,7 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <title>FOLIO Licenses CSV Downloader</title>
+    <title>FOLIO Licenses CSV Manager</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -24,7 +24,8 @@
         font-size: 14px;
       }
       input[type="text"],
-      input[type="password"] {
+      input[type="password"],
+      input[type="file"] {
         padding: 10px;
         width: 100%;
         max-width: 400px;
@@ -68,29 +69,55 @@
         margin: 10px 0;
         border-radius: 4px;
       }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background: #007bff;
+        color: white;
+      }
     </style>
   </head>
   <body>
     <div class="form-container">
-      <h2>FOLIO Licenses CSV Downloader</h2>
-      <label>Base URL:
+      <h2>FOLIO Licenses CSV Manager</h2>
+      <label>
+        Base URL:
         <input type="text" id="baseUrl" value="https://folio-quesnelia-okapi.dev.folio.org" />
       </label>
-      <label>Tenant:
+      <label>
+        Tenant:
         <input type="text" id="tenant" value="diku" />
       </label>
-      <label>Username:
+      <label>
+        Username:
         <input type="text" id="username" value="diku_admin" />
       </label>
-      <label>Password:
+      <label>
+        Password:
         <input type="password" id="password" value="admin" />
       </label>
       <button id="fetchBtn">CSVダウンロード</button>
+      <label>
+        CSVアップロード:
+        <input type="file" id="csvFile" accept=".csv" />
+      </label>
+      <button id="uploadBtn">CSVアップロード実行</button>
       <div id="message"></div>
+      <div id="uploadResults"></div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script>
-      document.getElementById('fetchBtn').addEventListener('click', fetchAndDownload);
+      document.getElementById("fetchBtn").addEventListener("click", fetchAndDownload);
+      document.getElementById("uploadBtn").addEventListener("click", uploadFromCSV);
 
       async function fetchAndDownload() {
         const baseUrl = document.getElementById("baseUrl").value;
@@ -98,65 +125,63 @@
         const username = document.getElementById("username").value;
         const password = document.getElementById("password").value;
         const messageEl = document.getElementById("message");
-        const fetchBtn = document.getElementById('fetchBtn');
+        const fetchBtn = document.getElementById("fetchBtn");
 
-        // 状態リセット
         messageEl.innerHTML = '<div class="info">取得中…</div>';
         fetchBtn.disabled = true;
 
-        // 認証
         let token;
         try {
           const loginRes = await fetch(`${baseUrl}/authn/login`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-okapi-tenant': tenant
-            },
-            body: JSON.stringify({ username, password })
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-okapi-tenant": tenant },
+            body: JSON.stringify({ username, password }),
           });
-          if (!loginRes.ok) throw new Error('認証失敗');
-          token = loginRes.headers.get('x-okapi-token');
+          if (!loginRes.ok) throw new Error("認証失敗");
+          token = loginRes.headers.get("x-okapi-token");
         } catch (err) {
           messageEl.innerHTML = '<div class="error">認証に失敗しました</div>';
           fetchBtn.disabled = false;
           return;
         }
 
-        // データ取得
-        const licenseRows = [];
-        const customKeys = new Set();
-        let page = 1;
-        const perPage = 100;
-        let totalPages = 1;
-
         try {
+          const licenseRows = [];
+          const customKeys = new Set();
+          let page = 1;
+          const perPage = 100;
+          let totalPages = 1;
+
           do {
             const res = await fetch(
               `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
-              { headers: { 'x-okapi-token': token, 'x-okapi-tenant': tenant } }
+              { headers: { "x-okapi-token": token, "x-okapi-tenant": tenant } }
             );
             if (!res.ok) break;
             const data = await res.json();
             totalPages = data.totalPages || 1;
-            data.results.forEach(lic => {
+            data.results.forEach((lic) => {
               const base = {
                 ID: lic.id,
-                Created: lic.dateCreated?.slice(0,10) || '',
+                Created: lic.dateCreated?.slice(0, 10) || "",
                 Name: lic.name,
-                Status: lic.status?.label || ''
+                Status: lic.status?.label || "",
               };
               const custom = {};
               Object.entries(lic.customProperties || {}).forEach(([key, items]) => {
-                if (!Array.isArray(items)) return;
+                if (!Array.isArray(items) || items.length === 0) return;
                 customKeys.add(key);
-                const values = items.map(item => {
-                  const v = item.value;
-                  if (Array.isArray(v)) return v.map(x => x?.label || x).join('; ');
-                  if (v && typeof v === 'object') return v.label || JSON.stringify(v);
-                  return String(v);
-                }).join('; ');
-                custom[key] = values;
+                const selected = items.reduce((prev, curr) => (prev.id > curr.id ? prev : curr));
+                const v = selected.value;
+                let displayValue = "";
+                if (Array.isArray(v)) {
+                  displayValue = v.map(x => x.label || String(x)).join("; ");
+                } else if (v && typeof v === "object") {
+                  displayValue = v.label || "";
+                } else {
+                  displayValue = String(v);
+                }
+                custom[key] = displayValue;
               });
               licenseRows.push({ base, custom });
             });
@@ -169,31 +194,34 @@
             return;
           }
 
-          // CSV生成
-          const headers = ['ID','Created','Name','Status', ...Array.from(customKeys).map(k => `customProperties.${k}`)];
-          const csv = [headers.join(',')];
+          const headers = [
+            "ID",
+            "Created",
+            "Name",
+            "Status",
+            ...Array.from(customKeys).map(k => `customProperties.${k}`),
+          ];
+          const csv = [headers.join(",")];
           licenseRows.forEach(({ base, custom }) => {
             const row = [];
             headers.forEach(h => {
-              let val = '';
+              let val = "";
               if (base[h] !== undefined) val = base[h];
-              else if (h.startsWith('customProperties.')) {
-                const key = h.replace('customProperties.','');
-                val = custom[key] || '';
+              else if (h.startsWith("customProperties.")) {
+                const key = h.replace("customProperties.", "");
+                val = custom[key] || "";
               }
-              // エスケープ
-              if (/[",\n]/.test(val)) val = `"${val.replace(/"/g,'""')}"`;
+              if (/[",\n]/.test(val)) val = `"${val.replace(/"/g, '""')}"`;
               row.push(val);
             });
-            csv.push(row.join(','));
+            csv.push(row.join(","));
           });
 
-          // ダウンロード
-          const blob = new Blob(["\uFEFF" + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+          const blob = new Blob(["\uFEFF" + csv.join("\n")], { type: "text/csv;charset=utf-8;" });
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
+          const a = document.createElement("a");
           const now = new Date();
-          const pad = n => String(n).padStart(2,'0');
+          const pad = n => String(n).padStart(2, "0");
           const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
           a.href = url;
           a.download = `licenses_${ts}.csv`;
@@ -207,8 +235,106 @@
           console.error(err);
           messageEl.innerHTML = '<div class="error">エラーが発生しました</div>';
         } finally {
-          fetchBtn.disabled = false;
+          document.getElementById("fetchBtn").disabled = false;
         }
+      }
+
+      async function uploadFromCSV() {
+        const fileInput = document.getElementById("csvFile");
+        const baseUrl = document.getElementById("baseUrl").value;
+        const tenant = document.getElementById("tenant").value;
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        const messageEl = document.getElementById("message");
+        const resultsEl = document.getElementById("uploadResults");
+        const uploadBtn = document.getElementById("uploadBtn");
+
+        if (!fileInput.files.length) {
+          messageEl.innerHTML = '<div class="error">CSVファイルを選択してください</div>';
+          return;
+        }
+        uploadBtn.disabled = true;
+        messageEl.innerHTML = '<div class="info">アップロード中…</div>';
+
+        // Authenticate to get token
+        let token;
+        try {
+          const loginRes = await fetch(`${baseUrl}/authn/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-okapi-tenant": tenant },
+            body: JSON.stringify({ username, password }),
+          });
+          if (!loginRes.ok) throw new Error("認証失敗");
+          token = loginRes.headers.get("x-okapi-token");
+        } catch (err) {
+          messageEl.innerHTML = '<div class="error">認証に失敗しました</div>';
+          uploadBtn.disabled = false;
+          return;
+        }
+
+        const file = fileInput.files[0];
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: async function(results) {
+            const data = results.data;
+            const tableRows = [];
+
+            for (const row of data) {
+              const id = row["ID"];
+              if (!id) continue;
+              // Build payload
+              const payload = {};
+              // Base fields: Name, Status
+              if (row["Name"] !== undefined) payload.name = row["Name"];
+              if (row["Status"] !== undefined) payload.status = { label: row["Status"] };
+
+              // Custom properties
+              payload.customProperties = {};
+              Object.keys(row).forEach(col => {
+                if (!col.startsWith("customProperties.")) return;
+                const key = col.replace("customProperties.", "");
+                const val = row[col].trim();
+                if (val) {
+                  payload.customProperties[key] = [{ _delete: false, value: val }];
+                } else {
+                  payload.customProperties[key] = [{ _delete: true }];
+                }
+              });
+
+              // PUT request
+              try {
+                const res = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "x-okapi-tenant": tenant,
+                    "x-okapi-token": token
+                  },
+                  body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                tableRows.push({ ID: id, status: res.ok ? 'OK' : 'Error', detail: res.ok ? JSON.stringify(result) : res.statusText });
+              } catch (err) {
+                tableRows.push({ ID: id, status: 'Error', detail: err.message });
+              }
+            }
+
+            // Render results table
+            let html = '<table><thead><tr><th>ID</th><th>結果</th><th>詳細</th></tr></thead><tbody>';
+            tableRows.forEach(r => {
+              html += `<tr><td>${r.ID}</td><td>${r.status}</td><td>${r.detail}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            resultsEl.innerHTML = html;
+            messageEl.innerHTML = '<div class="success">アップロード完了！</div>';
+            uploadBtn.disabled = false;
+          },
+          error: function(err) {
+            messageEl.innerHTML = `<div class="error">CSV解析エラー: ${err.message}</div>`;
+            uploadBtn.disabled = false;
+          }
+        });
       }
     </script>
   </body>
