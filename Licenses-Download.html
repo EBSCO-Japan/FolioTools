@@ -195,22 +195,38 @@
               lic.status?.label || ""
             ];
             const customProps = {};
-            Object.entries(lic.customProperties || {}).forEach(([key, items]) => {
-              if (!Array.isArray(items)) return;
-              const label = items[0]?.type?.label || key;
-              customPropLabels.add(label);
-              const values = items.map(item => {
-                const v = item.value;
+            Object.entries(lic.customProperties || {}).forEach(
+              ([key, items]) => {
+                if (!Array.isArray(items) || items.length === 0) return;
+                customPropLabels.add(key);
+
+                // id 最大のオブジェクトを選択
+                const selected = items.reduce((prev, curr) => {
+                  return Number(curr.id) > Number(prev.id) ? curr : prev;
+                }, items[0]);
+
+                const v = selected.value;
+                let cell = "";
+
                 if (Array.isArray(v)) {
-                  return v.map(x => (x && x.label) || x).join(';');
-                } else if (v && typeof v === 'object') {
-                  return v.label || JSON.stringify(v);
+                  // Multiple Select: 各要素の label を結合
+                  cell = v.map((x) => x.label || "").join("; ");
+                } else if (v && typeof v === "object") {
+                  // 単一オブジェクト: label を表示
+                  cell = v.label || "";
+                } else {
+                  // 文字列など
+                  cell = String(v);
                 }
-                return String(v);
-              }).join('; ');
-              customProps[label] = values;
+
+                customProps[key] = cell;  // ←ここを customProps に
+              }
+            );
+
+            licenseRows.push({ 
+              baseCells,     // ← base ではなく baseCells
+              customProps    // ← custom ではなく customProps
             });
-            licenseRows.push({ baseCells, customProps });
           });
           page++;
         } while (page <= totalPages);
@@ -263,7 +279,7 @@
         const csvRows=rows.map(tr=> Array.from(tr.cells).map(td=>{
           let txt=td.innerText;
           if(/[",\n]/.test(txt)) txt=`"${txt.replace(/"/g,'""')}"`;
-          return txt;
+              return txt;
         }).join(','));
         const csv=[headers,...csvRows].join('\n');
         const now=new Date(); const pad=n=>String(n).padStart(2,'0');
