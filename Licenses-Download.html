@@ -204,7 +204,8 @@
         // Custom Property列
         customLabels.forEach(name => {
           const th = document.createElement('th');
-          th.textContent = `customProperties.${name}`;
+          // th.textContent = `customProperties.${name}`;
+          th.textContent = `${name}`;
           headerRow.appendChild(th);
         });
 
