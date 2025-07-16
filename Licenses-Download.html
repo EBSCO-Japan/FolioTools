@@ -124,13 +124,35 @@
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script>
+      async function fetchCustomProps(baseUrl, tenant, token) {
+        const customLabels = [];
+        let page = 1;
+        let totalPages = 1;
+
+        do {
+          const res = await fetch(
+            `${baseUrl}/licenses/custprops?sort=weight%3Basc&max=100&stats=true&filters=retired%3D%3Dfalse&page=${page}`,
+            { headers: { 'x-okapi-tenant': tenant, 'x-okapi-token': token } }
+          );
+          if (!res.ok) break;
+          const data = await res.json();
+          totalPages = data.totalPages || 1;
+          data.results.forEach(prop => {
+            if (prop.name) customLabels.push(prop.name);
+          });
+          page++;
+        } while (page <= totalPages);
+
+        return customLabels;
+      }
+
       async function fetchLicenses() {
-        const baseUrl = document.getElementById("baseUrl").value;
-        const tenant = document.getElementById("tenant").value;
-        const username = document.getElementById("username").value;
-        const password = document.getElementById("password").value;
-        const messageEl = document.getElementById("message");
-        const downloadBtn = document.getElementById("downloadBtn");
+        const baseUrl = document.getElementById('baseUrl').value;
+        const tenant = document.getElementById('tenant').value;
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const messageEl = document.getElementById('message');
+        const downloadBtn = document.getElementById('downloadBtn');
 
         // 取得中メッセージ表示
         messageEl.innerHTML = '<div class="info">取得中…</div>';
@@ -150,7 +172,10 @@
           messageEl.innerHTML = '<div class="error">認証に失敗しました</div>';
           return;
         }
-        const token = loginResponse.headers.get("x-okapi-token");
+        const token = loginResponse.headers.get('x-okapi-token');
+
+        // Custom Propertiesを取得
+        const customLabels = await fetchCustomProps(baseUrl, tenant, token);
 
         // テーブルリセット
         if ($.fn.DataTable.isDataTable("#licensesTable")) {
@@ -165,14 +190,20 @@
         const tableBody = table.querySelector("tbody");
 
         // ヘッダー定義
-        const defaultHeaders = ["ID", "Created", "Name", "Status"];
+        const defaultHeaders = ['ID', 'Created', 'Name', 'Status'];
         defaultHeaders.forEach(label => {
           const th = document.createElement("th");
           th.textContent = label;
           headerRow.appendChild(th);
         });
+        // Custom Property列
+        customLabels.forEach(name => {
+          const th = document.createElement('th');
+          th.textContent = `customProperties.${name}`;
+          headerRow.appendChild(th);
+        });
 
-        const customPropLabels = new Set();
+        // ライセンス取得
         const licenseRows = [];
         let page = 1;
         const perPage = 100;
@@ -198,13 +229,9 @@
             Object.entries(lic.customProperties || {}).forEach(
               ([key, items]) => {
                 if (!Array.isArray(items) || items.length === 0) return;
-                customPropLabels.add(key);
-
-                // id 最大のオブジェクトを選択
-                const selected = items.reduce((prev, curr) => {
-                  return Number(curr.id) > Number(prev.id) ? curr : prev;
-                }, items[0]);
-
+                const selected = items.reduce((prev, curr) =>
+                  Number(curr.id) > Number(prev.id) ? curr : prev
+                );
                 const v = selected.value;
                 let cell = "";
 
@@ -218,26 +245,13 @@
                   // 文字列など
                   cell = String(v);
                 }
-
-                customProps[key] = cell;  // ←ここを customProps に
+                customProps[key] = cell;
               }
             );
-
-            licenseRows.push({ 
-              baseCells,     // ← base ではなく baseCells
-              customProps    // ← custom ではなく customProps
-            });
+            licenseRows.push({ baseCells, customProps });
           });
           page++;
         } while (page <= totalPages);
-
-        // カスタム列追加
-        const customLabels = Array.from(customPropLabels);
-        customLabels.forEach(label => {
-          const th = document.createElement("th");
-          th.textContent = label;
-          headerRow.appendChild(th);
-        });
 
         // 行描画
         licenseRows.forEach(({ baseCells, customProps }) => {
@@ -279,7 +293,7 @@
         const csvRows=rows.map(tr=> Array.from(tr.cells).map(td=>{
           let txt=td.innerText;
           if(/[",\n]/.test(txt)) txt=`"${txt.replace(/"/g,'""')}"`;
-              return txt;
+          return txt;
         }).join(','));
         const csv=[headers,...csvRows].join('\n');
         const now=new Date(); const pad=n=>String(n).padStart(2,'0');
