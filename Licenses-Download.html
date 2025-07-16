@@ -195,7 +195,7 @@
         const tableBody = table.querySelector("tbody");
 
         // ヘッダー定義
-        const defaultHeaders = ['ID', 'Created', 'Name', 'Status'];
+        const defaultHeaders = ['ID', 'Created', 'Name', 'Status', 'Description'];
         defaultHeaders.forEach(label => {
           const th = document.createElement("th");
           th.textContent = label;
@@ -228,15 +228,14 @@
               lic.id,
               lic.dateCreated?.slice(0, 10) || "",
               lic.name,
-              lic.status?.label || ""
+              lic.status?.label || "",
+              lic.description
             ];
             const customProps = {};
             Object.entries(lic.customProperties || {}).forEach(
               ([key, items]) => {
                 if (!Array.isArray(items) || items.length === 0) return;
-                const selected = items.reduce((prev, curr) =>
-                  Number(curr.id) > Number(prev.id) ? curr : prev
-                );
+                const selected = items[0];
                 const v = selected.value;
                 let cell = "";
 
