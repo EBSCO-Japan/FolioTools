@@ -141,7 +141,7 @@
 
         do {
           const res = await fetch(
-            `${baseUrl}/licenses/custprops?sort=weight%3Basc&max=100&stats=true&filters=retired%3D%3Dfalse&page=${page}`,
+            `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=100&stats=true&filters=retired%3D%3Dfalse&page=${page}`,
             { headers: { 'x-okapi-tenant': tenant, 'x-okapi-token': token } }
           );
           if (!res.ok) break;
