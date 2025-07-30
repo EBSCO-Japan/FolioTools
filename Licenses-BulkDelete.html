@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FOLIO Licenses Viewer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.datatables.net/fixedcolumns/4.2.2/css/fixedColumns.dataTables.min.css"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .form-container {
+        margin: 20px 0;
+        padding: 20px;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      label {
+        display: block;
+        margin: 10px 0;
+        font-size: 14px;
+      }
+      input[type="text"],
+      input[type="password"] {
+        padding: 10px;
+        width: 100%;
+        max-width: 400px;
+        box-sizing: border-box;
+        margin-top: 5px;
+      }
+      button {
+        padding: 10px 20px;
+        margin-top: 10px;
+        margin-right: 10px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      button:hover:not(:disabled) {
+        background: #0056b3;
+      }
+      .table-wrapper {
+        overflow-x: auto;
+      }
+      table {
+        border-collapse: collapse;
+        margin-top: 20px;
+        width: 100%;
+        background: white;
+      }
+      th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+      }
+      th {
+        background-color: #f8f8f8;
+      }
+      .success {
+        color: #155724;
+        background: #d4edda;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .error {
+        color: #721c24;
+        background: #f8d7da;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .info {
+        color: #004085;
+        background: #cce5ff;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="form-container">
+      <h2>FOLIO Licenses</h2>
+      <label>Base URL:
+        <input type="text" id="baseUrl" value="https://folio-quesnelia-okapi.dev.folio.org" />
+      </label>
+      <label>Tenant:
+        <input type="text" id="tenant" value="diku" />
+      </label>
+      <label>Username:
+        <input type="text" id="username" value="diku_admin" />
+      </label>
+      <label>Password:
+        <input type="password" id="password" value="admin" />
+      </label>
+      <button onclick="fetchLicenses()">ライセンスを取得</button>
+      <button id="downloadBtn" onclick="downloadCSV()" disabled>CSVダウンロード</button>
+      <button id="deleteBtn" onclick="deleteSelected()" disabled>選択したライセンスを削除</button>
+    </div>
+
+    <div class="form-container">
+      <h2>ライセンステーブル</h2>
+      <div id="message"></div>
+      <div class="table-wrapper">
+        <table id="licensesTable">
+          <thead>
+            <tr></tr>
+            <tr></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/fixedcolumns/4.2.2/js/dataTables.fixedColumns.min.js"></script>
+    <script>
+      // Custom Properties のメタ情報を取得
+      async function fetchCustomProps(baseUrl, tenant, token) {
+        const customPropsMeta = [];
+        let page = 1;
+        let totalPages = 1;
+
+        do {
+          const res = await fetch(
+            `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=100&stats=true&filters=retired%3D%3Dfalse&page=${page}`,
+            { headers: { 'x-okapi-tenant': tenant, 'x-okapi-token': token } }
+          );
+          if (!res.ok) break;
+          const data = await res.json();
+          totalPages = data.totalPages || 1;
+          data.results.forEach(prop => {
+            if (prop.name) {
+              customPropsMeta.push({ key: prop.name, ctx: prop.ctx });
+            }
+          });
+          page++;
+        } while (page <= totalPages);
+
+        return customPropsMeta;
+      }
+
+      async function fetchLicenses() {
+        const baseUrl = document.getElementById('baseUrl').value;
+        const tenant = document.getElementById('tenant').value;
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const messageEl = document.getElementById('message');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+
+        messageEl.innerHTML = '<div class="info">取得中…</div>';
+        downloadBtn.disabled = true;
+        deleteBtn.disabled = true;
+
+        // 認証リクエスト
+        const loginResponse = await fetch(`${baseUrl}/authn/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-okapi-tenant": tenant,
+          },
+          body: JSON.stringify({ username, password }),
+        });
+        if (!loginResponse.ok) {
+          messageEl.innerHTML = '<div class="error">認証に失敗しました</div>';
+          return;
+        }
+        const token = loginResponse.headers.get('x-okapi-token');
+
+        // グローバルに保持
+        window.okapiBaseUrl = baseUrl;
+        window.okapiTenant = tenant;
+        window.okapiToken = token;
+
+        // メタ情報取得
+        const customPropsMeta = await fetchCustomProps(baseUrl, tenant, token);
+
+        // テーブルリセット
+        if ($.fn.DataTable.isDataTable("#licensesTable")) {
+          $("#licensesTable").DataTable().destroy();
+        }
+        $(".table-wrapper").html(
+          '<table id="licensesTable"><thead><tr></tr><tr></tr></thead><tbody></tbody></table>'
+        );
+
+        const table = document.getElementById("licensesTable");
+        const thead = table.querySelector("thead");
+        const topRow = thead.rows[0];
+        const botRow = thead.rows[1];
+
+        // 選択用チェックボックス列
+        const selectTh = document.createElement("th");
+        selectTh.rowSpan = 2;
+        selectTh.textContent = "選択";
+        topRow.appendChild(selectTh);
+
+        // デフォルトヘッダー
+        const defaultHeaders = [
+          'ID','Created','Name','Alternate Names','Type','Status','Description'
+        ];
+        defaultHeaders.forEach(label => {
+          const th = document.createElement("th");
+          th.rowSpan = 2;
+          th.textContent = label;
+          topRow.appendChild(th);
+        });
+
+        // 1行目：Custom Props の ctx
+        customPropsMeta.forEach(({ ctx }) => {
+          const th = document.createElement("th");
+          th.textContent = ctx;
+          topRow.appendChild(th);
+        });
+        // 2行目：キー
+        customPropsMeta.forEach(({ key }) => {
+          const th = document.createElement("th");
+          th.textContent = key;
+          botRow.appendChild(th);
+        });
+
+        // ライセンス取得
+        const licenseRows = [];
+        let page = 1, totalPages = 1, perPage = 100;
+        do {
+          const res = await fetch(
+            `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
+            { headers: { "x-okapi-token": token } }
+          );
+          if (!res.ok) break;
+          const data = await res.json();
+          totalPages = data.totalPages || 1;
+          data.results.forEach(lic => {
+            const baseCells = [
+              lic.id,
+              lic.dateCreated?.slice(0, 10) || "",
+              lic.name,
+              (lic.alternateNames||[]).map(a=>a.name).join('; '),
+              lic.type?.value||"",
+              lic.status?.label||"",
+              lic.description
+            ];
+            const customProps = {};
+            Object.entries(lic.customProperties||{}).forEach(([k, items]) => {
+              if (!Array.isArray(items)||!items.length) return;
+              const v = items[0].value;
+              customProps[k] = Array.isArray(v)
+                ? v.map(x=>x.label||"").join('; ')
+                : (v&&typeof v==='object' ? v.label : String(v));
+            });
+            licenseRows.push({ id: lic.id, baseCells, customProps });
+          });
+          page++;
+        } while (page <= totalPages);
+
+        // 行描画
+        const tbody = table.querySelector("tbody");
+        licenseRows.forEach(({ id, baseCells, customProps }) => {
+          const tr = tbody.insertRow();
+          // チェックボックス列
+          const tdSel = document.createElement("td");
+          tdSel.innerHTML = `<input type="checkbox" class="delete-checkbox" data-id="${id}">`;
+          tr.appendChild(tdSel);
+          // デフォルトเซลล์
+          baseCells.forEach(txt => {
+            const td = document.createElement("td");
+            td.textContent = txt;
+            tr.appendChild(td);
+          });
+          // カスタムプロパティ列
+          customPropsMeta.forEach(({ key }) => {
+            const td = document.createElement("td");
+            td.textContent = customProps[key]||"";
+            tr.appendChild(td);
+          });
+        });
+
+        // DataTable 初期化
+        if (licenseRows.length) {
+          const dt = $("#licensesTable").DataTable({
+            paging: false,
+            searching: true,
+            ordering: true,
+            info: false,
+            scrollX: true,
+            autoWidth: false,
+            fixedColumns: { leftColumns: 4 },
+            scrollY: "300px",
+          });
+          dt.columns.adjust();
+          messageEl.innerHTML = '<div class="success">ライセンスの取得が完了しました！</div>';
+          downloadBtn.disabled = false;
+          // チェックボックス変更で削除ボタンの切替
+          document.querySelectorAll('.delete-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+              const anyChecked = Array.from(document.querySelectorAll('.delete-checkbox'))
+                .some(c=>c.checked);
+              deleteBtn.disabled = !anyChecked;
+            });
+          });
+        } else {
+          messageEl.innerHTML = '<div class="error">ライセンスが見つかりませんでした。</div>';
+        }
+      }
+
+      // 選択削除
+      async function deleteSelected() {
+        const messageEl = document.getElementById('message');
+        const checkboxes = Array.from(document.querySelectorAll('.delete-checkbox'))
+          .filter(cb => cb.checked);
+        const count = checkboxes.length;
+        if (count === 0) return;
+        if (!confirm(`${count}件のライセンスを削除します。よろしいですか？`)) return;
+
+        const { okapiBaseUrl: baseUrl, okapiTenant: tenant, okapiToken: token } = window;
+        const errors = [];
+        for (const cb of checkboxes) {
+          const id = cb.getAttribute('data-id');
+          try {
+            const res = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
+              method: 'DELETE',
+              headers: { 'x-okapi-tenant': tenant, 'x-okapi-token': token }
+            });
+            if (!res.ok) {
+              errors.push(id);
+            }
+          } catch(e) {
+            errors.push(`${id}: ${e.message}`);
+          }
+        }
+        // 再取得
+        await fetchLicenses();
+        // 成功／エラーメッセージ
+        if (errors.length === 0) {
+          messageEl.innerHTML = `<div class="success">${count}件のライセンスを削除しました！</div>`;
+        } else {
+          messageEl.innerHTML = `<div class="error">削除中にエラーが発生しました: ${errors.join(', ')}</div>`;
+        }
+      }
+
+      // CSVダウンロード（チェックボックス列を除外）
+      function downloadCSV() {
+        const defaultHeaders = [
+          'ID','Created','Name','Alternate Names','Type','Status','Description'
+        ];
+        const table = document.getElementById("licensesTable");
+        const theadRows = table.querySelectorAll("thead tr");
+
+        // 1行目（checkbox列スキップ）
+        const row0Ths = Array.from(theadRows[0].cells).slice(1);
+        const ctxCells = row0Ths
+          .slice(defaultHeaders.length)
+          .map(th => `"${th.innerText.replace(/"/g, '""')}"`);
+        const header1 = [
+          ...Array(defaultHeaders.length).fill('""'),
+          ...ctxCells
+        ].join(",");
+
+        // 2行目（checkbox列スキップ）
+        const keyCells = Array.from(theadRows[1].cells).slice(1)
+          .map(th => `"${th.innerText.replace(/"/g, '""')}"`);
+        const header2 = [
+          ...defaultHeaders.map(h => `"${h}"`),
+          ...keyCells
+        ].join(",");
+
+        // データ行（checkbox列スキップ）
+        const dataRows = Array.from(
+          table.querySelectorAll("tbody tr")
+        ).map(tr =>
+          Array.from(tr.cells).slice(1).map(td => {
+            let t = td.innerText;
+            if (/[",\n]/.test(t)) t = `"${t.replace(/"/g,'""')}"`;
+            return t;
+          }).join(",")
+        );
+
+        if (!dataRows.length) {
+          alert("CSVに出力するデータがありません。");
+          return;
+        }
+
+        const body = [header1, header2, ...dataRows].join("\n");
+        const csvContent = "\uFEFF" + body;
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const now = new Date(), pad = n => String(n).padStart(2, "0");
+        const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        a.href = url;
+        a.download = `licenses_${ts}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+    </script>
+  </body>
+</html>
