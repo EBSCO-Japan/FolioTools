@@ -2,7 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <title>FOLIO Licenses 更新</title>
+    <title>FOLIO Licenses CSV Manager</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -113,7 +113,6 @@
         .getElementById("uploadBtn")
         .addEventListener("click", uploadFromCSV);
 
-      // Custom Properties のメタ情報を取得 (キーと ctx)
       async function fetchCustomProps(baseUrl, tenant, token) {
         const customPropsMeta = [];
         let page = 1;
@@ -175,7 +174,6 @@
         }
 
         try {
-          // Custom Properties メタ情報取得（ctx と key）
           const customPropsMeta = await fetchCustomProps(baseUrl, tenant, token);
           const customKeysOrdered = customPropsMeta.map((c) => c.key);
 
@@ -208,7 +206,6 @@
               Object.entries(lic.customProperties || {}).forEach(
                 ([key, items]) => {
                   if (!Array.isArray(items) || items.length === 0) return;
-                  // reference: take first item (multiselect or others)
                   const item = items[0];
                   const v = item.value;
                   let displayValue = "";
@@ -236,9 +233,7 @@
             return;
           }
 
-          // CSV ヘッダー作成（二段ヘッダー）
           const defaultHeaders = ["id", "created", "name", "status"];
-          // 1行目: defaultHeaders 分空（""）、続いて ctx（適切にエスケープ）
           const header1Parts = [];
           defaultHeaders.forEach(() => {
             header1Parts.push('""');
@@ -249,7 +244,6 @@
           });
           const header1 = header1Parts.join(",");
 
-          // 2行目: defaultHeaders + custom property keys
           const header2Parts = defaultHeaders.map(
             (h) => `"${h.replace(/"/g, '""')}"`
           );
@@ -258,7 +252,6 @@
           });
           const header2 = header2Parts.join(",");
 
-          // データ行
           const dataRows = licenseRows.map(({ base, custom }) => {
             const rowParts = [];
             defaultHeaders.forEach((h) => {
@@ -344,19 +337,36 @@
 
         const file = fileInput.files[0];
         Papa.parse(file, {
-          header: true,
+          header: false,
           skipEmptyLines: true,
-          // ヘッダー名の先頭にある \uFEFF を取り除く
-          transformHeader: (header) => header.replace(/^\uFEFF/, ""),
           complete: async function (results) {
-            const data = results.data;
-            const tableRows = [];
+            const rows = results.data;
+            if (!Array.isArray(rows) || rows.length < 2) {
+              messageEl.innerHTML =
+                '<div class="error">ヘッダー行が不足しています。2行目をヘッダーとして含むCSVをアップロードしてください。</div>';
+              uploadBtn.disabled = false;
+              return;
+            }
 
-            for (const row of data) {
+            let rawHeaders = rows[1].map((h) =>
+              typeof h === "string" ? h.replace(/^\uFEFF/, "") : h
+            );
+
+            const dataObjects = [];
+            for (let i = 2; i < rows.length; i++) {
+              const rowArr = rows[i];
+              const obj = {};
+              rawHeaders.forEach((h, idx) => {
+                obj[h] = rowArr[idx] !== undefined ? String(rowArr[idx]) : "";
+              });
+              dataObjects.push(obj);
+            }
+
+            const tableRows = [];
+            for (const row of dataObjects) {
               const id = row["id"];
               if (!id) continue;
 
-              // まずGETで既存ライセンスを取得
               let payload;
               try {
                 const getRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
@@ -378,24 +388,30 @@
                 continue;
               }
 
-              // Base fields: name, status もCSVで上書き
               if (row["name"] !== undefined) payload.name = row["name"];
               if (row["status"] !== undefined) payload.status = row["status"];
 
-              // Custom properties
               if (!payload.customProperties) payload.customProperties = {};
-              Object.keys(row).forEach((col) => {
-                if (!col.startsWith("customProperties.")) return;
-                const key = col.replace("customProperties.", "");
-                const val = row[col].trim();
+
+              Object.entries(row).forEach(([col, rawVal]) => {
+                // skip base fields
+                if (["id", "name", "status", "created"].includes(col)) return;
+
+                // normalize key: allow "customProperties.X" or "X"
+                let key = col;
+                if (col.startsWith("customProperties.")) {
+                  key = col.replace("customProperties.", "");
+                }
+
+                const val = (rawVal || "").trim();
+
                 if (!(key in payload.customProperties)) {
-                  // 既存にない場合は従来通りvalueにセット
                   payload.customProperties[key] = val
                     ? [{ _delete: false, value: val }]
                     : [{ _delete: true }];
                   return;
                 }
-                // 既存の型に応じて上書き
+
                 const arr = payload.customProperties[key];
                 if (!Array.isArray(arr) || arr.length === 0) {
                   payload.customProperties[key] = val
@@ -403,11 +419,9 @@
                     : [{ _delete: true }];
                   return;
                 }
-                // 1件目のみ上書き（複数ある場合はMultiselect想定）
+
                 if (Array.isArray(arr[0].value)) {
-                  // Multiselect: valueが配列
                   if (val) {
-                    // CSV値を;区切りで分割
                     const vals = val
                       .split(/;|；/)
                       .map((v) => v.trim())
@@ -423,7 +437,6 @@
                   typeof arr[0].value === "object" &&
                   "value" in arr[0].value
                 ) {
-                  // value.value型
                   if (val) {
                     arr[0].value.value = val;
                     arr[0]._delete = false;
@@ -431,7 +444,6 @@
                     arr[0]._delete = true;
                   }
                 } else {
-                  // value型
                   if (val) {
                     arr[0].value = val;
                     arr[0]._delete = false;
@@ -471,7 +483,6 @@
               }
             }
 
-            // Render results table
             let html =
               "<table><thead><tr><th>ID</th><th>結果</th><th>詳細</th></tr></thead><tbody>";
             tableRows.forEach((r) => {
