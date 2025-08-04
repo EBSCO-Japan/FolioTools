@@ -69,21 +69,6 @@
         margin: 10px 0;
         border-radius: 4px;
       }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-      }
-      th,
-      td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-      }
-      th {
-        background: #007bff;
-        color: white;
-      }
     </style>
   </head>
   <body>
@@ -128,6 +113,38 @@
         .getElementById("uploadBtn")
         .addEventListener("click", uploadFromCSV);
 
+      // Custom Properties のメタ情報を取得 (キーと ctx)
+      async function fetchCustomProps(baseUrl, tenant, token) {
+        const customPropsMeta = [];
+        let page = 1;
+        let totalPages = 1;
+        const max = 100;
+
+        do {
+          const url = `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=${max}&stats=true&filters=retired%3D%3Dfalse&page=${page}`;
+          const res = await fetch(url, {
+            headers: {
+              "x-okapi-tenant": tenant,
+              "x-okapi-token": token,
+            },
+          });
+          if (!res.ok) break;
+          const data = await res.json();
+          totalPages = data.totalPages || 1;
+          (data.results || []).forEach((prop) => {
+            if (prop.name) {
+              customPropsMeta.push({
+                key: prop.name,
+                ctx: prop.ctx || "",
+              });
+            }
+          });
+          page++;
+        } while (page <= totalPages);
+
+        return customPropsMeta;
+      }
+
       async function fetchAndDownload() {
         const baseUrl = document.getElementById("baseUrl").value;
         const tenant = document.getElementById("tenant").value;
@@ -158,8 +175,11 @@
         }
 
         try {
+          // Custom Properties メタ情報取得（ctx と key）
+          const customPropsMeta = await fetchCustomProps(baseUrl, tenant, token);
+          const customKeysOrdered = customPropsMeta.map((c) => c.key);
+
           const licenseRows = [];
-          const customKeys = new Set();
           let page = 1;
           const perPage = 100;
           let totalPages = 1;
@@ -167,12 +187,17 @@
           do {
             const res = await fetch(
               `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
-              { headers: { "x-okapi-token": token, "x-okapi-tenant": tenant } }
+              {
+                headers: {
+                  "x-okapi-tenant": tenant,
+                  "x-okapi-token": token,
+                },
+              }
             );
             if (!res.ok) break;
             const data = await res.json();
             totalPages = data.totalPages || 1;
-            data.results.forEach((lic) => {
+            (data.results || []).forEach((lic) => {
               const base = {
                 id: lic.id,
                 created: lic.dateCreated?.slice(0, 10) || "",
@@ -183,11 +208,9 @@
               Object.entries(lic.customProperties || {}).forEach(
                 ([key, items]) => {
                   if (!Array.isArray(items) || items.length === 0) return;
-                  customKeys.add(key);
-                  const selected = items.reduce((prev, curr) =>
-                    prev.id > curr.id ? prev : curr
-                  );
-                  const v = selected.value;
+                  // reference: take first item (multiselect or others)
+                  const item = items[0];
+                  const v = item.value;
                   let displayValue = "";
                   if (Array.isArray(v)) {
                     displayValue = v
@@ -213,30 +236,47 @@
             return;
           }
 
-          const headers = [
-            "id",
-            "created",
-            "name",
-            "status",
-            ...Array.from(customKeys).map((k) => `customProperties.${k}`),
-          ];
-          const csv = [headers.join(",")];
-          licenseRows.forEach(({ base, custom }) => {
-            const row = [];
-            headers.forEach((h) => {
-              let val = "";
-              if (base[h] !== undefined) val = base[h];
-              else if (h.startsWith("customProperties.")) {
-                const key = h.replace("customProperties.", "");
-                val = custom[key] || "";
-              }
+          // CSV ヘッダー作成（二段ヘッダー）
+          const defaultHeaders = ["id", "created", "name", "status"];
+          // 1行目: defaultHeaders 分空（""）、続いて ctx（適切にエスケープ）
+          const header1Parts = [];
+          defaultHeaders.forEach(() => {
+            header1Parts.push('""');
+          });
+          customPropsMeta.forEach(({ ctx }) => {
+            const escaped = `"${(ctx || "").replace(/"/g, '""')}"`;
+            header1Parts.push(escaped);
+          });
+          const header1 = header1Parts.join(",");
+
+          // 2行目: defaultHeaders + custom property keys
+          const header2Parts = defaultHeaders.map(
+            (h) => `"${h.replace(/"/g, '""')}"`
+          );
+          customKeysOrdered.forEach((k) => {
+            header2Parts.push(`"${k.replace(/"/g, '""')}"`);
+          });
+          const header2 = header2Parts.join(",");
+
+          // データ行
+          const dataRows = licenseRows.map(({ base, custom }) => {
+            const rowParts = [];
+            defaultHeaders.forEach((h) => {
+              let val = base[h] !== undefined ? base[h] : "";
               if (/[",\n]/.test(val)) val = `"${val.replace(/"/g, '""')}"`;
-              row.push(val);
+              rowParts.push(val);
             });
-            csv.push(row.join(","));
+            customKeysOrdered.forEach((key) => {
+              let val = custom[key] || "";
+              if (/[",\n]/.test(val)) val = `"${val.replace(/"/g, '""')}"`;
+              rowParts.push(val);
+            });
+            return rowParts.join(",");
           });
 
-          const blob = new Blob(["\uFEFF" + csv.join("\n")], {
+          const body = [header1, header2, ...dataRows].join("\n");
+          const csvContent = "\uFEFF" + body;
+          const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
           });
           const url = URL.createObjectURL(blob);
@@ -261,7 +301,7 @@
           console.error(err);
           messageEl.innerHTML = '<div class="error">エラーが発生しました</div>';
         } finally {
-          document.getElementById("fetchBtn").disabled = false;
+          fetchBtn.disabled = false;
         }
       }
 
@@ -368,14 +408,21 @@
                   // Multiselect: valueが配列
                   if (val) {
                     // CSV値を;区切りで分割
-                    const vals = val.split(/;|；/).map((v) => v.trim()).filter(Boolean);
+                    const vals = val
+                      .split(/;|；/)
+                      .map((v) => v.trim())
+                      .filter(Boolean);
                     arr[0].value = vals.map((v) => ({ value: v }));
                     arr[0]._delete = false;
                   } else {
                     arr[0].value = [];
                     arr[0]._delete = true;
                   }
-                } else if (arr[0].value && typeof arr[0].value === "object" && "value" in arr[0].value) {
+                } else if (
+                  arr[0].value &&
+                  typeof arr[0].value === "object" &&
+                  "value" in arr[0].value
+                ) {
                   // value.value型
                   if (val) {
                     arr[0].value.value = val;
@@ -407,7 +454,9 @@
                   body: JSON.stringify(payload),
                 });
                 let result = {};
-                try { result = await res.json(); } catch {}
+                try {
+                  result = await res.json();
+                } catch {}
                 tableRows.push({
                   ID: id,
                   status: res.ok ? "OK" : "Error",
