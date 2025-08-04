@@ -2,7 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <title>FOLIO Licenses CSV Manager</title>
+    <title>FOLIO Licenses 更新</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -315,31 +315,88 @@
             for (const row of data) {
               const id = row["id"];
               if (!id) continue;
-              // Build payload
-              const payload = {};
-              // Base fields: Name, Status
-              if (row["id"] !== undefined) payload.id = row["id"];
+
+              // まずGETで既存ライセンスを取得
+              let payload;
+              try {
+                const getRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
+                  method: "GET",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "x-okapi-tenant": tenant,
+                    "x-okapi-token": token,
+                  },
+                });
+                if (!getRes.ok) throw new Error("GET失敗");
+                payload = await getRes.json();
+              } catch (err) {
+                tableRows.push({
+                  ID: id,
+                  status: "Error",
+                  detail: `GET失敗: ${err.message}`,
+                });
+                continue;
+              }
+
+              // Base fields: name, status もCSVで上書き
               if (row["name"] !== undefined) payload.name = row["name"];
               if (row["status"] !== undefined) payload.status = row["status"];
 
               // Custom properties
-              payload.customProperties = {};
+              if (!payload.customProperties) payload.customProperties = {};
               Object.keys(row).forEach((col) => {
                 if (!col.startsWith("customProperties.")) return;
                 const key = col.replace("customProperties.", "");
                 const val = row[col].trim();
-                if (val) {
-                  payload.customProperties[key] = [
-                    { _delete: false, value: val },
-                  ];
+                if (!(key in payload.customProperties)) {
+                  // 既存にない場合は従来通りvalueにセット
+                  payload.customProperties[key] = val
+                    ? [{ _delete: false, value: val }]
+                    : [{ _delete: true }];
+                  return;
+                }
+                // 既存の型に応じて上書き
+                const arr = payload.customProperties[key];
+                if (!Array.isArray(arr) || arr.length === 0) {
+                  payload.customProperties[key] = val
+                    ? [{ _delete: false, value: val }]
+                    : [{ _delete: true }];
+                  return;
+                }
+                // 1件目のみ上書き（複数ある場合はMultiselect想定）
+                if (Array.isArray(arr[0].value)) {
+                  // Multiselect: valueが配列
+                  if (val) {
+                    // CSV値を;区切りで分割
+                    const vals = val.split(/;|；/).map((v) => v.trim()).filter(Boolean);
+                    arr[0].value = vals.map((v) => ({ value: v }));
+                    arr[0]._delete = false;
+                  } else {
+                    arr[0].value = [];
+                    arr[0]._delete = true;
+                  }
+                } else if (arr[0].value && typeof arr[0].value === "object" && "value" in arr[0].value) {
+                  // value.value型
+                  if (val) {
+                    arr[0].value.value = val;
+                    arr[0]._delete = false;
+                  } else {
+                    arr[0]._delete = true;
+                  }
                 } else {
-                  payload.customProperties[key] = [{ _delete: true }];
+                  // value型
+                  if (val) {
+                    arr[0].value = val;
+                    arr[0]._delete = false;
+                  } else {
+                    arr[0]._delete = true;
+                  }
                 }
               });
 
               // PUT request
               try {
-                console.log(JSON.stringify(payload))
+                console.log(JSON.stringify(payload));
                 const res = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
                   method: "PUT",
                   headers: {
@@ -349,7 +406,8 @@
                   },
                   body: JSON.stringify(payload),
                 });
-                const result = await res.json();
+                let result = {};
+                try { result = await res.json(); } catch {}
                 tableRows.push({
                   ID: id,
                   status: res.ok ? "OK" : "Error",
