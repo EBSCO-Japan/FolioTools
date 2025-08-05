@@ -210,11 +210,13 @@
                   const v = item.value;
                   let displayValue = "";
                   if (Array.isArray(v)) {
+                    // 配列なら各要素の value をつなぐ
                     displayValue = v
-                      .map((x) => x.label || String(x))
+                      .map((x) => x.value || String(x))
                       .join("; ");
                   } else if (v && typeof v === "object") {
-                    displayValue = v.label || "";
+                    // オブジェクトなら value を使う
+                    displayValue = v.value || "";
                   } else {
                     displayValue = String(v);
                   }
