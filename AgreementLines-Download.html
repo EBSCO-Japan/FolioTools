@@ -110,7 +110,10 @@
               <th>HIQ Coverage (Managed)</th>
               <th>HIQ Coverage (Custom)</th>
               <th>HIQ URL</th>
-              <th>HIQ ISSN / ISBN</th>
+              <th>HIQ Print ISSN</th>
+              <th>HIQ Online ISSN</th>
+              <th>HIQ Print ISBN</th>
+              <th>HIQ Online ISBN</th>
               <th>HIQ Selected / Not selected</th>
               <th>HIQ Custom label 1</th>
               <th>HIQ Custom label 2</th>
@@ -130,7 +133,7 @@
         ・Selected / Not selected は <code class="k">isSelected</code> を参照。<br/>
         ・Coverage は <code class="k">managedCoverageList</code> と <code class="k">customCoverageList</code> をそれぞれ別カラムに連結表示します（例: <code class="k">YYYY-MM-DD - YYYY-MM-DD; ...</code>）。<br/>
         ・Custom label は <code class="k">userDefinedField1..5</code> を 5 列に展開。<br/>
-        ・Root proxy は <code class="k">proxy.proxiedUrl</code> を表示します。
+        ・Root proxy は <code class="k">proxy.proxiedUrl</code> を表示します。<br/>・EKB‑TITLE の HIQ 取得は <code class="k">https://api.ebsco.io/rm/rmaccounts/v2/{customerId}/lists/{packageId}/titles/{kbid}</code> を直接呼び出します（ヘッダーに <code class="k">x-api-key<\/code> を付与）。EKB‑PACKAGE は従来どおりタイトル一覧をページング取得します。
       </div>
     </div>
 
@@ -342,7 +345,10 @@
             hiqData ? hiqData.coverageManaged : '',
             hiqData ? hiqData.coverageCustom : '',
             hiqData ? linkCell(hiqData.url) : '',
-            hiqData ? hiqData.issnIsbn : '',
+            hiqData ? hiqData.printIssn : '',
+            hiqData ? hiqData.onlineIssn : '',
+            hiqData ? hiqData.printIsbn : '',
+            hiqData ? hiqData.onlineIsbn : '',
             hiqData ? hiqData.selected : '',
             hiqData ? hiqData.label1 : '',
             hiqData ? hiqData.label2 : '',
@@ -363,57 +369,53 @@
         dtLines.columns.adjust();
       }
 
-      // --- Holdings IQ Enrichment (TITLE: KBID 照合) ---
-      async function enrichWithHoldingsIQ(items){
-        if(!items || !items.length) return;
-        const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdingsIQ.php';
-        const headers = { 'accept':'application/json', 'x-api-key': hiq.apiKey };
+// --- Holdings IQ Enrichment (TITLE: 直接取得) ---
+async function enrichWithHoldingsIQ(items){
+  if(!items || !items.length) return;
 
-        const concurrency = 4;
-        const queue = [...items];
-        const workers = Array.from({length: concurrency}, () => worker());
+  const headers = { accept: 'application/json', 'x-api-key': hiq.apiKey };
+  const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdings_getTitleDetail.php';
 
-        async function worker(){
-          while(queue.length){
-            const e = queue.shift();
-            if(!e) break;
+  const concurrency = 6;
+  const queue = [...items];
+  const workers = Array.from({ length: concurrency }, () => worker());
 
-            const auth = getAuthority(e);
-            if(auth === 'EKB-PACKAGE') continue; // PACKAGE は別処理済み
+  async function worker(){
+    while (queue.length){
+      const e = queue.shift();
+      if (!e) break;
 
-            const parsed = parseReference3((e.reference || '').trim());
-            if(!parsed) continue;
-            const { vendorId, packageId, kbId } = parsed;
+      // PACKAGE は別処理（従来どおり）
+      if (getAuthority(e) === 'EKB-PACKAGE') continue;
 
-            let found = null;
-            let offset = 1, count = 100, safety = 300;
-            while(!found && safety-- > 0){
-              const url = `${base}?account=${hiq.customerId}&vendor=${vendorId}&package=${packageId}&count=${count}&offset=${offset}&orderby=titlename&searchfield=titlename`;
-              try{
-                const res = await fetch(url, { headers });
-                if(!res.ok) break;
-                const data = await res.json();
-                const titles = Array.isArray(data.titles) ? data.titles : [];
-                found = titles.find(t => String(t.titleId) === String(kbId)) || null;
-                if(found) break;
-                const total = Number(data.totalResults || titles.length);
-                if(!total || offset + count > total) break;
-                offset += count;
-              }catch(_){ break; }
-            }
+      const parsed = parseReference3((e.reference || '').trim());
+      if (!parsed) continue;
+      const { packageId, kbId } = parsed;
+      const url = `${base}?custid=${hiq.customerId}&packageid=${packageId}&kbid=${kbId}`;
 
-            if(found){
-              updateRowWithHIQ(e.id || '', hiqFromTitle(found));
-            }
-          }
+      try {
+        const res = await fetch(url, { headers });
+        if (!res.ok) continue;
+
+        // 返却はタイトルオブジェクト（titleId, customerResourcesList など）を想定
+        const titleObj = await res.json();
+        if (titleObj) {
+          updateRowWithHIQ(e.id || '', hiqFromTitle(titleObj));
         }
-        await Promise.all(workers);
+      } catch (_) {
+        // no-op
       }
+    }
+  }
+
+  await Promise.all(workers);
+}
+
 
       // --- PACKAGE -> 全タイトル展開 ---
       async function expandPackagesToRows(packageItems){
         if(!packageItems.length) return [];
-        const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdingsIQ.php';
+        const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdings_getPackageTitles.php';
         const headers = { 'accept':'application/json', 'x-api-key': hiq.apiKey };
 
         const concurrency = 3;
@@ -460,27 +462,30 @@
       // --- HIQ Title -> 拡張マッピング（customerResourcesList[0] を使用） ---
       function hiqFromTitle(t){
         const cr = Array.isArray(t.customerResourcesList) && t.customerResourcesList.length ? t.customerResourcesList[0] : {};
-        const ids = formatIdentifiers(t.identifiersList || []);
+        const ids = splitIdentifiers(t.identifiersList || []);
         const covM = formatCoverage(cr.managedCoverageList || []);
         const covC = formatCoverage(cr.customCoverageList || []);
                 return {
-          providerName: cr.vendorName || '',
-          packageName: cr.packageName || '',
+          providerName: cr?.providerName ?? t?.providerName ?? '',
+          packageName: cr?.packageName ?? t?.packageName ?? '',
           titleName: t.titleName || '',
-          titleId: (t.titleId != null ? String(t.titleId) : ''),
-          packageId: (cr.packageId != null ? String(cr.packageId) : ''),
-          providerId: (cr.vendorId != null ? String(cr.vendorId) : ''),
+          titleId: String(t?.titleId ?? t?.kbid ?? t?.kbId ?? ''),
+          packageId: String(cr?.packageId ?? t?.listId ?? ''),
+          providerId: String(cr?.vendorId ?? t?.vendorId ?? ''),
           resourceType: t.pubType || '',
           coverageManaged: covM,
           coverageCustom: covC,
-          url: cr.url || '',
-          issnIsbn: ids,
+          url: cr?.url ?? t?.url ?? '',
+          printIssn: ids.printIssn,
+          onlineIssn: ids.onlineIssn,
+          printIsbn: ids.printIsbn,
+          onlineIsbn: ids.onlineIsbn,
           selected: cr.isSelected ? 'Selected' : 'Not selected',
-          label1: cr.userDefinedField1 || '',
-          label2: cr.userDefinedField2 || '',
-          label3: cr.userDefinedField3 || '',
-          label4: cr.userDefinedField4 || '',
-          label5: cr.userDefinedField5 || '',
+          label1: cr?.userDefinedField1 ?? t?.userDefinedField1 ?? '',
+          label2: cr?.userDefinedField2 ?? t?.userDefinedField2 ?? '',
+          label3: cr?.userDefinedField3 ?? t?.userDefinedField3 ?? '',
+          label4: cr?.userDefinedField4 ?? t?.userDefinedField4 ?? '',
+          label5: cr?.userDefinedField5 ?? t?.userDefinedField5 ?? '',
           rootProxy: cr.proxy && cr.proxy.proxiedUrl ? cr.proxy.proxiedUrl : ''
         };
       }
@@ -491,11 +496,23 @@
         }catch(_){ return ''; }
       }
 
-      function formatIdentifiers(list){
+      function splitIdentifiers(list){
+        const out = { printIssn:'', onlineIssn:'', printIsbn:'', onlineIsbn:'' };
         try{
-          return list.map(x => x.id ? (x.source ? `${x.id} (${x.source})` : `${x.id}`) : '').filter(Boolean).join('; ');
-        }catch(_){ return ''; }
+          const bySource = { 'Print ISSN': [], 'Online ISSN': [], 'Print ISBN': [], 'Online ISBN': [] };
+          (list||[]).forEach(x => {
+            if(!x || !x.id) return;
+            if(bySource[x.source]) bySource[x.source].push(String(x.id));
+          });
+          out.printIssn = bySource['Print ISSN'].join('; ');
+          out.onlineIssn = bySource['Online ISSN'].join('; ');
+          out.printIsbn = bySource['Print ISBN'].join('; ');
+          out.onlineIsbn = bySource['Online ISBN'].join('; ');
+        }catch(_){ /* noop */ }
+        return out;
       }
+
+      
 
       // --- TITLE 1 行に HIQ 値を流し込み ---
       function updateRowWithHIQ(entitlementId, hiqObj){
@@ -517,14 +534,17 @@
         setCell(baseIndex + 7, hiqObj.coverageManaged);
         setCell(baseIndex + 8, hiqObj.coverageCustom);
         setCell(baseIndex + 9, hiqObj.url, true);
-        setCell(baseIndex + 10, hiqObj.issnIsbn);
-        setCell(baseIndex + 11, hiqObj.selected);
-        setCell(baseIndex + 12, hiqObj.label1);
-        setCell(baseIndex + 13, hiqObj.label2);
-        setCell(baseIndex + 14, hiqObj.label3);
-        setCell(baseIndex + 15, hiqObj.label4);
-        setCell(baseIndex + 16, hiqObj.label5);
-        setCell(baseIndex + 17, hiqObj.rootProxy);
+        setCell(baseIndex + 10, hiqObj.printIssn);
+        setCell(baseIndex + 11, hiqObj.onlineIssn);
+        setCell(baseIndex + 12, hiqObj.printIsbn);
+        setCell(baseIndex + 13, hiqObj.onlineIsbn);
+        setCell(baseIndex + 14, hiqObj.selected);
+        setCell(baseIndex + 15, hiqObj.label1);
+        setCell(baseIndex + 16, hiqObj.label2);
+        setCell(baseIndex + 17, hiqObj.label3);
+        setCell(baseIndex + 18, hiqObj.label4);
+        setCell(baseIndex + 19, hiqObj.label5);
+        setCell(baseIndex + 20, hiqObj.rootProxy);
       }
 
       // --- Utils ---
@@ -586,7 +606,7 @@
         if(!rows.length){ alert('出力するデータがありません'); return; }
         const headers = [
           'Agreement ID','Name','Start Date','Status','Entitlement ID','Reference','Label','Provider','Package Name','Publication Type','URL',
-          'HIQ Provider name','HIQ Package name','HIQ Title name','HIQ Title ID','HIQ Package ID','HIQ Provider ID','HIQ Resource type','HIQ Coverage (Managed)','HIQ Coverage (Custom)','HIQ URL','HIQ ISSN / ISBN','HIQ Selected / Not selected','HIQ Custom label 1','HIQ Custom label 2','HIQ Custom label 3','HIQ Custom label 4','HIQ Custom label 5','HIQ Root proxy'
+          'HIQ Provider name','HIQ Package name','HIQ Title name','HIQ Title ID','HIQ Package ID','HIQ Provider ID','HIQ Resource type','HIQ Coverage (Managed)','HIQ Coverage (Custom)','HIQ URL','HIQ Print ISSN','HIQ Online ISSN','HIQ Print ISBN','HIQ Online ISBN','HIQ Selected / Not selected','HIQ Custom label 1','HIQ Custom label 2','HIQ Custom label 3','HIQ Custom label 4','HIQ Custom label 5','HIQ Root proxy'
         ];
         const csv = "\uFEFF" + [headers.join(','), ...rows].join('\n');
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
