@@ -2,7 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <title>AgreementLines-Download + Holdings IQ (optional)</title>
+    <title>AgreementLines-Download + Holdings IQ (extended)</title>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
     <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.2.2/css/fixedColumns.dataTables.min.css"/>
     <style>
@@ -83,7 +83,7 @@
     </div>
 
     <div class="form-container">
-      <h2>Agreement Line（Holdings IQ 連携列つき）</h2>
+      <h2>Agreement Line（Holdings IQ 拡張列）</h2>
       <div class="table-wrapper">
         <table id="linesTable">
           <thead>
@@ -93,30 +93,45 @@
               <th>Start Date</th>
               <th>Status</th>
               <th>Entitlement ID</th>
-              <th>Reference <span class="small">(VendorID - PackageID - KBID)</span></th>
+              <th>Reference <span class="small">(VendorID - PackageID - KBID / VendorID - PackageID)</span></th>
               <th>Label</th>
               <th>Provider</th>
               <th>Package Name</th>
               <th>Publication Type</th>
               <th>URL</th>
-              <!-- Holdings IQ enrichment columns -->
-              <th>HIQ Title Name</th>
-              <th>HIQ Publisher</th>
-              <th>HIQ Identifiers</th>
-              <th>HIQ Subjects</th>
-              <th>HIQ Contributors</th>
-              <th>HIQ Pub Type</th>
-              <th>HIQ Edition</th>
+              <!-- New HIQ enrichment columns -->
+              <th>HIQ Provider name</th>
+              <th>HIQ Package name</th>
+              <th>HIQ Title name</th>
+              <th>HIQ Title ID</th>
+              <th>HIQ Package ID</th>
+              <th>HIQ Provider ID</th>
+              <th>HIQ Resource type</th>
+              <th>HIQ Publication date</th>
+              <th>HIQ Coverage (Managed)</th>
+              <th>HIQ Coverage (Custom)</th>
               <th>HIQ URL</th>
+              <th>HIQ ISSN / ISBN</th>
+              <th>HIQ Selected / Not selected</th>
+              <th>HIQ Custom label 1</th>
+              <th>HIQ Custom label 2</th>
+              <th>HIQ Custom label 3</th>
+              <th>HIQ Custom label 4</th>
+              <th>HIQ Custom label 5</th>
+              <th>HIQ Root proxy</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
       <div class="small">
-        ※ HIQ 列は、Reference の <code class="k">VendorID - PackageID - KBID</code> を使って
-        <code class="k">/rmaccounts/v2/{customerId}/vendors/{vendorId}/packages/{packageId}/titles?searchfield=titlename&selection=all&orderby=titlename&count=...&offset=...</code>
-        を呼び、返却 <code class="k">titles</code> から <code class="k">titleId = KBID</code> を照合して表示します（入力があれば実行、なければスキップ）。
+        ※ HIQ 列は、Reference の <code class="k">VendorID - PackageID - KBID</code>（EKB-TITLE）または <code class="k">VendorID - PackageID</code>（EKB-PACKAGE）を使って
+        <code class="k">/rmaccounts/v2/{customerId}/vendors/{vendorId}/packages/{packageId}/titles</code> をページングで呼び、
+        返却 <code class="k">titles</code> / <code class="k">customerResourcesList[0]</code> から各値を抽出します。<br/>
+        ・Selected / Not selected は <code class="k">isSelected</code> を参照。<br/>
+        ・Coverage は <code class="k">managedCoverageList</code> と <code class="k">customCoverageList</code> をそれぞれ別カラムに連結表示します（例: <code class="k">YYYY-MM-DD - YYYY-MM-DD; ...</code>）。<br/>
+        ・Custom label は <code class="k">userDefinedField1..5</code> を 5 列に展開。<br/>
+        ・Root proxy は <code class="k">proxy.proxiedUrl</code> を表示します。
       </div>
     </div>
 
@@ -230,7 +245,7 @@
         msg('Agreement メタデータ取得完了', 'success');
       }
 
-      // --- Agreement Lines (Entitlements) + Holdings IQ enrichment (optional) ---
+      // ========== Agreement Lines 取得（HIQ 拡張付き） ==========
       async function fetchEntitlements(agreementId){
         msg('Agreement Line を取得中…');
         const perPage = 100;
@@ -250,24 +265,46 @@
             data = await res.json();
             all.push(...(data.results||[]));
           }
-          renderLinesTable(all);
 
-          // HIQ 入力があれば拡張、なければスキップ
+          // HIQ 入力がなければ従来通りプレーンで描画
           hiq.apiKey = document.getElementById('hiqApiKey').value.trim();
           hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
 
-          if(hiq.apiKey && hiq.customerId){
-            await enrichWithHoldingsIQ(all);
-            msg(`Agreement Line 取得完了（${all.length}件, HIQ拡張あり）`, 'success');
-          } else {
+          if(!(hiq.apiKey && hiq.customerId)){
+            renderLinesTable(all); // そのまま
             msg(`Agreement Line 取得完了（${all.length}件, HIQ拡張なし）`, 'success');
+            document.getElementById('btnDownloadCSV').disabled = all.length === 0;
+            return;
           }
-          document.getElementById('btnDownloadCSV').disabled = all.length === 0;
+
+          // Authority で分岐
+          const titleItems = [];   // EKB-TITLE
+          const packageItems = []; // EKB-PACKAGE
+          for(const e of all){
+            const a = getAuthority(e);
+            if(a === 'EKB-PACKAGE') packageItems.push(e); else titleItems.push(e);
+          }
+
+          // パッケージは全タイトルを取得して行を展開
+          msg(`HIQ: パッケージ展開中…（${packageItems.length}件のパッケージ）`);
+          const packageRows = await expandPackagesToRows(packageItems);
+
+          // 描画: TITLEは通常行（後で照合してHIQ列埋め）、PACKAGEはすでにHIQ列まで埋めた行
+          const rows = [...titleItems, ...packageRows];
+          renderLinesTable(rows);
+
+          // TITLE 行の HIQ 照合（KBID一致）
+          await enrichWithHoldingsIQ(titleItems);
+
+          msg(`Agreement Line 取得完了（TITLE: ${titleItems.length}件, PACKAGE 展開: ${packageRows.length}行, 合計: ${rows.length}行）`, 'success');
+          document.getElementById('btnDownloadCSV').disabled = rows.length === 0;
         }catch(e){
+          console.error(e);
           msg('通信エラー: ' + e.message, 'error');
         }
       }
 
+      // --- DataTable 描画（_hiq があれば HIQ 列を事前に埋める） ---
       function renderLinesTable(items){
         const table = document.getElementById('linesTable');
         const tbody = table.querySelector('tbody');
@@ -276,11 +313,15 @@
         const name = d.name || '';
         const start = (d.startDate || '').slice(0,10);
         const status = (d.agreementStatus && d.agreementStatus.label) || '';
+
         items.forEach(e => {
           const tr = document.createElement('tr');
           tr.setAttribute('data-entitlement-id', e.id || '');
-          tr.innerHTML = [
-            safe(d.id || selectedAgreementId || ''),
+
+          const hiqData = e._hiq || null; // see hiqFromTitle
+
+          const cells = [
+            safe(e.owner?.id || selectedAgreementId || ''), // Agreement ID
             safe(name),
             safe(start),
             safe(status),
@@ -291,9 +332,29 @@
             safe(e.reference_object && e.reference_object.packageData && e.reference_object.packageData.name || ''),
             safe(e.reference_object && e.reference_object.publicationType || ''),
             linkCell(e.reference_object && e.reference_object.url || ''),
-            /* HIQ enrichment placeholders (8 cols) */
-            '', '', '', '', '', '', '', ''
-          ].map((cell,i)=> i===10 ? `<td>${cell}</td>` : `<td>${escapeHtml(cell)}</td>`).join('');
+            // --- New HIQ enrichment columns ---
+            hiqData ? hiqData.providerName : '',
+            hiqData ? hiqData.packageName : '',
+            hiqData ? hiqData.titleName : '',
+            hiqData ? hiqData.titleId : '',
+            hiqData ? hiqData.packageId : '',
+            hiqData ? hiqData.providerId : '',
+            hiqData ? hiqData.resourceType : '',
+            hiqData ? hiqData.publicationDate : '',
+            hiqData ? hiqData.coverageManaged : '',
+            hiqData ? hiqData.coverageCustom : '',
+            hiqData ? linkCell(hiqData.url) : '',
+            hiqData ? hiqData.issnIsbn : '',
+            hiqData ? hiqData.selected : '',
+            hiqData ? hiqData.label1 : '',
+            hiqData ? hiqData.label2 : '',
+            hiqData ? hiqData.label3 : '',
+            hiqData ? hiqData.label4 : '',
+            hiqData ? hiqData.label5 : '',
+            hiqData ? hiqData.rootProxy : ''
+          ];
+
+          tr.innerHTML = cells.map((cell,i)=> (i===10 || i===21) ? `<td>${cell}</td>` : `<td>${escapeHtml(cell)}</td>`).join('');
           tbody.appendChild(tr);
         });
         if(dtLines){ dtLines.destroy(); }
@@ -304,9 +365,9 @@
         dtLines.columns.adjust();
       }
 
-      // --- Holdings IQ Enrichment (only via titles? ... endpoint) ---
+      // --- Holdings IQ Enrichment (TITLE: KBID 照合) ---
       async function enrichWithHoldingsIQ(items){
-        // const base = 'https://api.ebsco.io/rm';
+        if(!items || !items.length) return;
         const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdingsIQ.php';
         const headers = { 'accept':'application/json', 'x-api-key': hiq.apiKey };
 
@@ -318,58 +379,144 @@
           while(queue.length){
             const e = queue.shift();
             if(!e) break;
-            const parsed = parseReference((e.reference || '').trim());
+
+            const auth = getAuthority(e);
+            if(auth === 'EKB-PACKAGE') continue; // PACKAGE は別処理済み
+
+            const parsed = parseReference3((e.reference || '').trim());
             if(!parsed) continue;
             const { vendorId, packageId, kbId } = parsed;
 
-            // 必ず titles? ... を使う（titles/{kbId} は使用しない）
             let found = null;
-            let offset = 1, count = 100, safety = 300; // 必要に応じて深度を調整
+            let offset = 1, count = 100, safety = 300;
             while(!found && safety-- > 0){
-              //https://gssapps.ebscohost.com/auchikawa/iq/holdingsIQ.php?account=s1014396&vendor=36&package=1515&offset=1&count=1&orderby=titlename&searchfield=titlename
-              // const url = `${base}/rmaccounts/v2/${encodeURIComponent(hiq.customerId)}/vendors/${vendorId}/packages/${packageId}/titles?searchfield=titlename&selection=all&orderby=titlename&count=${count}&offset=${offset}`;
-              const url = `${base}?account=${hiq.customerId}&vendor=${vendorId}&package=${packageId}&count=${count}&offset=${offset}&orderby=titlename&searchfield=titlename`
+              const url = `${base}?account=${hiq.customerId}&vendor=${vendorId}&package=${packageId}&count=${count}&offset=${offset}&orderby=titlename&searchfield=titlename`;
               try{
                 const res = await fetch(url, { headers });
-                console.log(res)
                 if(!res.ok) break;
                 const data = await res.json();
                 const titles = Array.isArray(data.titles) ? data.titles : [];
                 found = titles.find(t => String(t.titleId) === String(kbId)) || null;
                 if(found) break;
-                if(!data.totalResults || offset + count > data.totalResults) break;
+                const total = Number(data.totalResults || titles.length);
+                if(!total || offset + count > total) break;
                 offset += count;
               }catch(_){ break; }
             }
 
             if(found){
-              updateRowWithHIQ(e.id || '', found);
+              updateRowWithHIQ(e.id || '', hiqFromTitle(found));
             }
           }
         }
         await Promise.all(workers);
       }
 
-      function parseReference(ref){
-        // 例: "36 - 1515 - 968431" / "36-1515-968431"
-        const m = ref.match(/^\s*(\d+)\s*-\s*(\d+)\s*-\s*(\d+)\s*$/);
-        if(!m) return null;
-        return { vendorId: m[1], packageId: m[2], kbId: m[3] };
+      // --- PACKAGE -> 全タイトル展開 ---
+      async function expandPackagesToRows(packageItems){
+        if(!packageItems.length) return [];
+        const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdingsIQ.php';
+        const headers = { 'accept':'application/json', 'x-api-key': hiq.apiKey };
+
+        const concurrency = 3;
+        const queue = [...packageItems];
+        const out = [];
+
+        async function worker(){
+          while(queue.length){
+            const e = queue.shift();
+            if(!e) break;
+            const p = parseReference2((e.reference || '').trim());
+            if(!p) { out.push(e); continue; }
+            const { vendorId, packageId } = p;
+
+            let offset = 1, count = 100, safety = 2000;
+            let total = 0;
+            do{
+              const url = `${base}?account=${hiq.customerId}&vendor=${vendorId}&package=${packageId}&count=${count}&offset=${offset}&orderby=titlename&searchfield=titlename`;
+              try{
+                const res = await fetch(url, { headers });
+                if(!res.ok) break;
+                const data = await res.json();
+                const titles = Array.isArray(data.titles) ? data.titles : [];
+                total = Number(data.totalResults || titles.length);
+
+                for(const t of titles){
+                  // クローンし、HIQ列を事前埋めで渡す
+                  out.push({ ...e, _hiq: hiqFromTitle(t) });
+                }
+
+                offset += count;
+                safety--;
+                if(offset > total) break;
+              }catch(_){ break; }
+            } while(safety > 0);
+          }
+        }
+
+        const workers = Array.from({length: concurrency}, () => worker());
+        await Promise.all(workers);
+        return out;
       }
 
-      function updateRowWithHIQ(entitlementId, hiqObj){
-        const ids = (hiqObj.identifiersList||[]).map(x=>x.id).join('; ');
-        const subs = (hiqObj.subjectsList||[]).map(x=>x.subject).join('; ');
-        const cons = (hiqObj.contributorsList||[]).map(x=>x.contributor).join('; ');
-        let hiqUrl = '';
-        if(Array.isArray(hiqObj.customerResourcesList) && hiqObj.customerResourcesList.length){
-          hiqUrl = hiqObj.customerResourcesList[0].url || '';
-        }
-        const titleName = hiqObj.titleName || '';
-        const publisher = hiqObj.publisherName || '';
-        const pubType = hiqObj.pubType || '';
-        const edition = hiqObj.edition || '';
+      // --- HIQ Title -> 拡張マッピング（customerResourcesList[0] を使用） ---
+      function hiqFromTitle(t){
+        const cr = Array.isArray(t.customerResourcesList) && t.customerResourcesList.length ? t.customerResourcesList[0] : {};
+        const ids = formatIdentifiers(t.identifiersList || []);
+        const covM = formatCoverage(cr.managedCoverageList || []);
+        const covC = formatCoverage(cr.customCoverageList || []);
+        const pubDate = pickPublicationDate(t);
+        return {
+          providerName: cr.vendorName || '',
+          packageName: cr.packageName || '',
+          titleName: t.titleName || '',
+          titleId: (t.titleId != null ? String(t.titleId) : ''),
+          packageId: (cr.packageId != null ? String(cr.packageId) : ''),
+          providerId: (cr.vendorId != null ? String(cr.vendorId) : ''),
+          resourceType: t.pubType || '',
+          publicationDate: pubDate,
+          coverageManaged: covM,
+          coverageCustom: covC,
+          url: cr.url || '',
+          issnIsbn: ids,
+          selected: cr.isSelected ? 'Selected' : 'Not selected',
+          label1: cr.userDefinedField1 || '',
+          label2: cr.userDefinedField2 || '',
+          label3: cr.userDefinedField3 || '',
+          label4: cr.userDefinedField4 || '',
+          label5: cr.userDefinedField5 || '',
+          rootProxy: cr.proxy && cr.proxy.proxiedUrl ? cr.proxy.proxiedUrl : ''
+        };
+      }
 
+      function pickPublicationDate(t){
+        const candidates = [
+          t.publicationDate,
+          t.datePublished,
+          t.dateFirstIssueOnline,
+          t.dateFirstIssuePrint,
+          t.dateLastIssueOnline,
+          t.dateLastIssuePrint,
+          t.dateFirstPublishedOnline,
+          t.dateFirstPublishedPrint
+        ];
+        return (candidates.find(Boolean) || '') + '';
+      }
+
+      function formatCoverage(list){
+        try{
+          return list.map(c => `${c.beginCoverage || ''} - ${c.endCoverage || ''}`.trim()).filter(Boolean).join('; ');
+        }catch(_){ return ''; }
+      }
+
+      function formatIdentifiers(list){
+        try{
+          return list.map(x => x.id ? (x.source ? `${x.id} (${x.source})` : `${x.id}`) : '').filter(Boolean).join('; ');
+        }catch(_){ return ''; }
+      }
+
+      // --- TITLE 1 行に HIQ 値を流し込み ---
+      function updateRowWithHIQ(entitlementId, hiqObj){
         const tr = document.querySelector(`tr[data-entitlement-id="${cssEscape(entitlementId)}"]`);
         if(!tr) return;
         const cells = tr.cells;
@@ -378,50 +525,55 @@
           if(!cells[idx]) return;
           cells[idx].innerHTML = isLink && val ? `<a href="${escapeHtml(val)}" target="_blank" rel="noopener noreferrer">${escapeHtml(val)}</a>` : escapeHtml(val||'');
         };
-        setCell(baseIndex + 0, titleName);
-        setCell(baseIndex + 1, publisher);
-        setCell(baseIndex + 2, ids);
-        setCell(baseIndex + 3, subs);
-        setCell(baseIndex + 4, cons);
-        setCell(baseIndex + 5, pubType);
-        setCell(baseIndex + 6, edition);
-        setCell(baseIndex + 7, hiqUrl, true);
-      }
-
-      // --- CSV Export (Agreement Lines + HIQ columns) ---
-      function downloadCSV(){
-        const table = document.getElementById('linesTable');
-        const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
-          Array.from(tr.cells).map((td,i)=>{
-            let t = (i===10 || i===18) ? td.querySelector('a')?.getAttribute('href')||'' : td.innerText;
-            if(/[",\n]/.test(t)) t = '"' + t.replace(/"/g,'""') + '"';
-            return t;
-          }).join(',')
-        );
-        if(!rows.length){ alert('出力するデータがありません'); return; }
-        const headers = [
-          'Agreement ID','Name','Start Date','Status','Entitlement ID','Reference','Label','Provider','Package Name','Publication Type','URL',
-          'HIQ Title Name','HIQ Publisher','HIQ Identifiers','HIQ Subjects','HIQ Contributors','HIQ Pub Type','HIQ Edition','HIQ URL'
-        ];
-        const csv = "\uFEFF" + [headers.join(','), ...rows].join('\n');
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const now = new Date(), pad=n=>String(n).padStart(2,'0');
-        const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-        const baseName = (selectedDetails && selectedDetails.name) ? selectedDetails.name.replace(/[^a-zA-Z0-9_-]+/g,'_') : (selectedAgreementId||'export');
-        a.href = url; a.download = `agreement_lines_hiq_${baseName}_${ts}.csv`;
-        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        setCell(baseIndex + 0, hiqObj.providerName);
+        setCell(baseIndex + 1, hiqObj.packageName);
+        setCell(baseIndex + 2, hiqObj.titleName);
+        setCell(baseIndex + 3, hiqObj.titleId);
+        setCell(baseIndex + 4, hiqObj.packageId);
+        setCell(baseIndex + 5, hiqObj.providerId);
+        setCell(baseIndex + 6, hiqObj.resourceType);
+        setCell(baseIndex + 7, hiqObj.publicationDate);
+        setCell(baseIndex + 8, hiqObj.coverageManaged);
+        setCell(baseIndex + 9, hiqObj.coverageCustom);
+        setCell(baseIndex + 10, hiqObj.url, true); // link
+        setCell(baseIndex + 11, hiqObj.issnIsbn);
+        setCell(baseIndex + 12, hiqObj.selected);
+        setCell(baseIndex + 13, hiqObj.label1);
+        setCell(baseIndex + 14, hiqObj.label2);
+        setCell(baseIndex + 15, hiqObj.label3);
+        setCell(baseIndex + 16, hiqObj.label4);
+        setCell(baseIndex + 17, hiqObj.label5);
+        setCell(baseIndex + 18, hiqObj.rootProxy);
       }
 
       // --- Utils ---
       function safe(v){ return v==null? '': String(v); }
-      function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+      function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
       function cssEscape(s){ return String(s).replace(/["\\#.;:,\[\]\(\)\s]/g, '\\$&'); }
       function linkCell(u){
         if(!u) return '';
         const esc = escapeHtml(String(u));
         return `<a href="${esc}" target="_blank" rel="noopener noreferrer">${esc}</a>`;
+      }
+
+      // --- authority 判定 + Reference 解析 ---
+      function getAuthority(e){
+        const a = (e.resource && e.resource.authority) || e.authority || (e.reference_object && e.reference_object.authority);
+        if(a) return a;
+        const ref = (e.reference || '').trim();
+        if(parseReference3(ref)) return 'EKB-TITLE';
+        if(parseReference2(ref)) return 'EKB-PACKAGE';
+        return '';
+      }
+      function parseReference3(ref){ // 36 - 1515 - 968431
+        const m = ref.match(/^\s*(\d+)\s*-\s*(\d+)\s*-\s*(\d+)\s*$/);
+        if(!m) return null;
+        return { vendorId: m[1], packageId: m[2], kbId: m[3] };
+      }
+      function parseReference2(ref){ // 36 - 1515
+        const m = ref.match(/^\s*(\d+)\s*-\s*(\d+)\s*$/);
+        if(!m) return null;
+        return { vendorId: m[1], packageId: m[2] };
       }
 
       // --- Events ---
@@ -438,6 +590,33 @@
           else { msg('Agreement ID を取得できませんでした。','error'); }
         }
       });
+
+      // --- CSV Export (Agreement Lines + HIQ columns) ---
+      function downloadCSV(){
+        const table = document.getElementById('linesTable');
+        const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
+          Array.from(tr.cells).map((td,i)=>{
+            // link columns: Agreement ref URL (10) and HIQ URL (21)
+            let t = (i===10 || i===21) ? td.querySelector('a')?.getAttribute('href')||'' : td.innerText;
+            if(/[",\n]/.test(t)) t = '"' + t.replace(/"/g,'""') + '"';
+            return t;
+          }).join(',')
+        );
+        if(!rows.length){ alert('出力するデータがありません'); return; }
+        const headers = [
+          'Agreement ID','Name','Start Date','Status','Entitlement ID','Reference','Label','Provider','Package Name','Publication Type','URL',
+          'HIQ Provider name','HIQ Package name','HIQ Title name','HIQ Title ID','HIQ Package ID','HIQ Provider ID','HIQ Resource type','HIQ Publication date','HIQ Coverage (Managed)','HIQ Coverage (Custom)','HIQ URL','HIQ ISSN / ISBN','HIQ Selected / Not selected','HIQ Custom label 1','HIQ Custom label 2','HIQ Custom label 3','HIQ Custom label 4','HIQ Custom label 5','HIQ Root proxy'
+        ];
+        const csv = "\uFEFF" + [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const now = new Date(), pad=n=>String(n).padStart(2,'0');
+        const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        const baseName = (selectedDetails && selectedDetails.name) ? selectedDetails.name.replace(/[^a-zA-Z0-9_-]+/g,'_') : (selectedAgreementId||'export');
+        a.href = url; a.download = `agreement_lines_hiq_${baseName}_${ts}.csv`;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      }
     </script>
   </body>
 </html>
