@@ -107,7 +107,6 @@
               <th>HIQ Package ID</th>
               <th>HIQ Provider ID</th>
               <th>HIQ Resource type</th>
-              <th>HIQ Publication date</th>
               <th>HIQ Coverage (Managed)</th>
               <th>HIQ Coverage (Custom)</th>
               <th>HIQ URL</th>
@@ -340,7 +339,6 @@
             hiqData ? hiqData.packageId : '',
             hiqData ? hiqData.providerId : '',
             hiqData ? hiqData.resourceType : '',
-            hiqData ? hiqData.publicationDate : '',
             hiqData ? hiqData.coverageManaged : '',
             hiqData ? hiqData.coverageCustom : '',
             hiqData ? linkCell(hiqData.url) : '',
@@ -354,7 +352,7 @@
             hiqData ? hiqData.rootProxy : ''
           ];
 
-          tr.innerHTML = cells.map((cell,i)=> (i===10 || i===21) ? `<td>${cell}</td>` : `<td>${escapeHtml(cell)}</td>`).join('');
+          tr.innerHTML = cells.map((cell,i)=> (i===10 || i===20) ? `<td>${cell}</td>` : `<td>${escapeHtml(cell)}</td>`).join('');
           tbody.appendChild(tr);
         });
         if(dtLines){ dtLines.destroy(); }
@@ -465,8 +463,7 @@
         const ids = formatIdentifiers(t.identifiersList || []);
         const covM = formatCoverage(cr.managedCoverageList || []);
         const covC = formatCoverage(cr.customCoverageList || []);
-        const pubDate = pickPublicationDate(t);
-        return {
+                return {
           providerName: cr.vendorName || '',
           packageName: cr.packageName || '',
           titleName: t.titleName || '',
@@ -474,7 +471,6 @@
           packageId: (cr.packageId != null ? String(cr.packageId) : ''),
           providerId: (cr.vendorId != null ? String(cr.vendorId) : ''),
           resourceType: t.pubType || '',
-          publicationDate: pubDate,
           coverageManaged: covM,
           coverageCustom: covC,
           url: cr.url || '',
@@ -489,21 +485,7 @@
         };
       }
 
-      function pickPublicationDate(t){
-        const candidates = [
-          t.publicationDate,
-          t.datePublished,
-          t.dateFirstIssueOnline,
-          t.dateFirstIssuePrint,
-          t.dateLastIssueOnline,
-          t.dateLastIssuePrint,
-          t.dateFirstPublishedOnline,
-          t.dateFirstPublishedPrint
-        ];
-        return (candidates.find(Boolean) || '') + '';
-      }
-
-      function formatCoverage(list){
+            function formatCoverage(list){
         try{
           return list.map(c => `${c.beginCoverage || ''} - ${c.endCoverage || ''}`.trim()).filter(Boolean).join('; ');
         }catch(_){ return ''; }
@@ -532,18 +514,17 @@
         setCell(baseIndex + 4, hiqObj.packageId);
         setCell(baseIndex + 5, hiqObj.providerId);
         setCell(baseIndex + 6, hiqObj.resourceType);
-        setCell(baseIndex + 7, hiqObj.publicationDate);
-        setCell(baseIndex + 8, hiqObj.coverageManaged);
-        setCell(baseIndex + 9, hiqObj.coverageCustom);
-        setCell(baseIndex + 10, hiqObj.url, true); // link
-        setCell(baseIndex + 11, hiqObj.issnIsbn);
-        setCell(baseIndex + 12, hiqObj.selected);
-        setCell(baseIndex + 13, hiqObj.label1);
-        setCell(baseIndex + 14, hiqObj.label2);
-        setCell(baseIndex + 15, hiqObj.label3);
-        setCell(baseIndex + 16, hiqObj.label4);
-        setCell(baseIndex + 17, hiqObj.label5);
-        setCell(baseIndex + 18, hiqObj.rootProxy);
+        setCell(baseIndex + 7, hiqObj.coverageManaged);
+        setCell(baseIndex + 8, hiqObj.coverageCustom);
+        setCell(baseIndex + 9, hiqObj.url, true);
+        setCell(baseIndex + 10, hiqObj.issnIsbn);
+        setCell(baseIndex + 11, hiqObj.selected);
+        setCell(baseIndex + 12, hiqObj.label1);
+        setCell(baseIndex + 13, hiqObj.label2);
+        setCell(baseIndex + 14, hiqObj.label3);
+        setCell(baseIndex + 15, hiqObj.label4);
+        setCell(baseIndex + 16, hiqObj.label5);
+        setCell(baseIndex + 17, hiqObj.rootProxy);
       }
 
       // --- Utils ---
@@ -596,8 +577,8 @@
         const table = document.getElementById('linesTable');
         const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
           Array.from(tr.cells).map((td,i)=>{
-            // link columns: Agreement ref URL (10) and HIQ URL (21)
-            let t = (i===10 || i===21) ? td.querySelector('a')?.getAttribute('href')||'' : td.innerText;
+            // link columns: Agreement ref URL (10) and HIQ URL (20)
+            let t = (i===10 || i===20) ? td.querySelector('a')?.getAttribute('href')||'' : td.innerText;
             if(/[",\n]/.test(t)) t = '"' + t.replace(/"/g,'""') + '"';
             return t;
           }).join(',')
@@ -605,7 +586,7 @@
         if(!rows.length){ alert('出力するデータがありません'); return; }
         const headers = [
           'Agreement ID','Name','Start Date','Status','Entitlement ID','Reference','Label','Provider','Package Name','Publication Type','URL',
-          'HIQ Provider name','HIQ Package name','HIQ Title name','HIQ Title ID','HIQ Package ID','HIQ Provider ID','HIQ Resource type','HIQ Publication date','HIQ Coverage (Managed)','HIQ Coverage (Custom)','HIQ URL','HIQ ISSN / ISBN','HIQ Selected / Not selected','HIQ Custom label 1','HIQ Custom label 2','HIQ Custom label 3','HIQ Custom label 4','HIQ Custom label 5','HIQ Root proxy'
+          'HIQ Provider name','HIQ Package name','HIQ Title name','HIQ Title ID','HIQ Package ID','HIQ Provider ID','HIQ Resource type','HIQ Coverage (Managed)','HIQ Coverage (Custom)','HIQ URL','HIQ ISSN / ISBN','HIQ Selected / Not selected','HIQ Custom label 1','HIQ Custom label 2','HIQ Custom label 3','HIQ Custom label 4','HIQ Custom label 5','HIQ Root proxy'
         ];
         const csv = "\uFEFF" + [headers.join(','), ...rows].join('\n');
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
