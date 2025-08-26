@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AgreementLines-Download + Holdings IQ (optional)</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
+    <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.2.2/css/fixedColumns.dataTables.min.css"/>
+    <style>
+      body{font-family:Arial, sans-serif;max-width:1200px;margin:0 auto;padding:20px;background:#f5f5f5;}
+      .form-container{margin:20px 0;padding:20px;border-radius:8px;background:white;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+      label{display:block;margin:10px 0;font-size:14px;}
+      input[type="text"],input[type="password"]{padding:10px;width:100%;max-width:520px;box-sizing:border-box;margin-top:5px;}
+      button{padding:10px 20px;margin-top:10px;margin-right:10px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;}
+      button:disabled{background:#ccc;cursor:not-allowed;}
+      button:hover:not(:disabled){background:#0056b3;}
+      .table-wrapper{overflow-x:auto;}
+      table{border-collapse:collapse;margin-top:20px;width:100%;background:white;}
+      th,td{border:1px solid #ddd;padding:8px;vertical-align:top;}
+      th{background:#f8f8f8;}
+      .success{color:#155724;background:#d4edda;padding:10px;margin:10px 0;border-radius:4px;}
+      .error{color:#721c24;background:#f8d7da;padding:10px;margin:10px 0;border-radius:4px;}
+      .info{color:#004085;background:#cce5ff;padding:10px;margin:10px 0;border-radius:4px;}
+      .subtle{color:#555;font-size:14px;}
+      .badge{display:inline-block;background:#eef2ff;color:#334;border:1px solid #ccd;padding:2px 8px;border-radius:999px;font-size:12px;}
+      .meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+      .small{font-size:12px;color:#666;}
+      code.k{background:#f1f1f1;padding:1px 4px;border-radius:4px;}
+    </style>
+  </head>
+  <body>
+    <div class="form-container">
+      <h2>AgreementLines 取得ツール</h2>
+      <label>Okapi Base URL:
+        <input type="text" id="baseUrl" value="https://folio-snapshot-2-okapi.dev.folio.org" />
+      </label>
+      <label>Tenant:
+        <input type="text" id="tenant" value="diku" />
+      </label>
+      <label>Username:
+        <input type="text" id="username" value="diku_admin" />
+      </label>
+      <label>Password:
+        <input type="password" id="password" value="admin" />
+      </label>
+      <hr class="small"/>
+      <label>Holdings IQ API Key（任意）:
+        <input type="text" id="hiqApiKey" placeholder="例: AKIA..." />
+      </label>
+      <label>Customer ID（任意）:
+        <input type="text" id="hiqCustomerId" placeholder="例: s1014396" />
+      </label>
+
+      <button id="btnLogin">ログイン</button>
+      <button id="btnReloadAgreements" disabled>Agreement一覧を取得</button>
+      <button id="btnDownloadCSV" disabled>CSVダウンロード</button>
+      <div id="message" class="small"></div>
+    </div>
+
+    <div class="form-container" id="agreementsBox" style="display:none;">
+      <h2>Agreement 選択</h2>
+      <div class="table-wrapper">
+        <table id="agreementsTable">
+          <thead>
+            <tr>
+              <th>明細取得</th>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Start Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="subtle" style="margin-top:10px;">
+        <div>選択中 Agreement のメタデータ</div>
+        <div class="meta-grid">
+          <div>名前: <span id="metaName" class="badge"></span></div>
+          <div>開始日: <span id="metaStart" class="badge"></span></div>
+          <div>ステータス: <span id="metaStatus" class="badge"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-container">
+      <h2>Agreement Line（Holdings IQ 連携列つき）</h2>
+      <div class="table-wrapper">
+        <table id="linesTable">
+          <thead>
+            <tr>
+              <th>Agreement ID</th>
+              <th>Name</th>
+              <th>Start Date</th>
+              <th>Status</th>
+              <th>Entitlement ID</th>
+              <th>Reference <span class="small">(VendorID - PackageID - KBID)</span></th>
+              <th>Label</th>
+              <th>Provider</th>
+              <th>Package Name</th>
+              <th>Publication Type</th>
+              <th>URL</th>
+              <!-- Holdings IQ enrichment columns -->
+              <th>HIQ Title Name</th>
+              <th>HIQ Publisher</th>
+              <th>HIQ Identifiers</th>
+              <th>HIQ Subjects</th>
+              <th>HIQ Contributors</th>
+              <th>HIQ Pub Type</th>
+              <th>HIQ Edition</th>
+              <th>HIQ URL</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="small">
+        ※ HIQ 列は、Reference の <code class="k">VendorID - PackageID - KBID</code> を使って
+        <code class="k">/rmaccounts/v2/{customerId}/vendors/{vendorId}/packages/{packageId}/titles?searchfield=titlename&selection=all&orderby=titlename&count=...&offset=...</code>
+        を呼び、返却 <code class="k">titles</code> から <code class="k">titleId = KBID</code> を照合して表示します（入力があれば実行、なければスキップ）。
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/fixedcolumns/4.2.2/js/dataTables.fixedColumns.min.js"></script>
+    <script>
+      let okapi = { base:'', tenant:'', token:'' };
+      let hiq = { apiKey:'', customerId:'' };
+      let selectedAgreementId = '';
+      let selectedDetails = null;
+      let dtLines = null, dtAgreements = null;
+
+      const msg = (html, cls='info') => {
+        document.getElementById('message').innerHTML = `<div class="${cls}">${html}</div>`;
+      };
+
+      // --- Login (Okapi) ---
+      async function login(){
+        const baseUrl = document.getElementById('baseUrl').value.trim().replace(/\/$/, '');
+        const tenant = document.getElementById('tenant').value.trim();
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        // HIQは任意（ここではチェックしない）
+        hiq.apiKey = document.getElementById('hiqApiKey').value.trim();
+        hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
+
+        if(!baseUrl || !tenant || !username || !password){
+          msg('Okapi: Base URL / Tenant / Username / Password を入力してください。','error');
+          return;
+        }
+
+        msg('ログイン中…');
+        try{
+          const res = await fetch(`${baseUrl}/authn/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-okapi-tenant": tenant },
+            body: JSON.stringify({ username, password })
+          });
+          if(res.status !== 201){ msg(`認証失敗: ${res.status}`, 'error'); return; }
+          const token = res.headers.get('x-okapi-token');
+          if(!token){ msg('トークンがヘッダーにありません（Access-Control-Expose-Headers 設定要）。', 'error'); return; }
+          okapi = { base: baseUrl, tenant, token };
+          msg('ログイン成功。次に「Agreement一覧を取得」ボタンを押してください。', 'success');
+          document.getElementById('btnReloadAgreements').disabled = false;
+          document.getElementById('btnDownloadCSV').disabled = true;
+        }catch(e){
+          msg('通信エラー: ' + e.message, 'error');
+        }
+      }
+
+      // --- Agreements list / details ---
+      async function loadAgreements(){
+        if(!okapi.token){ msg('先にログインしてください。','error'); return; }
+        msg('Agreement一覧を取得中…');
+        try{
+          const res = await fetch(`${okapi.base}/erm/sas?sort=name%3Basc&stats=true&page=1&perPage=100`, {
+            headers: { "x-okapi-token": okapi.token }
+          });
+          if(!res.ok){ msg('Agreement 取得失敗: ' + res.status, 'error'); return; }
+          const data = await res.json();
+          const agreements = data.results || [];
+          document.getElementById('agreementsBox').style.display = 'block';
+          renderAgreementsTable(agreements);
+          msg(`Agreement 取得完了（${agreements.length}件）`, 'success');
+        }catch(e){
+          msg('通信エラー: ' + e.message, 'error');
+        }
+      }
+
+      function renderAgreementsTable(items){
+        const tbody = document.querySelector('#agreementsTable tbody');
+        tbody.innerHTML = '';
+        items.forEach(a => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><button class="detail-btn" data-id="${a.id}">明細取得</button></td>
+            <td>${escapeHtml(a.id)}</td>
+            <td>${escapeHtml(a.name || '')}</td>
+            <td>${escapeHtml((a.startDate || '').slice(0,10))}</td>
+            <td>${escapeHtml((a.agreementStatus && a.agreementStatus.label) || '')}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+        if(dtAgreements){ dtAgreements.destroy(); }
+        dtAgreements = $('#agreementsTable').DataTable({
+          paging:false, searching:true, ordering:true, info:false,
+          scrollX:true, autoWidth:false, fixedColumns:{ leftColumns:2 }, scrollY:"260px"
+        });
+        dtAgreements.columns.adjust();
+      }
+
+      async function onPickAgreement(agreementId){
+        selectedAgreementId = agreementId;
+        await fetchAgreementDetails(agreementId);
+        await fetchEntitlements(agreementId); // 取得後に HIQ で拡張（任意）
+      }
+
+      async function fetchAgreementDetails(id){
+        msg('Agreement メタデータ取得中…');
+        const res = await fetch(`${okapi.base}/erm/sas/${encodeURIComponent(id)}`, {
+          headers: { "x-okapi-token": okapi.token }
+        });
+        if(!res.ok){ msg('Agreement 詳細取得失敗: ' + res.status, 'error'); return; }
+        const details = await res.json();
+        selectedDetails = details;
+        document.getElementById('metaName').textContent = details.name || '';
+        document.getElementById('metaStart').textContent = (details.startDate || '').slice(0,10);
+        document.getElementById('metaStatus').textContent = (details.agreementStatus && details.agreementStatus.label) || '';
+        msg('Agreement メタデータ取得完了', 'success');
+      }
+
+      // --- Agreement Lines (Entitlements) + Holdings IQ enrichment (optional) ---
+      async function fetchEntitlements(agreementId){
+        msg('Agreement Line を取得中…');
+        const perPage = 100;
+        let page = 1, totalPages = 1;
+        const all = [];
+        try{
+          let url = `${okapi.base}/erm/entitlements?filters=owner%3D%3D${encodeURIComponent(agreementId)}&sort=type%3Basc&sort=resource.name%3Basc&sort=reference%3Basc&sort=id%3Basc&stats=true&page=${page}&perPage=${perPage}`;
+          let res = await fetch(url, { headers: { "x-okapi-token": okapi.token } });
+          if(!res.ok){ msg('Entitlements 取得失敗: ' + res.status, 'error'); return; }
+          let data = await res.json();
+          totalPages = data.totalPages || 1;
+          all.push(...(data.results||[]));
+          for(page=2; page<=totalPages; page++){
+            url = `${okapi.base}/erm/entitlements?filters=owner%3D%3D${encodeURIComponent(agreementId)}&sort=type%3Basc&sort=resource.name%3Basc&sort=reference%3Basc&sort=id%3Basc&stats=true&page=${page}&perPage=${perPage}`;
+            res = await fetch(url, { headers: { "x-okapi-token": okapi.token } });
+            if(!res.ok){ msg('Entitlements 取得失敗: ' + res.status, 'error'); return; }
+            data = await res.json();
+            all.push(...(data.results||[]));
+          }
+          renderLinesTable(all);
+
+          // HIQ 入力があれば拡張、なければスキップ
+          hiq.apiKey = document.getElementById('hiqApiKey').value.trim();
+          hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
+
+          if(hiq.apiKey && hiq.customerId){
+            await enrichWithHoldingsIQ(all);
+            msg(`Agreement Line 取得完了（${all.length}件, HIQ拡張あり）`, 'success');
+          } else {
+            msg(`Agreement Line 取得完了（${all.length}件, HIQ拡張なし）`, 'success');
+          }
+          document.getElementById('btnDownloadCSV').disabled = all.length === 0;
+        }catch(e){
+          msg('通信エラー: ' + e.message, 'error');
+        }
+      }
+
+      function renderLinesTable(items){
+        const table = document.getElementById('linesTable');
+        const tbody = table.querySelector('tbody');
+        tbody.innerHTML = '';
+        const d = selectedDetails || {};
+        const name = d.name || '';
+        const start = (d.startDate || '').slice(0,10);
+        const status = (d.agreementStatus && d.agreementStatus.label) || '';
+        items.forEach(e => {
+          const tr = document.createElement('tr');
+          tr.setAttribute('data-entitlement-id', e.id || '');
+          tr.innerHTML = [
+            safe(d.id || selectedAgreementId || ''),
+            safe(name),
+            safe(start),
+            safe(status),
+            safe(e.id||''),
+            safe(e.reference||''),
+            safe(e.reference_object && e.reference_object.label || ''),
+            safe(e.reference_object && e.reference_object.provider || ''),
+            safe(e.reference_object && e.reference_object.packageData && e.reference_object.packageData.name || ''),
+            safe(e.reference_object && e.reference_object.publicationType || ''),
+            linkCell(e.reference_object && e.reference_object.url || ''),
+            /* HIQ enrichment placeholders (8 cols) */
+            '', '', '', '', '', '', '', ''
+          ].map((cell,i)=> i===10 ? `<td>${cell}</td>` : `<td>${escapeHtml(cell)}</td>`).join('');
+          tbody.appendChild(tr);
+        });
+        if(dtLines){ dtLines.destroy(); }
+        dtLines = $("#linesTable").DataTable({
+          paging:false, searching:true, ordering:true, info:false,
+          scrollX:true, autoWidth:false, fixedColumns:{ leftColumns:4 }, scrollY:"360px"
+        });
+        dtLines.columns.adjust();
+      }
+
+      // --- Holdings IQ Enrichment (only via titles? ... endpoint) ---
+      async function enrichWithHoldingsIQ(items){
+        // const base = 'https://api.ebsco.io/rm';
+        const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdingsIQ.php';
+        const headers = { 'accept':'application/json', 'x-api-key': hiq.apiKey };
+
+        const concurrency = 4;
+        const queue = [...items];
+        const workers = Array.from({length: concurrency}, () => worker());
+
+        async function worker(){
+          while(queue.length){
+            const e = queue.shift();
+            if(!e) break;
+            const parsed = parseReference((e.reference || '').trim());
+            if(!parsed) continue;
+            const { vendorId, packageId, kbId } = parsed;
+
+            // 必ず titles? ... を使う（titles/{kbId} は使用しない）
+            let found = null;
+            let offset = 1, count = 100, safety = 300; // 必要に応じて深度を調整
+            while(!found && safety-- > 0){
+              //https://gssapps.ebscohost.com/auchikawa/iq/holdingsIQ.php?account=s1014396&vendor=36&package=1515&offset=1&count=1&orderby=titlename&searchfield=titlename
+              // const url = `${base}/rmaccounts/v2/${encodeURIComponent(hiq.customerId)}/vendors/${vendorId}/packages/${packageId}/titles?searchfield=titlename&selection=all&orderby=titlename&count=${count}&offset=${offset}`;
+              const url = `${base}?account=${hiq.customerId}&vendor=${vendorId}&package=${packageId}&count=${count}&offset=${offset}&orderby=titlename&searchfield=titlename`
+              try{
+                const res = await fetch(url, { headers });
+                console.log(res)
+                if(!res.ok) break;
+                const data = await res.json();
+                const titles = Array.isArray(data.titles) ? data.titles : [];
+                found = titles.find(t => String(t.titleId) === String(kbId)) || null;
+                if(found) break;
+                if(!data.totalResults || offset + count > data.totalResults) break;
+                offset += count;
+              }catch(_){ break; }
+            }
+
+            if(found){
+              updateRowWithHIQ(e.id || '', found);
+            }
+          }
+        }
+        await Promise.all(workers);
+      }
+
+      function parseReference(ref){
+        // 例: "36 - 1515 - 968431" / "36-1515-968431"
+        const m = ref.match(/^\s*(\d+)\s*-\s*(\d+)\s*-\s*(\d+)\s*$/);
+        if(!m) return null;
+        return { vendorId: m[1], packageId: m[2], kbId: m[3] };
+      }
+
+      function updateRowWithHIQ(entitlementId, hiqObj){
+        const ids = (hiqObj.identifiersList||[]).map(x=>x.id).join('; ');
+        const subs = (hiqObj.subjectsList||[]).map(x=>x.subject).join('; ');
+        const cons = (hiqObj.contributorsList||[]).map(x=>x.contributor).join('; ');
+        let hiqUrl = '';
+        if(Array.isArray(hiqObj.customerResourcesList) && hiqObj.customerResourcesList.length){
+          hiqUrl = hiqObj.customerResourcesList[0].url || '';
+        }
+        const titleName = hiqObj.titleName || '';
+        const publisher = hiqObj.publisherName || '';
+        const pubType = hiqObj.pubType || '';
+        const edition = hiqObj.edition || '';
+
+        const tr = document.querySelector(`tr[data-entitlement-id="${cssEscape(entitlementId)}"]`);
+        if(!tr) return;
+        const cells = tr.cells;
+        const baseIndex = 11; // HIQ列の開始（0-origin）
+        const setCell = (idx, val, isLink=false) => {
+          if(!cells[idx]) return;
+          cells[idx].innerHTML = isLink && val ? `<a href="${escapeHtml(val)}" target="_blank" rel="noopener noreferrer">${escapeHtml(val)}</a>` : escapeHtml(val||'');
+        };
+        setCell(baseIndex + 0, titleName);
+        setCell(baseIndex + 1, publisher);
+        setCell(baseIndex + 2, ids);
+        setCell(baseIndex + 3, subs);
+        setCell(baseIndex + 4, cons);
+        setCell(baseIndex + 5, pubType);
+        setCell(baseIndex + 6, edition);
+        setCell(baseIndex + 7, hiqUrl, true);
+      }
+
+      // --- CSV Export (Agreement Lines + HIQ columns) ---
+      function downloadCSV(){
+        const table = document.getElementById('linesTable');
+        const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
+          Array.from(tr.cells).map((td,i)=>{
+            let t = (i===10 || i===18) ? td.querySelector('a')?.getAttribute('href')||'' : td.innerText;
+            if(/[",\n]/.test(t)) t = '"' + t.replace(/"/g,'""') + '"';
+            return t;
+          }).join(',')
+        );
+        if(!rows.length){ alert('出力するデータがありません'); return; }
+        const headers = [
+          'Agreement ID','Name','Start Date','Status','Entitlement ID','Reference','Label','Provider','Package Name','Publication Type','URL',
+          'HIQ Title Name','HIQ Publisher','HIQ Identifiers','HIQ Subjects','HIQ Contributors','HIQ Pub Type','HIQ Edition','HIQ URL'
+        ];
+        const csv = "\uFEFF" + [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const now = new Date(), pad=n=>String(n).padStart(2,'0');
+        const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        const baseName = (selectedDetails && selectedDetails.name) ? selectedDetails.name.replace(/[^a-zA-Z0-9_-]+/g,'_') : (selectedAgreementId||'export');
+        a.href = url; a.download = `agreement_lines_hiq_${baseName}_${ts}.csv`;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      }
+
+      // --- Utils ---
+      function safe(v){ return v==null? '': String(v); }
+      function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+      function cssEscape(s){ return String(s).replace(/["\\#.;:,\[\]\(\)\s]/g, '\\$&'); }
+      function linkCell(u){
+        if(!u) return '';
+        const esc = escapeHtml(String(u));
+        return `<a href="${esc}" target="_blank" rel="noopener noreferrer">${esc}</a>`;
+      }
+
+      // --- Events ---
+      document.getElementById('btnLogin').addEventListener('click', login);
+      document.getElementById('btnReloadAgreements').addEventListener('click', loadAgreements);
+      document.getElementById('btnDownloadCSV').addEventListener('click', downloadCSV);
+
+      // Agreement一覧の「明細取得」ボタン
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.detail-btn');
+        if(btn){
+          const id = btn.getAttribute('data-id') || '';
+          if(id){ onPickAgreement(id); }
+          else { msg('Agreement ID を取得できませんでした。','error'); }
+        }
+      });
+    </script>
+  </body>
+</html>
