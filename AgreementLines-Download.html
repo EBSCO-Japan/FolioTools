@@ -2,12 +2,12 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <title>AgreementLines-Download + Holdings IQ (extended)</title>
+    <title>AgreementLines-Download + Holdings IQ (extended, multi-export)</title>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
     <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.2.2/css/fixedColumns.dataTables.min.css"/>
     <style>
       body{font-family:Arial, sans-serif;max-width:1200px;margin:0 auto;padding:20px;background:#f5f5f5;}
-      .form-container{margin:20px 0;padding:20px;border-radius:8px;background:white;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+      .form-container{margin:20px 0;padding:20px;border-radius:8px;background:white;box-shadow:0 2px 4px rgba(0,0,0,.1);} 
       label{display:block;margin:10px 0;font-size:14px;}
       input[type="text"],input[type="password"]{padding:10px;width:100%;max-width:520px;box-sizing:border-box;margin-top:5px;}
       button{padding:10px 20px;margin-top:10px;margin-right:10px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;}
@@ -54,6 +54,34 @@
       <button id="btnReloadAgreements" disabled>Agreement一覧を取得</button>
       <button id="btnDownloadCSV" disabled>CSVダウンロード</button>
       <div id="message" class="small"></div>
+
+      <!-- ▼ 複数巨大パッケージ用エクスポート領域 -->
+      <div id="exportArea" class="form-container" style="display:none;">
+        <h2>大容量タイトルのエクスポート</h2>
+        <div class="small" style="margin-bottom:8px;">
+          タイトル数が <code class="k">10,000</code> 件以上のパッケージが検出されると、下に並びます。各行の「DL開始」でエクスポートを実行し、完了まで自動ポーリングします。
+        </div>
+        <div class="table-wrapper">
+          <table id="exportTable">
+            <thead>
+              <tr>
+                <th>Package name</th>
+                <th>Package ID</th>
+                <th>Titles</th>
+                <th>操作</th>
+                <th>ステータス</th>
+                <th>DLリンク</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="small subtle" style="margin-top:8px;">
+          ※ 進行中のジョブは5秒間隔で更新。<br/>
+          ※ ブラウザから <code class="k">api.ebsco.io</code> に直接アクセスできない環境ではCORSに注意。
+        </div>
+      </div>
+      <!-- ▲ 複数巨大パッケージ用エクスポート領域 -->
     </div>
 
     <div class="form-container" id="agreementsBox" style="display:none;">
@@ -88,7 +116,7 @@
         <table id="linesTable">
           <thead>
             <tr>
-              <th>Agreement ID</th>
+              <th>Agreement ID</</th>
               <th>Name</th>
               <th>Start Date</th>
               <th>Status</th>
@@ -151,9 +179,177 @@
       let selectedDetails = null;
       let dtLines = null, dtAgreements = null;
 
+      // ▼ 複数エクスポートジョブ管理
+      // exportJobs[pkgId] = { name, total, jobId, status, link, timer }
+      let exportJobs = {};
+
       const msg = (html, cls='info') => {
         document.getElementById('message').innerHTML = `<div class="${cls}">${html}</div>`;
       };
+
+      function showExportAreaIfNeeded(){
+        const area = document.getElementById('exportArea');
+        if(!area) return;
+        const hasRows = Object.keys(exportJobs).length > 0;
+        area.style.display = hasRows ? 'block' : 'none';
+      }
+
+      function ensureExportRow(pkgId, pkgName, total){
+        const tableBody = document.querySelector('#exportTable tbody');
+        if(!tableBody) return;
+
+        if(!exportJobs[pkgId]){
+          exportJobs[pkgId] = { name: pkgName || '', total: Number(total)||0, jobId:null, status:'READY', link:'', timer:null };
+
+          const tr = document.createElement('tr');
+          tr.id = `export-row-${pkgId}`;
+          tr.innerHTML = `
+            <td><span class="badge" title="${escapeHtml(pkgName||'')}">${escapeHtml((pkgName||'').slice(0,120))}</span></td>
+            <td><code class="k">${escapeHtml(String(pkgId))}</code></td>
+            <td><span class="badge">${escapeHtml(String(total))}</span></td>
+            <td>
+              <button class="btnStartExport" data-pkgid="${escapeHtml(String(pkgId))}">DL開始</button>
+            </td>
+            <td id="export-status-${pkgId}" class="small">READY</td>
+            <td id="export-link-${pkgId}"></td>
+          `;
+          tableBody.appendChild(tr);
+        }else{
+          exportJobs[pkgId].name = pkgName || exportJobs[pkgId].name;
+          exportJobs[pkgId].total = Number(total)||exportJobs[pkgId].total;
+          const row = document.getElementById(`export-row-${pkgId}`);
+          if(row){
+            row.cells[0].innerHTML = `<span class="badge" title="${escapeHtml(pkgName||exportJobs[pkgId].name)}">${escapeHtml((pkgName||exportJobs[pkgId].name).slice(0,120))}</span>`;
+            row.cells[2].innerHTML = `<span class="badge">${escapeHtml(String(total))}</span>`;
+          }
+        }
+        showExportAreaIfNeeded();
+      }
+
+      function makeExportFileName(baseName){
+        const now = new Date();
+        const pad = n => String(n).padStart(2,'0');
+        const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+        const safeBase = (baseName || 'package').replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,120);
+        return `${safeBase}_${ts}`;
+      }
+
+      async function startExportForPackage(pkgId){
+        hiq.apiKey     = document.getElementById('hiqApiKey').value.trim();
+        hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
+        if(!(hiq.apiKey && hiq.customerId)){ msg('HIQ: API Key と Customer ID を入力してください。','error'); return; }
+
+        const job = exportJobs[pkgId];
+        if(!job){ msg(`Export: 指定の Package ID が見つかりません: ${pkgId}`,'error'); return; }
+        if(job.timer){ msg(`Export: 既に進行中です（Package ${pkgId}）。`,'info'); return; }
+
+        const url = `https://api.ebsco.io/rm/rmaccounts/${encodeURIComponent(hiq.customerId)}/exports`;
+        const payload = {
+          fileName: makeExportFileName(job.name),
+          format: "XLSX",
+          packageIds: [ String(pkgId) ],
+          type: "STANDARD"
+        };
+
+        setRowStatus(pkgId, 'QUEUED（リクエスト中）');
+        disableRowButton(pkgId, true);
+
+        try{
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'accept': 'application/json',
+              'content-type': 'application/json',
+              'x-api-key': hiq.apiKey
+            },
+            body: JSON.stringify(payload)
+          });
+          if(!res.ok){
+            const t = await res.text().catch(()=> '');
+            throw new Error(`Export リクエスト失敗: ${res.status} ${t}`);
+          }
+          const data = await res.json();
+          job.jobId  = data.id || null;
+          job.status = data.status || 'QUEUED';
+          setRowStatus(pkgId, job.status + '（ジョブ開始）');
+          beginPollingForPackage(pkgId);
+        }catch(e){
+          setRowStatus(pkgId, `ERROR: ${e.message}`);
+          disableRowButton(pkgId, false);
+        }
+      }
+
+      function beginPollingForPackage(pkgId){
+        const job = exportJobs[pkgId];
+        if(!job || !job.jobId) return;
+        clearPollingForPackage(pkgId);
+        job.timer = setInterval(()=> pollExportStatusForPackage(pkgId), 5000);
+        pollExportStatusForPackage(pkgId);
+      }
+
+      function clearPollingForPackage(pkgId){
+        const job = exportJobs[pkgId];
+        if(job && job.timer){
+          clearInterval(job.timer);
+          job.timer = null;
+        }
+      }
+
+      async function pollExportStatusForPackage(pkgId){
+        const job = exportJobs[pkgId];
+        if(!job || !job.jobId) return;
+
+        const url = `https://api.ebsco.io/rm/rmaccounts/${encodeURIComponent(hiq.customerId)}/exports/${encodeURIComponent(job.jobId)}`;
+        try{
+          const res = await fetch(url, { headers: { 'accept':'application/json', 'x-api-key': hiq.apiKey }});
+          if(!res.ok){
+            const t = await res.text().catch(()=> '');
+            throw new Error(`ポーリング失敗: ${res.status} ${t}`);
+          }
+          const data = await res.json();
+          const status = String(data.status || 'UNKNOWN');
+          job.status = status;
+
+          const linkObj = Array.isArray(data.links) ? data.links.find(l => l.rel==='download' && l.href) : null;
+          job.link = linkObj ? linkObj.href : '';
+
+          setRowStatus(pkgId, status);
+          setRowLink(pkgId, job.link);
+
+          if(status === 'COMPLETED'){
+            clearPollingForPackage(pkgId);
+            disableRowButton(pkgId, false);
+            msg(`エクスポート完了（Package ${pkgId}）。リンクからダウンロードできます。`,'success');
+          }else if(status === 'FAILED' || status === 'CANCELED'){
+            clearPollingForPackage(pkgId);
+            disableRowButton(pkgId, false);
+            msg(`エクスポートが ${status} になりました（Package ${pkgId}）。再試行してください。`,'error');
+          }
+        }catch(e){
+          clearPollingForPackage(pkgId);
+          disableRowButton(pkgId, false);
+          setRowStatus(pkgId, `ERROR: ${e.message}`);
+        }
+      }
+
+      function setRowStatus(pkgId, text){
+        const cell = document.getElementById(`export-status-${pkgId}`);
+        if(cell) cell.innerHTML = escapeHtml(text||'');
+      }
+      function setRowLink(pkgId, href){
+        const cell = document.getElementById(`export-link-${pkgId}`);
+        if(!cell) return;
+        if(href){
+          const esc = escapeHtml(href);
+          cell.innerHTML = `<a href="${esc}" target="_blank" rel="noopener noreferrer">エクスポートファイルをダウンロード</a>`;
+        }else{
+          cell.textContent = '';
+        }
+      }
+      function disableRowButton(pkgId, disabled){
+        const btn = document.querySelector(`.btnStartExport[data-pkgid="${cssEscape(String(pkgId))}"]`);
+        if(btn) btn.disabled = !!disabled;
+      }
 
       // --- Login (Okapi) ---
       async function login(){
@@ -162,7 +358,6 @@
         const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
 
-        // HIQは任意（ここではチェックしない）
         hiq.apiKey = document.getElementById('hiqApiKey').value.trim();
         hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
 
@@ -234,7 +429,7 @@
       async function onPickAgreement(agreementId){
         selectedAgreementId = agreementId;
         await fetchAgreementDetails(agreementId);
-        await fetchEntitlements(agreementId); // 取得後に HIQ で拡張（任意）
+        await fetchEntitlements(agreementId);
       }
 
       async function fetchAgreementDetails(id){
@@ -272,34 +467,29 @@
             all.push(...(data.results||[]));
           }
 
-          // HIQ 入力がなければ従来どおりプレーンで描画
           hiq.apiKey = document.getElementById('hiqApiKey').value.trim();
           hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
 
           if(!(hiq.apiKey && hiq.customerId)){
-            renderLinesTable(all); // そのまま
+            renderLinesTable(all);
             msg(`Agreement Line 取得完了（${all.length}件, HIQ拡張なし）`, 'success');
             document.getElementById('btnDownloadCSV').disabled = all.length === 0;
             return;
           }
 
-          // Authority で分岐
-          const titleItems = [];   // EKB-TITLE
-          const packageItems = []; // EKB-PACKAGE
+          const titleItems = [];
+          const packageItems = [];
           for(const e of all){
             const a = getAuthority(e);
             if(a === 'EKB-PACKAGE') packageItems.push(e); else titleItems.push(e);
           }
 
-          // パッケージは全タイトルを取得して行を展開
           msg(`HIQ: パッケージ展開中…（${packageItems.length}件のパッケージ）`);
           const packageRows = await expandPackagesToRows(packageItems);
 
-          // 描画: TITLEは通常行（後で照合してHIQ列埋め）、PACKAGEはすでにHIQ列まで埋めた行
           const rows = [...titleItems, ...packageRows];
           renderLinesTable(rows);
 
-          // TITLE 行の HIQ 照合（KBID一致）
           await enrichWithHoldingsIQ(titleItems);
 
           msg(`Agreement Line 取得完了（TITLE: ${titleItems.length}件, PACKAGE 展開: ${packageRows.length}行, 合計: ${rows.length}行）`, 'success');
@@ -310,7 +500,6 @@
         }
       }
 
-      // --- DataTable 描画（_hiq があれば HIQ 列を事前に埋める） ---
       function renderLinesTable(items){
         const table = document.getElementById('linesTable');
         const tbody = table.querySelector('tbody');
@@ -324,10 +513,10 @@
           const tr = document.createElement('tr');
           tr.setAttribute('data-entitlement-id', e.id || '');
 
-          const hiqData = e._hiq || null; // see hiqFromTitle
+          const hiqData = e._hiq || null; 
 
           const cells = [
-            safe(e.owner?.id || selectedAgreementId || ''), // Agreement ID
+            safe(e.owner?.id || selectedAgreementId || ''),
             safe(name),
             safe(start),
             safe(status),
@@ -338,7 +527,6 @@
             safe(e.reference_object && e.reference_object.packageData && e.reference_object.packageData.name || ''),
             safe(e.reference_object && e.reference_object.publicationType || ''),
             linkCell(e.reference_object && e.reference_object.url || ''),
-            // --- New HIQ enrichment columns ---
             hiqData ? hiqData.providerName : '',
             hiqData ? hiqData.packageName : '',
             hiqData ? hiqData.titleName : '',
@@ -364,7 +552,6 @@
             hiqData ? hiqData.rootProxy : ''
           ];
 
-          // link columns: Agreement ref URL (10) and HIQ URL (22)
           tr.innerHTML = cells.map((cell,i)=> (i===10 || i===22) ? `<td>${cell}</td>` : `<td>${escapeHtml(cell)}</td>`).join('');
           tbody.appendChild(tr);
         });
@@ -376,7 +563,6 @@
         dtLines.columns.adjust();
       }
 
-      // --- Holdings IQ Enrichment (TITLE: 直接取得) ---
       async function enrichWithHoldingsIQ(items){
         if(!items || !items.length) return;
 
@@ -391,34 +577,24 @@
           while (queue.length){
             const e = queue.shift();
             if (!e) break;
-
-            // PACKAGE は別処理（従来どおり）
             if (getAuthority(e) === 'EKB-PACKAGE') continue;
-
             const parsed = parseReference3((e.reference || '').trim());
             if (!parsed) continue;
             const { packageId, kbId } = parsed;
             const url = `${base}?custid=${hiq.customerId}&packageid=${packageId}&kbid=${kbId}`;
-
             try {
               const res = await fetch(url, { headers });
               if (!res.ok) continue;
-
-              // 返却はタイトルオブジェクト（titleId/kbid/kbId, customerResourcesList など）
               const titleObj = await res.json();
               if (titleObj) {
                 updateRowWithHIQ(e.id || '', hiqFromTitle(titleObj));
               }
-            } catch (_) {
-              // no-op
-            }
+            } catch (_) { /* noop */ }
           }
         }
-
         await Promise.all(workers);
       }
 
-      // --- PACKAGE -> 全タイトル展開 ---
       async function expandPackagesToRows(packageItems){
         if(!packageItems.length) return [];
         const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdings_getPackageTitles.php';
@@ -447,8 +623,19 @@
                 const titles = Array.isArray(data.titles) ? data.titles : [];
                 total = Number(data.totalResults || titles.length);
 
+                // 1ページ目で総件数チェック。1万件以上ならエクスポート一覧に行を作成
+                if(offset === 1 && total >= 10000){
+                  const pkgName = (
+                    e?.reference_object?.packageData?.name ||
+                    e?._hiq?.packageName ||
+                    ''
+                  );
+                  ensureExportRow(packageId, pkgName, total);
+                  // 必要なら、このパッケージの詳細展開をスキップ：
+                  // break; // ←有効化すると巨大パッケージは展開しない
+                }
+
                 for(const t of titles){
-                  // クローンし、HIQ列を事前埋めで渡す
                   out.push({ ...e, _hiq: hiqFromTitle(t) });
                 }
 
@@ -462,10 +649,11 @@
 
         const workers = Array.from({length: concurrency}, () => worker());
         await Promise.all(workers);
+
+        showExportAreaIfNeeded();
         return out;
       }
 
-      // --- HIQ Title -> 拡張マッピング（customerResourcesList[0] or t） ---
       function hiqFromTitle(t){
         const cr = Array.isArray(t.customerResourcesList) && t.customerResourcesList.length ? t.customerResourcesList[0] : {};
         const ids = splitIdentifiers(t.identifiersList || []);
@@ -499,7 +687,6 @@
         };
       }
 
-      // coverage の最初の要素だけを採用（要件に応じて拡張可）
       function firstCoverage(list){
         try{
           const c = Array.isArray(list) && list.length ? list[0] : null;
@@ -526,12 +713,11 @@
         return out;
       }
 
-      // --- TITLE 1 行に HIQ 値を流し込み ---
       function updateRowWithHIQ(entitlementId, hiqObj){
         const tr = document.querySelector(`tr[data-entitlement-id="${cssEscape(entitlementId)}"]`);
         if(!tr) return;
         const cells = tr.cells;
-        const baseIndex = 11; // HIQ列の開始（0-origin）
+        const baseIndex = 11;
         const setCell = (idx, val, isLink=false) => {
           if(!cells[idx]) return;
           cells[idx].innerHTML = isLink && val ? `<a href="${escapeHtml(val)}" target="_blank" rel="noopener noreferrer">${escapeHtml(val)}</a>` : escapeHtml(val||'');
@@ -547,7 +733,7 @@
         setCell(baseIndex + 8,  hiqObj.coverageManagedEnd);
         setCell(baseIndex + 9,  hiqObj.coverageCustomBegin);
         setCell(baseIndex + 10, hiqObj.coverageCustomEnd);
-        setCell(baseIndex + 11, hiqObj.url, true);      // HIQ URL
+        setCell(baseIndex + 11, hiqObj.url, true);
         setCell(baseIndex + 12, hiqObj.printIssn);
         setCell(baseIndex + 13, hiqObj.onlineIssn);
         setCell(baseIndex + 14, hiqObj.printIsbn);
@@ -561,7 +747,6 @@
         setCell(baseIndex + 22, hiqObj.rootProxy);
       }
 
-      // --- Utils ---
       function safe(v){ return v==null? '': String(v); }
       function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
       function cssEscape(s){ return String(s).replace(/["\\#.;:,\[\]\(\)\s]/g, '\\$&'); }
@@ -571,7 +756,6 @@
         return `<a href="${esc}" target="_blank" rel="noopener noreferrer">${esc}</a>`;
       }
 
-      // --- authority 判定 + Reference 解析 ---
       function getAuthority(e){
         const a = (e.resource && e.resource.authority) || e.authority || (e.reference_object && e.reference_object.authority);
         if(a) return a;
@@ -580,23 +764,21 @@
         if(parseReference2(ref)) return 'EKB-PACKAGE';
         return '';
       }
-      function parseReference3(ref){ // 36 - 1515 - 968431
+      function parseReference3(ref){
         const m = ref.match(/^\s*(\d+)\s*-\s*(\d+)\s*-\s*(\d+)\s*$/);
         if(!m) return null;
         return { vendorId: m[1], packageId: m[2], kbId: m[3] };
-      }
-      function parseReference2(ref){ // 36 - 1515
+        }
+      function parseReference2(ref){
         const m = ref.match(/^\s*(\d+)\s*-\s*(\d+)\s*$/);
         if(!m) return null;
         return { vendorId: m[1], packageId: m[2] };
       }
 
-      // --- Events ---
       document.getElementById('btnLogin').addEventListener('click', login);
       document.getElementById('btnReloadAgreements').addEventListener('click', loadAgreements);
       document.getElementById('btnDownloadCSV').addEventListener('click', downloadCSV);
 
-      // Agreement一覧の「明細取得」ボタン
       document.addEventListener('click', (e) => {
         const btn = e.target.closest('.detail-btn');
         if(btn){
@@ -606,12 +788,19 @@
         }
       });
 
-      // --- CSV Export (Agreement Lines + HIQ columns) ---
+      // エクスポート一覧のボタンクリック（イベント委譲）
+      document.addEventListener('click', (ev)=>{
+        const btn = ev.target.closest('.btnStartExport');
+        if(btn){
+          const pkgId = btn.getAttribute('data-pkgid');
+          startExportForPackage(pkgId);
+        }
+      });
+
       function downloadCSV(){
         const table = document.getElementById('linesTable');
         const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
           Array.from(tr.cells).map((td,i)=>{
-            // link columns: Agreement ref URL (10) and HIQ URL (22)
             let t = (i===10 || i===22) ? td.querySelector('a')?.getAttribute('href')||'' : td.innerText;
             if(/[",\n]/.test(t)) t = '"' + t.replace(/"/g,'""') + '"';
             return t;
