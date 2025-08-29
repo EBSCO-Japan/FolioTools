@@ -238,26 +238,26 @@
         if(!job){ msg(`Export: 指定の Package ID が見つかりません: ${pkgId}`,'error'); return; }
         if(job.timer){ msg(`Export: 既に進行中です（Package ${pkgId}）。`,'info'); return; }
 
-        const url = `https://api.ebsco.io/rm/rmaccounts/${encodeURIComponent(hiq.customerId)}/exports`;
-        const payload = {
-          fileName: makeExportFileName(job.name),
-          format: "XLSX",
-          packageIds: [ String(pkgId) ],
-          type: "STANDARD"
-        };
+        // ★ ここでパッケージ名から安全なファイル名を作る
+        const fileName = makeExportFileName(job.name || `package_${pkgId}`);
+
+        const url =
+          `https://gssapps.ebscohost.com/auchikawa/iq/holdings_createExport.php` +
+          `?account=${encodeURIComponent(hiq.customerId)}` +
+          `&packageId=${encodeURIComponent(pkgId)}` +
+          `&fileName=${encodeURIComponent(fileName)}`;
 
         setRowStatus(pkgId, 'QUEUED（リクエスト中）');
         disableRowButton(pkgId, true);
 
         try{
           const res = await fetch(url, {
-            method: 'POST',
+            method: 'GET',
             headers: {
               'accept': 'application/json',
               'content-type': 'application/json',
               'x-api-key': hiq.apiKey
             },
-            body: JSON.stringify(payload)
           });
           if(!res.ok){
             const t = await res.text().catch(()=> '');
