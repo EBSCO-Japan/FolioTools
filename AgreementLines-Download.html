@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
     <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.2.2/css/fixedColumns.dataTables.min.css"/>
     <style>
+      #agreementsTable tbody tr.selected-row td {background-color: #fff3cd !important;}
       body{font-family:Arial, sans-serif;max-width:1200px;margin:0 auto;padding:20px;background:#f5f5f5;}
       .form-container{margin:20px 0;padding:20px;border-radius:8px;background:white;box-shadow:0 2px 4px rgba(0,0,0,.1);}
       label{display:block;margin:10px 0;font-size:14px;}
@@ -56,6 +57,26 @@
       <button id="btnDownloadCSV" disabled>CSVダウンロード</button>
       <div id="message" class="small"></div>
 
+
+    </div>
+
+    <div class="form-container" id="agreementsBox" style="display:none;">
+      <h2>Agreement 選択</h2>
+      <div class="table-wrapper">
+        <table id="agreementsTable">
+          <thead>
+            <tr>
+              <th>明細取得</th>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Start Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
       <!-- ▼ 複数巨大パッケージ用エクスポート領域 -->
       <div id="exportArea" class="form-container" style="display:none;">
         <h2>大容量タイトルのエクスポート</h2>
@@ -83,35 +104,7 @@
         </div>
       </div>
       <!-- ▲ 複数巨大パッケージ用エクスポート領域 -->
-    </div>
-
-    <div class="form-container" id="agreementsBox" style="display:none;">
-      <h2>Agreement 選択</h2>
-      <div class="table-wrapper">
-        <table id="agreementsTable">
-          <thead>
-            <tr>
-              <th>明細取得</th>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Start Date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="subtle" style="margin-top:10px;">
-        <div>選択中 Agreement のメタデータ</div>
-        <div class="meta-grid">
-          <div>名前: <span id="metaName" class="badge"></span></div>
-          <div>開始日: <span id="metaStart" class="badge"></span></div>
-          <div>ステータス: <span id="metaStatus" class="badge"></span></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="form-container">
+    <div id="linesBox" class="form-container" style="display:none;">
       <h2>Agreement Line（Holdings IQ 拡張列）</h2>
       <div id="loadingMsg"></div>
       <div class="table-wrapper">
@@ -159,17 +152,7 @@
           <tbody></tbody>
         </table>
       </div>
-      <div class="small">
-        ※ HIQ 列は、Reference の <code class="k">VendorID - PackageID - KBID</code>（EKB-TITLE）または <code class="k">VendorID - PackageID</code>（EKB-PACKAGE）を使って
-        <code class="k">/rmaccounts/v2/{customerId}/vendors/{vendorId}/packages/{packageId}/titles</code> をページングで呼び、
-        返却 <code class="k">titles</code> / <code class="k">customerResourcesList[0]</code> から各値を抽出します。<br/>
-        ・Selected / Not selected は <code class="k">isSelected</code> を参照。<br/>
-        ・Coverage は <code class="k">managedCoverageList[0].beginCoverage / endCoverage</code> を「HIQ Managed begin / end」に、
-        <code class="k">customCoverageList[0].beginCoverage / endCoverage</code> を「HIQ Custom begin / end」に出力します。<br/>
-        ・Custom label は <code class="k">userDefinedField1..5</code> を 5 列に展開。<br/>
-        ・Root proxy は <code class="k">proxy.proxiedUrl</code> を表示します。<br/>
-        ・EKB-TITLE の HIQ 取得は <code class="k">https://api.ebsco.io/rm/rmaccounts/v2/{customerId}/lists/{packageId}/titles/{kbid}</code> を直接呼び出します（ヘッダーに <code class="k">x-api-key</code> を付与）。EKB-PACKAGE は従来どおりタイトル一覧をページング取得します。
-      </div>
+
     </div>
 
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
@@ -183,6 +166,7 @@
       let dtLines = null, dtAgreements = null;
       // 選択切替の競合防止用シーケンス
       let activeAgreementSeq = 0;
+      let linesTableTemplateHTML = '';
 
       // ▼ 複数エクスポートジョブ管理
       // exportJobs[pkgId] = { name, total, jobId, status, link, timer }
@@ -215,13 +199,13 @@
           const tr = document.createElement('tr');
           tr.id = `export-row-${pkgId}`;
           tr.innerHTML = `
-            <td><span class="badge" title="${escapeHtml(pkgName||'')}">${escapeHtml((pkgName||'').slice(0,120))}</span></td>
-            <td><code class="k">${escapeHtml(String(pkgId))}</code></td>
-            <td><span class="badge">${escapeHtml(String(total))}</span></td>
+            <td>${escapeHtml((pkgName||''))}</td>
+            <td>${escapeHtml(String(pkgId))}</code></td>
+            <td>${escapeHtml(String(total))}</span></td>
             <td>
               <button class="btnStartExport" data-pkgid="${escapeHtml(String(pkgId))}">DL開始</button>
             </td>
-            <td id="export-status-${pkgId}" class="small">READY</td>
+            <td id="export-status-${pkgId}" class="small"></td>
             <td id="export-link-${pkgId}"></td>
           `;
           tableBody.appendChild(tr);
@@ -431,6 +415,14 @@
         activeAgreementSeq++;
         const seq = activeAgreementSeq;
         selectedAgreementId = agreementId;
+        // 行ハイライト処理
+        const allRows = document.querySelectorAll('#agreementsTable tbody tr');
+        allRows.forEach(tr => tr.classList.remove('selected-row'));
+        const btn = document.querySelector(`.detail-btn[data-id="${agreementId}"]`);
+        if (btn) {
+          const row = btn.closest('tr');
+        if (row) row.classList.add('selected-row');
+        }
 
         // 旧表示・ジョブをクリア
         resetLinesUI();
@@ -450,18 +442,17 @@
         if(!res.ok){ msg('Agreement 詳細取得失敗: ' + res.status, 'error'); return; }
         const details = await res.json();
         if(seq !== activeAgreementSeq) return;
-        selectedDetails = details;
-        document.getElementById('metaName').textContent = details.name || '';
-        document.getElementById('metaStart').textContent = (details.startDate || '').slice(0,10);
-        document.getElementById('metaStatus').textContent = (details.agreementStatus && details.agreementStatus.label) || '';
         msg('Agreement メタデータ取得完了', 'success');
       }
 
       // ========== Agreement Lines 取得（HIQ 拡張付き） ==========
       async function fetchEntitlements(agreementId, seq){
+        const linesBox = document.getElementById('linesBox');
+        if (linesBox) linesBox.style.display = 'block';
+
         const loading = document.getElementById('loadingMsg');
-        loading.textContent = 'Agreement Line（HIQ）問い合わせ中…';
-        msg('Agreement Line を取得中…');
+        loading.innerHTML = '<div class="info">Agreement Line（HIQ）問い合わせ中…</div>';
+        msg('Agreement Line 取得中', 'info');
 
         const perPage = 100;
         let page = 1, totalPages = 1;
@@ -504,7 +495,7 @@
           }
 
           msg(`HIQ: パッケージ展開中…（${packageItems.length}件のパッケージ）`);
-          loading.textContent = 'HIQ パッケージ展開中…';
+          loading.innerHTML = '<div class="info">HIQパッケージ展開中…</div>';
           const packageRows = await expandPackagesToRows(packageItems, seq);
           if(seq !== activeAgreementSeq) { loading.textContent=''; return; }
 
@@ -523,7 +514,7 @@
       }
 
       function renderLinesTable(items){
-        const table = document.getElementById('linesTable');
+        const table = document.getElementById('linesTable'); // ← 差し戻し後の新しい要素
         const tbody = table.querySelector('tbody');
         tbody.innerHTML = '';
         const d = selectedDetails || {};
@@ -539,15 +530,11 @@
           // --- 左端の情報列 ---
           let infoLabel = '';
           try {
-            if (e._status) {
-              infoLabel = e._status; // 明示ステータスがあれば優先
-            } else if (e._skipLarge) {
+            if (e._skipLarge) {
               infoLabel = '要DL';
             } else if (e._error) {
               infoLabel = 'Error';
-            } else if (hiqData) {
-              infoLabel = e._isPackage ? 'パッケージ' : 'タイトル';
-            } else {
+            }else {
               infoLabel = '';
             }
           } catch(_) { infoLabel = 'Error'; }
@@ -595,7 +582,6 @@
           tr.innerHTML = cells.map((cell,i)=> (i===11 || i===23) ? `<td>${cell}</td>` : `<td>${escapeHtml(cell)}</td>`).join('');
           tbody.appendChild(tr);
         });
-        if(dtLines){ dtLines.destroy(); }
         dtLines = $("#linesTable").DataTable({
           paging:false, searching:true, ordering:true, info:false,
           scrollX:true, autoWidth:false, fixedColumns:{ leftColumns:5 }, /* 情報列を含めて左固定5列 */
@@ -636,7 +622,6 @@
               if (capturedSeq !== activeAgreementSeq) return;
               if (titleObj) {
                 updateRowWithHIQ(e.id || '', hiqFromTitle(titleObj));
-                updateRowStatus(e.id || '', 'タイトル');
               }
             } catch (_) { if(capturedSeq===activeAgreementSeq) updateRowStatus(e.id || '', 'Error'); }
             finally {
@@ -682,6 +667,7 @@
                 // 1ページ目で総件数チェック。1万件以上ならエクスポート一覧へ、展開スキップ
                 if(page === 1 && total >= 10000){
                   const pkgName = (
+                    e?.reference_object?.label ||
                     e?.reference_object?.packageData?.name ||
                     e?._hiq?.packageName ||
                     ''
@@ -692,7 +678,7 @@
                 }
 
                 for(const t of titles){
-                  out.push({ ...e, _hiq: hiqFromTitle(t), _status:'パッケージ', _isPackage:true });
+                  out.push({ ...e, _hiq: hiqFromTitle(t)});
                 }
 
                 // 次ページ判定（ページ番号方式）
@@ -884,8 +870,31 @@
       }
 
       function resetLinesUI(){
-        const tbody = document.querySelector('#linesTable tbody');
-        if(dtLines){ try{ dtLines.clear(); dtLines.destroy(); }catch(_){} dtLines = null; }
-        if(tbody) tbody.innerHTML = '';
+      // 1) いまのテーブル&ラッパを把握
+      const currentTable = document.getElementById('linesTable');
+      if(!currentTable) return;
+      const wrapper = currentTable.closest('.table-wrapper') || currentTable.parentElement;
+
+      // 2) 初回だけ、元のテーブル骨組み（thead/空tbody）のHTMLを保存
+      if(!linesTableTemplateHTML){
+        linesTableTemplateHTML = currentTable.outerHTML;
       }
+
+      // 3) DataTable を完全破棄（DOMラッパも含めて）
+      try{
+        if ($.fn.DataTable.isDataTable(currentTable)) {
+          $(currentTable).DataTable().destroy(true); // true: ラッパ含めて削除
+        }
+      }catch(_){ /* noop */ }
+      dtLines = null;
+
+      // 4) 元のテーブル骨組みに差し戻す（空の #linesTable が復活）
+      if(wrapper){
+        wrapper.innerHTML = linesTableTemplateHTML;
+      }
+      // 表示枠を隠す（初期状態に戻す）
+      const linesBox = document.getElementById('linesBox');
+      if (linesBox) linesBox.style.display = 'none';
+}
+
     </script>
