@@ -290,7 +290,10 @@
       async function pollExportStatusForPackage(pkgId){
         const job = exportJobs[pkgId];
         if(!job || !job.jobId) return;
-        const url = `https://api.ebsco.io/rm/rmaccounts/${encodeURIComponent(hiq.customerId)}/exports/${encodeURIComponent(job.jobId)}`;
+        // const url = `https://api.ebsco.io/rm/rmaccounts/${encodeURIComponent(hiq.customerId)}/exports/${encodeURIComponent(job.jobId)}`;
+        const url = `https://gssapps.ebscohost.com/auchikawa/iq/holdings_getExport.php` +
+          `?account=${encodeURIComponent(hiq.customerId)}` +
+          `&exportId=${encodeURIComponent(job.jobId)}`;
         try{
           const res = await fetch(url, { headers: { 'accept':'application/json', 'x-api-key': hiq.apiKey }});
           if(!res.ok){
