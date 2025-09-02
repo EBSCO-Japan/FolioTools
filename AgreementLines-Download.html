@@ -2,13 +2,15 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <title>AgreementLines-Download + Holdings IQ (extended, multi-export)</title>
+    <title>AgreementLines (+Package Info on demand)</title>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
     <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.2.2/css/fixedColumns.dataTables.min.css"/>
     <style>
       #agreementsTable tbody tr.selected-row td {background-color: #fff3cd !important;}
       body{font-family:Arial, sans-serif;max-width:1200px;margin:0 auto;padding:20px;background:#f5f5f5;}
-      .form-container{margin:20px 0;padding:20px;border-radius:8px;background:white;box-shadow:0 2px 4px rgba(0,0,0,.1);}
+      .form-container{margin:20px 0;padding:20px;border-radius:8px;background:white;box-shadow:0 2px 4px rgba(0,0,0,.1);} 
+      .head-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+      .head-row h2{margin:0}
       label{display:block;margin:10px 0;font-size:14px;}
       input[type="text"],input[type="password"]{padding:10px;width:100%;max-width:520px;box-sizing:border-box;margin-top:5px;}
       button{padding:10px 20px;margin-top:10px;margin-right:10px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;}
@@ -23,10 +25,14 @@
       .info{color:#004085;background:#cce5ff;padding:10px;margin:10px 0;border-radius:4px;}
       .subtle{color:#555;font-size:14px;}
       .badge{display:inline-block;background:#eef2ff;color:#334;border:1px solid #ccd;padding:2px 8px;border-radius:999px;font-size:12px;}
-      .meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
       .small{font-size:12px;color:#666;}
       code.k{background:#f1f1f1;padding:1px 4px;border-radius:4px;}
       #loadingMsg{margin:10px 0;font-size:14px;color:#555;}
+      /* DataTables 幅計算の安定化 */
+      table.dataTable { border-collapse: separate !important; border-spacing: 0 !important; }
+      #linesTable th, #linesTable td { white-space: nowrap; }
+      .dataTables_wrapper .dataTables_scrollHead, 
+      .dataTables_wrapper .dataTables_scrollBody { overflow: auto; }
     </style>
   </head>
   <body>
@@ -45,23 +51,20 @@
         <input type="password" id="password" value="admin" />
       </label>
       <hr class="small"/>
+      <div class="small">▼契約明細（Agreement Line）のみ取得する場合は不要です。Package情報を取得したりパッケージのダウンロードをする場合は入力してください。</div>
+       <label>Customer ID（任意）:
+        <input type="text" id="hiqCustomerId" placeholder="例: s1014396" />
+      </label>
       <label>Holdings IQ API Key（任意）:
         <input type="text" id="hiqApiKey" placeholder="例: AKIA..." />
       </label>
-      <label>Customer ID（任意）:
-        <input type="text" id="hiqCustomerId" placeholder="例: s1014396" />
-      </label>
-
       <button id="btnLogin">ログイン</button>
       <button id="btnReloadAgreements" disabled>Agreement一覧を取得</button>
-      <button id="btnDownloadCSV" disabled>CSVダウンロード</button>
       <div id="message" class="small"></div>
-
-
     </div>
 
     <div class="form-container" id="agreementsBox" style="display:none;">
-      <h2>Agreement 選択</h2>
+      <h2>契約（Agreement）一覧</h2>
       <div class="table-wrapper">
         <table id="agreementsTable">
           <thead>
@@ -77,270 +80,179 @@
         </table>
       </div>
     </div>
-      <!-- ▼ 複数巨大パッケージ用エクスポート領域 -->
-      <div id="exportArea" class="form-container" style="display:none;">
-        <h2>大容量タイトルのエクスポート</h2>
-        <div class="small" style="margin-bottom:8px;">
-          タイトル数が <code class="k">10,000</code> 件以上のパッケージが検出されると、下に並びます。各行の「DL開始」でエクスポートを実行し、完了まで自動ポーリングします。
-        </div>
-        <div class="table-wrapper">
-          <table id="exportTable">
-            <thead>
-              <tr>
-                <th>Package name</th>
-                <th>Package ID</th>
-                <th>Titles</th>
-                <th>操作</th>
-                <th>ステータス</th>
-                <th>DLリンク</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div class="small subtle" style="margin-top:8px;">
-          ※ 進行中のジョブは5秒間隔で更新。<br/>
-          ※ ブラウザから <code class="k">api.ebsco.io</code> に直接アクセスできない環境ではCORSに注意。
-        </div>
-      </div>
-      <!-- ▲ 複数巨大パッケージ用エクスポート領域 -->
+
     <div id="linesBox" class="form-container" style="display:none;">
-      <h2>Agreement Line（Holdings IQ 拡張列）</h2>
+      <div class="head-row">
+        <h2>契約明細（Agreement Line）</h2>
+        <button id="btnDownloadCSVLines" disabled>CSVダウンロード（明細）</button>
+      </div>
+      <div class="small">Reference: VendorID - PackageID - KBID / VendorID - PackageID</div>
       <div id="loadingMsg"></div>
       <div class="table-wrapper">
         <table id="linesTable">
           <thead>
             <tr>
-              <th>情報（処理結果）</th>
-              <th>Agreement ID</th>
-              <th>Name</th>
-              <th>Start Date</th>
-              <th>Status</th>
+              <th>情報</th>
+              <th>Level</th>
               <th>Entitlement ID</th>
-              <th>Reference <span class="small">(VendorID - PackageID - KBID / VendorID - PackageID)</span></th>
+              <th>Reference</th>
               <th>Label</th>
               <th>Provider</th>
               <th>Package Name</th>
               <th>Publication Type</th>
               <th>URL</th>
-              <!-- New HIQ enrichment columns -->
-              <th>HIQ Provider name</th>
-              <th>HIQ Package name</th>
-              <th>HIQ Title name</th>
-              <th>HIQ Title ID</th>
-              <th>HIQ Package ID</th>
-              <th>HIQ Provider ID</th>
-              <th>HIQ Resource type</th>
-              <th>HIQ Managed begin</th>
-              <th>HIQ Managed end</th>
-              <th>HIQ Custom begin</th>
-              <th>HIQ Custom end</th>
-              <th>HIQ URL</th>
-              <th>HIQ Print ISSN</th>
-              <th>HIQ Online ISSN</th>
-              <th>HIQ Print ISBN</th>
-              <th>HIQ Online ISBN</th>
-              <th>HIQ Selected / Not selected</th>
-              <th>HIQ Custom label 1</th>
-              <th>HIQ Custom label 2</th>
-              <th>HIQ Custom label 3</th>
-              <th>HIQ Custom label 4</th>
-              <th>HIQ Custom label 5</th>
-              <th>HIQ Root proxy</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
-
     </div>
+
+    <!-- ▼ パッケージ情報（行ごとに要求時取得） -->
+    <div id="packageInfoBox" class="form-container" style="display:none;">
+      <h2>パッケージ情報</h2>
+      <div id="packageInfoMsg" class="small"></div>
+      <div class="table-wrapper">
+        <table id="packageInfoTable">
+          <thead>
+            <tr>
+              <th>操作</th>
+              <th>Vendor ID</th>
+              <th>Package ID</th>
+              <th>Package name</th>
+              <th>Vendor name</th>
+              <th>Selected count</th>
+              <th>Title count</th>
+              <th>Package free access</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- ▲ パッケージ情報 -->
+
+    <!-- ▼ パッケージのタイトル一覧（パッケージ情報の下に表示） -->
+    <div id="packageTitlesBox" class="form-container" style="display:none;">
+      <div class="head-row">
+        <h2 id="packageTitlesHeading">パッケージ内タイトル一覧</h2>
+        <button id="btnDownloadCSVTitles" disabled>CSVダウンロード（タイトル）</button>
+      </div>
+      <div id="packageTitlesMsg" class="small"></div>
+      <div class="table-wrapper">
+        <table id="packageTitlesTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Title name</th>
+              <th>Title ID</th>
+              <th>Resource type</th>
+              <th>Selected</th>
+              <th>URL</th>
+              <th>Print ISSN</th>
+              <th>Online ISSN</th>
+              <th>Print ISBN</th>
+              <th>Online ISBN</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- ▲ パッケージのタイトル一覧 -->
 
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/fixedcolumns/4.2.2/js/dataTables.fixedColumns.min.js"></script>
     <script>
+      // ▼ タイトル一覧用キャッシュ / DataTable
+      let pkgTitlesCache = new Map(); // packageId -> { list:[], total:number, name:string }
+      let dtPkgTitles = null;
+
+      // ✅ 追加：現在のタイトル一覧対象（全件CSV出力で使用）
+      let currentPackageIdForTitles = '';
+      let currentPackageNameForTitles = '';
+
+      function showPackageTitlesBox(show){
+        const box = document.getElementById('packageTitlesBox');
+        if (box) box.style.display = show ? 'block' : 'none';
+      }
+      function setPackageTitlesMsg(html, cls='info'){
+        const el = document.getElementById('packageTitlesMsg');
+        if (el) el.innerHTML = html ? `<div class="${cls}">${html}</div>` : '';
+      }
+      function resetPackageTitlesUI(){
+        const table = document.getElementById('packageTitlesTable');
+        if(!table) return;
+        try{
+          if ($.fn.DataTable.isDataTable(table)) {
+            $(table).DataTable().destroy(true);
+          }
+        }catch(_){}
+        // テーブル骨組み再生成
+        const wrapper = table.closest('.table-wrapper');
+        if(wrapper){
+          wrapper.innerHTML = `
+            <table id="packageTitlesTable">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Title name</th>
+                  <th>Title ID</th>
+                  <th>Resource type</th>
+                  <th>Selected</th>
+                  <th>URL</th>
+                  <th>Print ISSN</th>
+                  <th>Online ISSN</th>
+                  <th>Print ISBN</th>
+                  <th>Online ISBN</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>`;
+        }
+        dtPkgTitles = null;
+        setPackageTitlesMsg('');
+        showPackageTitlesBox(false);
+        // CSV（タイトル）ボタン無効化
+        const b = document.getElementById('btnDownloadCSVTitles');
+        if (b) b.disabled = true;
+
+        // ✅ 追加：選択中パッケージ情報をクリア
+        currentPackageIdForTitles = '';
+        currentPackageNameForTitles = '';
+      }
+
+      // ▼ パッケージ情報 UI
+      function showPackageInfoBox(show){
+        const box = document.getElementById('packageInfoBox');
+        if (box) box.style.display = show ? 'block' : 'none';
+      }
+      function setPackageInfoMsg(html, cls='info'){
+        const el = document.getElementById('packageInfoMsg');
+        if (el) el.innerHTML = html ? `<div class="${cls}">${html}</div>` : '';
+      }
+      function resetPackageInfoUI(){
+        const table = document.getElementById('packageInfoTable');
+        if(!table) return;
+        const tbody = table.querySelector('tbody');
+        if(tbody) tbody.innerHTML = '';
+        setPackageInfoMsg('');
+        showPackageInfoBox(false);
+      }
+
+      // ▼ Okapi / 状態
       let okapi = { base:'', tenant:'', token:'' };
-      let hiq = { apiKey:'', customerId:'' };
+      let hiq = { apiKey:'', customerId:'' }; // パッケージ詳細・タイトル一覧取得に使用
       let selectedAgreementId = '';
       let selectedDetails = null;
       let dtLines = null, dtAgreements = null;
-      // 選択切替の競合防止用シーケンス
       let activeAgreementSeq = 0;
       let linesTableTemplateHTML = '';
-
-      // ▼ 複数エクスポートジョブ管理
-      // exportJobs[pkgId] = { name, total, jobId, status, link, timer }
-      let exportJobs = {};
 
       const msg = (html, cls='info') => {
         document.getElementById('message').innerHTML = `<div class="${cls}">${html}</div>`;
       };
-
-      function showExportAreaIfNeeded(){
-        const area = document.getElementById('exportArea');
-        if(!area) return;
-        const hasRows = Object.keys(exportJobs).length > 0;
-        area.style.display = hasRows ? 'block' : 'none';
-      }
-      function resetExportArea(){
-        exportJobs = {};
-        const tbody = document.querySelector('#exportTable tbody');
-        if(tbody) tbody.innerHTML = '';
-        showExportAreaIfNeeded();
-      }
-
-      function ensureExportRow(pkgId, pkgName, total){
-        const tableBody = document.querySelector('#exportTable tbody');
-        if(!tableBody) return;
-
-        if(!exportJobs[pkgId]){
-          exportJobs[pkgId] = { name: pkgName || '', total: Number(total)||0, jobId:null, status:'READY', link:'', timer:null };
-
-          const tr = document.createElement('tr');
-          tr.id = `export-row-${pkgId}`;
-          tr.innerHTML = `
-            <td>${escapeHtml((pkgName||''))}</td>
-            <td>${escapeHtml(String(pkgId))}</code></td>
-            <td>${escapeHtml(String(total))}</span></td>
-            <td>
-              <button class="btnStartExport" data-pkgid="${escapeHtml(String(pkgId))}">DL開始</button>
-            </td>
-            <td id="export-status-${pkgId}" class="small"></td>
-            <td id="export-link-${pkgId}"></td>
-          `;
-          tableBody.appendChild(tr);
-        }else{
-          exportJobs[pkgId].name = pkgName || exportJobs[pkgId].name;
-          exportJobs[pkgId].total = Number(total)||exportJobs[pkgId].total;
-          const row = document.getElementById(`export-row-${pkgId}`);
-          if(row){
-            row.cells[0].innerHTML = `<span class=\"badge\" title=\"${escapeHtml(pkgName||exportJobs[pkgId].name)}\">${escapeHtml((pkgName||exportJobs[pkgId].name).slice(0,120))}</span>`;
-            row.cells[2].innerHTML = `<span class=\"badge\">${escapeHtml(String(total))}</span>`;
-          }
-        }
-        showExportAreaIfNeeded();
-      }
-
-      function makeExportFileName(baseName){
-        const now = new Date();
-        const pad = n => String(n).padStart(2,'0');
-        const ts  = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
-        const safeBase = (baseName || 'package').replace(/[^a-zA-Z0-9._-]+/g,'_').slice(0,120);
-        return `${safeBase}_${ts}`;
-      }
-
-      async function startExportForPackage(pkgId){
-        hiq.apiKey     = document.getElementById('hiqApiKey').value.trim();
-        hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
-        if(!(hiq.apiKey && hiq.customerId)){ msg('HIQ: API Key と Customer ID を入力してください。','error'); return; }
-
-        const job = exportJobs[pkgId];
-        if(!job){ msg(`Export: 指定の Package ID が見つかりません: ${pkgId}`,'error'); return; }
-        if(job.timer){ msg(`Export: 既に進行中です（Package ${pkgId}）。`,'info'); return; }
-
-        // ★ ここでパッケージ名から安全なファイル名を作る
-        const fileName = makeExportFileName(job.name || `package_${pkgId}`);
-
-        const url =
-          `https://gssapps.ebscohost.com/auchikawa/iq/holdings_createExport.php` +
-          `?account=${encodeURIComponent(hiq.customerId)}` +
-          `&packageId=${encodeURIComponent(pkgId)}` +
-          `&fileName=${encodeURIComponent(fileName)}`;
-
-        setRowStatus(pkgId, 'QUEUED（リクエスト中）');
-        disableRowButton(pkgId, true);
-
-        try{
-          const res = await fetch(url, {
-            method: 'GET',
-            headers: {
-              'accept': 'application/json',
-              'content-type': 'application/json',
-              'x-api-key': hiq.apiKey
-            },
-          });
-          if(!res.ok){
-            const t = await res.text().catch(()=> '');
-            throw new Error(`Export リクエスト失敗: ${res.status} ${t}`);
-          }
-          const data = await res.json();
-          job.jobId  = data.id || null;
-          job.status = data.status || 'QUEUED';
-          setRowStatus(pkgId, job.status + '（ジョブ開始）');
-          beginPollingForPackage(pkgId);
-        }catch(e){
-          setRowStatus(pkgId, `ERROR: ${e.message}`);
-          disableRowButton(pkgId, false);
-        }
-      }
-
-      function beginPollingForPackage(pkgId){
-        const job = exportJobs[pkgId];
-        if(!job || !job.jobId) return;
-        clearPollingForPackage(pkgId);
-        job.timer = setInterval(()=> pollExportStatusForPackage(pkgId), 5000);
-        pollExportStatusForPackage(pkgId);
-      }
-
-      function clearPollingForPackage(pkgId){
-        const job = exportJobs[pkgId];
-        if(job && job.timer){ clearInterval(job.timer); job.timer = null; }
-      }
-
-      async function pollExportStatusForPackage(pkgId){
-        const job = exportJobs[pkgId];
-        if(!job || !job.jobId) return;
-        // const url = `https://api.ebsco.io/rm/rmaccounts/${encodeURIComponent(hiq.customerId)}/exports/${encodeURIComponent(job.jobId)}`;
-        const url = `https://gssapps.ebscohost.com/auchikawa/iq/holdings_getExport.php` +
-          `?account=${encodeURIComponent(hiq.customerId)}` +
-          `&exportId=${encodeURIComponent(job.jobId)}`;
-        try{
-          const res = await fetch(url, { headers: { 'accept':'application/json', 'x-api-key': hiq.apiKey }});
-          if(!res.ok){
-            const t = await res.text().catch(()=> '');
-            throw new Error(`ポーリング失敗: ${res.status} ${t}`);
-          }
-          const data = await res.json();
-          const status = String(data.status || 'UNKNOWN');
-          job.status = status;
-          const linkObj = Array.isArray(data.links) ? data.links.find(l => l.rel==='download' && l.href) : null;
-          job.link = linkObj ? linkObj.href : '';
-          setRowStatus(pkgId, status);
-          setRowLink(pkgId, job.link);
-          if(status === 'COMPLETED'){
-            clearPollingForPackage(pkgId);
-            disableRowButton(pkgId, false);
-            msg(`エクスポート完了（Package ${pkgId}）。リンクからダウンロードできます。`,'success');
-          }else if(status === 'FAILED' || status === 'CANCELED'){
-            clearPollingForPackage(pkgId);
-            disableRowButton(pkgId, false);
-            msg(`エクスポートが ${status} になりました（Package ${pkgId}）。再試行してください。`,'error');
-          }
-        }catch(e){
-          clearPollingForPackage(pkgId);
-          disableRowButton(pkgId, false);
-          setRowStatus(pkgId, `ERROR: ${e.message}`);
-        }
-      }
-
-      function setRowStatus(pkgId, text){
-        const cell = document.getElementById(`export-status-${pkgId}`);
-        if(cell) cell.innerHTML = escapeHtml(text||'');
-      }
-      function setRowLink(pkgId, href){
-        const cell = document.getElementById(`export-link-${pkgId}`);
-        if(!cell) return;
-        if(href){
-          const esc = escapeHtml(href);
-          cell.innerHTML = `<a href="${esc}" target="_blank" rel="noopener noreferrer">エクスポートファイルをダウンロード</a>`;
-        }else{
-          cell.textContent = '';
-        }
-      }
-      function disableRowButton(pkgId, disabled){
-        const btn = document.querySelector(`.btnStartExport[data-pkgid="${cssEscape(String(pkgId))}"]`);
-        if(btn) btn.disabled = !!disabled;
-      }
 
       // --- Login (Okapi) ---
       async function login(){
@@ -370,7 +282,8 @@
           okapi = { base: baseUrl, tenant, token };
           msg('ログイン成功。次に「Agreement一覧を取得」ボタンを押してください。', 'success');
           document.getElementById('btnReloadAgreements').disabled = false;
-          document.getElementById('btnDownloadCSV').disabled = true;
+          const b = document.getElementById('btnDownloadCSVLines');
+          if (b) b.disabled = true;
         }catch(e){ msg('通信エラー: ' + e.message, 'error'); }
       }
 
@@ -414,22 +327,23 @@
       }
 
       async function onPickAgreement(agreementId){
-        // 新しい選択開始: 競合回避のためシーケンスを進める
         activeAgreementSeq++;
         const seq = activeAgreementSeq;
         selectedAgreementId = agreementId;
-        // 行ハイライト処理
+
+        // 行ハイライト
         const allRows = document.querySelectorAll('#agreementsTable tbody tr');
         allRows.forEach(tr => tr.classList.remove('selected-row'));
         const btn = document.querySelector(`.detail-btn[data-id="${agreementId}"]`);
         if (btn) {
           const row = btn.closest('tr');
-        if (row) row.classList.add('selected-row');
+          if (row) row.classList.add('selected-row');
         }
 
-        // 旧表示・ジョブをクリア
+        // 初期化
         resetLinesUI();
-        resetExportArea();
+        resetPackageInfoUI();
+        resetPackageTitlesUI();
         document.getElementById('loadingMsg').textContent = '';
         msg(`Agreement(${escapeHtml(agreementId)}) の読み込みを開始しました…`);
 
@@ -445,16 +359,17 @@
         if(!res.ok){ msg('Agreement 詳細取得失敗: ' + res.status, 'error'); return; }
         const details = await res.json();
         if(seq !== activeAgreementSeq) return;
+        selectedDetails = details;
         msg('Agreement メタデータ取得完了', 'success');
       }
 
-      // ========== Agreement Lines 取得（HIQ 拡張付き） ==========
+      // ========== Agreement Lines 取得 ==========
       async function fetchEntitlements(agreementId, seq){
         const linesBox = document.getElementById('linesBox');
         if (linesBox) linesBox.style.display = 'block';
 
         const loading = document.getElementById('loadingMsg');
-        loading.innerHTML = '<div class="info">Agreement Line（HIQ）問い合わせ中…</div>';
+        loading.innerHTML = '<div class="info">Agreement Line 取得中…</div>';
         msg('Agreement Line 取得中', 'info');
 
         const perPage = 100;
@@ -469,7 +384,7 @@
           totalPages = data.totalPages || 1;
           all.push(...(data.results||[]));
           for(page=2; page<=totalPages; page++){
-            loading.textContent = `Agreement Line（HIQ）問い合わせ中… (${page}/${totalPages})`;
+            loading.textContent = `Agreement Line 取得中… (${page}/${totalPages})`;
             url = `${okapi.base}/erm/entitlements?filters=owner%3D%3D${encodeURIComponent(agreementId)}&sort=type%3Basc&sort=resource.name%3Basc&sort=reference%3Basc&sort=id%3Basc&stats=true&page=${page}&perPage=${perPage}`;
             res = await fetch(url, { headers: { "x-okapi-token": okapi.token } });
             if(!res.ok){ loading.textContent=''; msg('Entitlements 取得失敗: ' + res.status, 'error'); return; }
@@ -478,230 +393,374 @@
             all.push(...(data.results||[]));
           }
 
-          hiq.apiKey = document.getElementById('hiqApiKey').value.trim();
-          hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
-
-          if(!(hiq.apiKey && hiq.customerId)){
-            if(seq !== activeAgreementSeq) { loading.textContent=''; return; }
-            renderLinesTable(all);
-            loading.textContent='';
-            msg(`Agreement Line 取得完了（${all.length}件, HIQ拡張なし）`, 'success');
-            document.getElementById('btnDownloadCSV').disabled = all.length === 0;
-            return;
-          }
-
-          const titleItems = [];
-          const packageItems = [];
-          for(const e of all){
-            const a = getAuthority(e);
-            if(a === 'EKB-PACKAGE') packageItems.push(e); else titleItems.push(e);
-          }
-
-          msg(`HIQ: パッケージ展開中…（${packageItems.length}件のパッケージ）`);
-          loading.innerHTML = '<div class="info">HIQパッケージ展開中…</div>';
-          const packageRows = await expandPackagesToRows(packageItems, seq);
-          if(seq !== activeAgreementSeq) { loading.textContent=''; return; }
-
-          const rows = [...titleItems, ...packageRows];
-          if(seq !== activeAgreementSeq) { loading.textContent=''; return; }
-          renderLinesTable(rows);
-
-          // TITLE は描画後に非同期で埋める
-          loading.textContent = 'HIQ タイトル詳細の取得中…';
-          await enrichWithHoldingsIQ(titleItems, seq);
+          renderLinesTable(all);
 
           loading.textContent='';
-          msg(`Agreement Line 取得完了（TITLE: ${titleItems.length}件, PACKAGE 展開: ${packageRows.length}行, 合計: ${rows.length}行）`, 'success');
-          document.getElementById('btnDownloadCSV').disabled = rows.length === 0;
+          msg(`Agreement Line 取得完了（合計: ${all.length}行）`, 'success');
+
+          const b = document.getElementById('btnDownloadCSVLines');
+          if (b) b.disabled = all.length === 0;
         }catch(e){ console.error(e); loading.textContent=''; msg('通信エラー: ' + e.message, 'error'); }
       }
 
       function renderLinesTable(items){
-        const table = document.getElementById('linesTable'); // ← 差し戻し後の新しい要素
+        const table = document.getElementById('linesTable');
         const tbody = table.querySelector('tbody');
         tbody.innerHTML = '';
-        const d = selectedDetails || {};
-        const name = d.name || '';
-        const start = (d.startDate || '').slice(0,10);
-        const status = (d.agreementStatus && d.agreementStatus.label) || '';
 
         items.forEach(e => {
           const tr = document.createElement('tr');
           tr.setAttribute('data-entitlement-id', e.id || '');
-          const hiqData = e._hiq || null;
 
-          // --- 左端の情報列 ---
-          let infoLabel = '';
-          try {
-            if (e._skipLarge) {
-              infoLabel = '要DL';
-            } else if (e._error) {
-              infoLabel = 'Error';
-            }else {
-              infoLabel = '';
-            }
-          } catch(_) { infoLabel = 'Error'; }
+          // 参照から vendorId / packageId を抽出
+          const ref = (e.reference || '').trim();
+          let parsed = parseReference3(ref) || parseReference2(ref);
+          let pkgId = parsed?.packageId || '';
+          let vId = parsed?.vendorId || '';
+
+          if(!pkgId && e.reference_object?.packageData?.id){ pkgId = String(e.reference_object.packageData.id); }
+          if(!vId && e.reference_object?.providerId){ vId = String(e.reference_object.providerId); }
+
+          if(pkgId){ tr.setAttribute('data-package-id', String(pkgId)); }
+          if(vId){ tr.setAttribute('data-vendor-id', String(vId)); }
+
+          const authority = getAuthority(e);
+          const levelBadge = authority === 'EKB-PACKAGE'
+            ? '<span class="badge">パッケージ</span>'
+            : '<span class="badge">タイトル</span>';
+
+          const infoCellHtml = `<button class="btnGetPackageInfo" data-package-id="${escapeHtml(String(pkgId||''))}" data-vendor-id="${escapeHtml(String(vId||''))}">パッケージ情報取得</button>`;
 
           const cells = [
-            infoLabel,
-            safe(e.owner?.id || selectedAgreementId || ''),
-            safe(name),
-            safe(start),
-            safe(status),
+            infoCellHtml,
+            levelBadge,
             safe(e.id||''),
             safe(e.reference||''),
-            safe(e.reference_object && e.reference_object.label || ''),
-            safe(e.reference_object && e.reference_object.provider || ''),
-            safe(e.reference_object && e.reference_object.packageData && e.reference_object.packageData.name || ''),
-            safe(e.reference_object && e.reference_object.publicationType || ''),
-            linkCell(e.reference_object && e.reference_object.url || ''),
-            // --- HIQ columns ---
-            hiqData ? hiqData.providerName : '',
-            hiqData ? hiqData.packageName : '',
-            hiqData ? hiqData.titleName : '',
-            hiqData ? hiqData.titleId : '',
-            hiqData ? hiqData.packageId : '',
-            hiqData ? hiqData.providerId : '',
-            hiqData ? hiqData.resourceType : '',
-            hiqData ? hiqData.coverageManagedBegin : '',
-            hiqData ? hiqData.coverageManagedEnd   : '',
-            hiqData ? hiqData.coverageCustomBegin  : '',
-            hiqData ? hiqData.coverageCustomEnd    : '',
-            hiqData ? linkCell(hiqData.url)        : '',
-            hiqData ? hiqData.printIssn : '',
-            hiqData ? hiqData.onlineIssn : '',
-            hiqData ? hiqData.printIsbn : '',
-            hiqData ? hiqData.onlineIsbn : '',
-            hiqData ? hiqData.selected : '',
-            hiqData ? hiqData.label1 : '',
-            hiqData ? hiqData.label2 : '',
-            hiqData ? hiqData.label3 : '',
-            hiqData ? hiqData.label4 : '',
-            hiqData ? hiqData.label5 : '',
-            hiqData ? hiqData.rootProxy : ''
+            safe(e.reference_object?.label || ''),
+            safe(e.reference_object?.provider || ''),
+            safe(e.reference_object?.packageData?.name || ''),
+            safe(e.reference_object?.publicationType || ''),
+            linkCell(e.reference_object?.url || '')
           ];
 
-          // link columns: Agreement ref URL (11) and HIQ URL (23)
-          tr.innerHTML = cells.map((cell,i)=> (i===11 || i===23) ? `<td>${cell}</td>` : `<td>${escapeHtml(cell)}</td>`).join('');
+          tr.innerHTML = cells.map((cell,i)=> (i===8) ? `<td>${cell}</td>` : `<td>${i===0||i===1?cell:escapeHtml(cell)}</td>`).join('');
           tbody.appendChild(tr);
         });
+
+        if(dtLines){ dtLines.destroy(); }
         dtLines = $("#linesTable").DataTable({
           paging:false, searching:true, ordering:true, info:false,
-          scrollX:true, autoWidth:false, fixedColumns:{ leftColumns:5 }, /* 情報列を含めて左固定5列 */
+          scrollX:true, autoWidth:false, fixedColumns:{ leftColumns:2 },
           scrollY:"360px"
         });
         dtLines.columns.adjust();
       }
 
-      async function enrichWithHoldingsIQ(items, seq){
-        if(!items || !items.length) return;
-        const capturedSeq = seq;
-
-        const headers = { accept: 'application/json', 'x-api-key': hiq.apiKey };
-        const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdings_getTitleDetail.php';
-
-        const concurrency = 6;
-        const total = items.length;
-        let done = 0;
-        const queue = [...items];
-        const workers = Array.from({ length: concurrency }, () => worker());
-
-        async function worker(){
-          while (queue.length){
-            const e = queue.shift();
-            if (!e) break;
-            if (getAuthority(e) === 'EKB-PACKAGE') continue;
-            if (capturedSeq !== activeAgreementSeq) return; // 途中切替
-
-            const parsed = parseReference3((e.reference || '').trim());
-            if (!parsed) continue;
-            const { packageId, kbId } = parsed;
-            const url = `${base}?custid=${hiq.customerId}&packageid=${packageId}&kbid=${kbId}`;
-            try {
-              const res = await fetch(url, { headers });
-              if (!res.ok) { if(capturedSeq===activeAgreementSeq) updateRowStatus(e.id || '', 'Error'); continue; }
-
-              const titleObj = await res.json();
-              if (capturedSeq !== activeAgreementSeq) return;
-              if (titleObj) {
-                updateRowWithHIQ(e.id || '', hiqFromTitle(titleObj));
-              }
-            } catch (_) { if(capturedSeq===activeAgreementSeq) updateRowStatus(e.id || '', 'Error'); }
-            finally {
-              done++; const loading = document.getElementById('loadingMsg');
-              if(loading && capturedSeq===activeAgreementSeq) loading.textContent = `HIQ タイトル詳細の取得中… (${done}/${total})`;
-            }
-          }
+      // --- パッケージ情報の取得 ---
+      async function getPackageDetails(packageId){
+        hiq.apiKey     = document.getElementById('hiqApiKey').value.trim();
+        hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
+        if(!(hiq.apiKey && hiq.customerId)){
+          throw new Error('HIQ: API Key と Customer ID を入力してください。');
         }
-        await Promise.all(workers);
-        const loading = document.getElementById('loadingMsg');
-        if(loading && capturedSeq===activeAgreementSeq) loading.textContent = '';
+        const headers = { accept: 'application/json', 'x-api-key': hiq.apiKey };
+        const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdings_getPackageDetails.php';
+        const url = `${base}?account=${encodeURIComponent(hiq.customerId)}&package=${encodeURIComponent(packageId)}`;
+        const res = await fetch(url, { headers });
+        if(!res.ok){ throw new Error(`Package Details 取得失敗: ${res.status}`); }
+        return await res.json();
       }
 
-      async function expandPackagesToRows(packageItems, seq){
-        if(!packageItems.length) return [];
-        const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdings_getPackageTitles.php';
-        const headers = { 'accept':'application/json', 'x-api-key': hiq.apiKey };
+      function renderPackageInfo(packageId, details){
+        const table = document.getElementById('packageInfoTable');
+        const tbody = table.querySelector('tbody');
+        tbody.innerHTML = '';
 
-        const concurrency = 3;
-        const queue = [...packageItems];
-        const out = [];
+        const pkgName  = details?.packageName ?? '';
+        const vendor   = details?.vendorName  ?? '';
+        const selCount = details?.selectedCount ?? '';
+        const ttlCount = details?.titleCount    ?? '';
+        const freeAcc  = details?.packageFreeAccess ?? '';
+        const vendorId = details?.vendorId != null ? String(details.vendorId) : '';
 
-        async function worker(){
-          while(queue.length){
-            const e = queue.shift();
-            if(!e) break;
-            if(seq !== activeAgreementSeq) return; // 途中切替
-            const p = parseReference2((e.reference || '').trim());
-            if(!p) { out.push(e); continue; }
-            const { vendorId, packageId } = p;
+        const canExpand = typeof details?.titleCount === 'number' && details.titleCount <= 10000;
+        const opCell = canExpand
+          ? `<button class="btnExpandTitles" data-package-id="${escapeHtml(String(packageId))}" data-vendor-id="${escapeHtml(String(vendorId))}" data-package-name="${escapeHtml(String(pkgName))}">タイトル展開</button>`
+          : `パッケージ内のタイトル数が多すぎます。HLMよりDLしてください`;
 
-            let page = 1, count = 100, safety = 2000;
-            let total = 0;
-            while (safety-- > 0){
-              const url = `${base}?account=${hiq.customerId}&vendor=${vendorId}&package=${packageId}&count=${count}&offset=${page}&orderby=titlename&searchfield=titlename`;
-              try{
-                const res = await fetch(url, { headers });
-                if(!res.ok) { out.push({ ...e, _error:true }); break; }
-                const data = await res.json();
-                const titles = Array.isArray(data.titles) ? data.titles : [];
-                total = Number(data.totalResults || 0);
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-package-id', String(packageId));
+        if(vendorId) tr.setAttribute('data-vendor-id', String(vendorId));
+        tr.innerHTML = [
+          opCell,
+          escapeHtml(vendorId),
+          escapeHtml(String(packageId)),
+          escapeHtml(pkgName),
+          escapeHtml(vendor),
+          escapeHtml(String(selCount)),
+          escapeHtml(String(ttlCount)),
+          escapeHtml(String(freeAcc))
+        ].map((c,i)=>`<td>${c}</td>`).join('');
+        tbody.appendChild(tr);
+        showPackageInfoBox(true);
+      }
 
-                // 1ページ目で総件数チェック。1万件以上ならエクスポート一覧へ、展開スキップ
-                if(page === 1 && total >= 10000){
-                  const pkgName = (
-                    e?.reference_object?.label ||
-                    e?.reference_object?.packageData?.name ||
-                    e?._hiq?.packageName ||
-                    ''
-                  );
-                  ensureExportRow(packageId, pkgName, total);
-                  out.push({ ...e, _status:'要DL', _skipLarge:true });
-                  break;
-                }
+      // --- クリックイベント：パッケージ情報取得 ---
+      document.addEventListener('click', async (ev)=>{
+        const btn = ev.target.closest('.btnGetPackageInfo');
+        if(!btn) return;
 
-                for(const t of titles){
-                  out.push({ ...e, _hiq: hiqFromTitle(t)});
-                }
+        const row = btn.closest('tr');
+        const packageId = btn.getAttribute('data-package-id') || row?.getAttribute('data-package-id') || '';
+        const vendorId  = btn.getAttribute('data-vendor-id') || row?.getAttribute('data-vendor-id') || '';
 
-                // 次ページ判定（ページ番号方式）
-                if(titles.length < count) break; // 最終ページ
-                const maxPage = total ? Math.ceil(total / count) : Infinity;
-                page++;
-                if(page > maxPage) break;
-              }catch(_){ out.push({ ...e, _error:true }); break; }
-            }
-          }
+        if(!packageId){ msg('Package ID を取得できませんでした。','error'); return; }
+
+        resetPackageInfoUI();
+        setPackageInfoMsg('パッケージ情報を取得中…');
+        try{
+          const details = await getPackageDetails(packageId);
+          if(!row.getAttribute('data-vendor-id') && details?.vendorId != null){ row.setAttribute('data-vendor-id', String(details.vendorId)); }
+          renderPackageInfo(packageId, details);
+          setPackageInfoMsg('パッケージ情報の取得完了。', 'success');
+        }catch(e){
+          console.error(e);
+          setPackageInfoMsg('パッケージ情報の取得に失敗しました: ' + e.message, 'error');
+        }
+      });
+
+      // --- クリックイベント：タイトル展開 ---
+      document.addEventListener('click', async (ev)=>{
+        const btn = ev.target.closest('.btnExpandTitles');
+        if(!btn) return;
+
+        hiq.apiKey     = document.getElementById('hiqApiKey').value.trim();
+        hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
+        if(!(hiq.apiKey && hiq.customerId)){
+          msg('HIQ: API Key と Customer ID を入力してください。','error');
+          return;
         }
 
-        const workers = Array.from({length: concurrency}, () => worker());
-        await Promise.all(workers);
-        if(seq !== activeAgreementSeq) return out;
+        const packageId = btn.getAttribute('data-package-id');
+        const packageName = btn.getAttribute('data-package-name') || '';
+        const vendorId = btn.getAttribute('data-vendor-id') || '';
+        if(!packageId){ msg('Package ID を取得できませんでした。','error'); return; }
 
-        showExportAreaIfNeeded();
+        // ✅ 追加：現在のパッケージ情報を記録（全件CSVで使用）
+        currentPackageIdForTitles = packageId;
+        currentPackageNameForTitles = packageName;
+
+        // UI 準備
+        resetPackageTitlesUI();
+        const heading = document.getElementById('packageTitlesHeading');
+        if(heading) heading.textContent = `パッケージ内タイトル一覧（Package ${packageId} : ${packageName || 'N/A'}）`;
+        showPackageTitlesBox(true);
+        setPackageTitlesMsg('タイトルを取得中…');
+
+        try{
+          const list = await loadPackageTitles(packageId, vendorId);
+          renderPackageTitles(list);
+          setPackageTitlesMsg(`取得完了：${list.length} 件`, 'success');
+
+          const b = document.getElementById('btnDownloadCSVTitles');
+          if (b) b.disabled = list.length === 0;
+        }catch(e){
+          console.error(e);
+          setPackageTitlesMsg('タイトルの取得に失敗しました。', 'error');
+          const b = document.getElementById('btnDownloadCSVTitles');
+          if (b) b.disabled = true;
+        }
+      });
+
+      // --- パッケージ内タイトル一覧の取得（vendor を付与） ---
+      async function loadPackageTitles(packageId, vendorId){
+        if(pkgTitlesCache.has(packageId)){
+          return pkgTitlesCache.get(packageId).list;
+        }
+        const headers = { 'accept':'application/json', 'x-api-key': hiq.apiKey };
+        const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdings_getPackageTitles.php';
+
+        const out = [];
+        let page = 1;
+        const count = 100;
+        let total = 0;
+        let safety = 2000;
+
+        while (safety-- > 0){
+          const url =
+            `${base}?account=${encodeURIComponent(hiq.customerId)}` +
+            `&vendor=${encodeURIComponent(vendorId||'')}` +
+            `&package=${encodeURIComponent(packageId)}` +
+            `&count=${count}&offset=${page}&orderby=titlename&searchfield=titlename`;
+          const res = await fetch(url, { headers });
+          if(!res.ok){
+            throw new Error(`holdings_getPackageTitles 失敗: ${res.status}`);
+          }
+          const data = await res.json();
+          const titles = Array.isArray(data.titles) ? data.titles : [];
+          total = Number(data.totalResults || 0);
+
+          for(const t of titles){
+            const h = hiqFromTitle(t);
+            out.push({
+              titleName: h.titleName,
+              titleId:   h.titleId,
+              resourceType: h.resourceType,
+              selected: h.selected,
+              url: h.url,
+              printIssn: h.printIssn,
+              onlineIssn: h.onlineIssn,
+              printIsbn: h.printIsbn,
+              onlineIsbn: h.onlineIsbn
+            });
+          }
+
+          if(titles.length < count) break;
+          const maxPage = total ? Math.ceil(total / count) : Infinity;
+          page++;
+          if(page > maxPage) break;
+
+          setPackageTitlesMsg(`タイトルを取得中… (${Math.min(out.length, total)}/${total||'?'})`);
+        }
+
+        pkgTitlesCache.set(packageId, { list: out, total, name: '' });
         return out;
       }
 
+      // --- タイトル一覧をテーブル描画 ---
+      function renderPackageTitles(list){
+        const table = document.getElementById('packageTitlesTable');
+        const tbody = table.querySelector('tbody');
+        tbody.innerHTML = '';
+
+        list.forEach((x, i) => {
+          const tr = document.createElement('tr');
+          const cells = [
+            String(i+1),
+            safe(x.titleName),
+            safe(x.titleId),
+            safe(x.resourceType),
+            safe(x.selected),
+            x.url ? `<a href="${escapeHtml(x.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(x.url)}</a>` : '',
+            safe(x.printIssn),
+            safe(x.onlineIssn),
+            safe(x.printIsbn),
+            safe(x.onlineIsbn),
+          ];
+          tr.innerHTML = cells.map((c, idx)=> idx===5 ? `<td>${c}</td>` : `<td>${escapeHtml(c)}</td>`).join('');
+          tbody.appendChild(tr);
+        });
+
+        dtPkgTitles = $("#packageTitlesTable").DataTable({
+          paging:true, searching:true, ordering:true, info:true,
+          pageLength: 25,
+          scrollX:true, autoWidth:false
+        });
+      }
+
+      // --- CSV Export（明細） ---
+      function downloadCSVLines(){
+        const table = document.getElementById('linesTable');
+        const trs = Array.from(table.querySelectorAll('tbody tr'));
+        if(!trs.length){ alert('出力するデータがありません'); return; }
+        const rows = trs.map(tr => {
+          const tds = Array.from(tr.cells);
+          const urlA = tds[8]?.querySelector('a');
+          const cols = [
+            tds[2]?.innerText || '', // Entitlement ID
+            tds[1]?.innerText || '', // Level
+            tds[3]?.innerText || '', // Reference
+            tds[4]?.innerText || '', // Label
+            tds[5]?.innerText || '', // Provider
+            tds[6]?.innerText || '', // Package Name
+            tds[7]?.innerText || '', // Publication Type
+            urlA?.getAttribute('href') || '' // URL
+          ];
+          return cols.map(t => /[",\n]/.test(t) ? '"' + t.replace(/"/g,'""') + '"' : t).join(',');
+        });
+        const headers = ['Entitlement ID','Level','Reference','Label','Provider','Package Name','Publication Type','URL'];
+        const csv = "\uFEFF" + [headers.join(','), ...rows].join('\n');
+        downloadBlob(csv, `agreement_lines_${exportBaseName()}_${timestamp()}.csv`);
+      }
+
+      // --- CSV Export（タイトル一覧：キャッシュから全件を書き出す） ---
+      function downloadCSVTitles(){
+        const pkgId = currentPackageIdForTitles;
+        const cache = pkgTitlesCache.get(pkgId);
+        const list = cache?.list || [];
+
+        if(!pkgId || !list.length){
+          alert('出力するデータがありません（タイトル一覧が未取得か0件です）');
+          return;
+        }
+
+        const rows = list.map(x => {
+          const cols = [
+            x.titleName || '',
+            x.titleId || '',
+            x.resourceType || '',
+            x.selected || '',
+            x.url || '',
+            x.printIssn || '',
+            x.onlineIssn || '',
+            x.printIsbn || '',
+            x.onlineIsbn || ''
+          ];
+          return cols.map(t => /[",\n]/.test(String(t)) ? '"' + String(t).replace(/"/g,'""') + '"' : String(t)).join(',');
+        });
+
+        const headers = ['Title name','Title ID','Resource type','Selected','URL','Print ISSN','Online ISSN','Print ISBN','Online ISBN'];
+        const csv = "\uFEFF" + [headers.join(','), ...rows].join('\n');
+
+        const baseName = (currentPackageNameForTitles || `package_${pkgId}`).replace(/[^a-zA-Z0-9_-]+/g,'_');
+        downloadBlob(csv, `package_titles_${baseName}_${timestamp()}.csv`);
+      }
+
+      // --- 共通：ダウンロード処理 ---
+      function downloadBlob(text, filename){
+        const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      }
+      function timestamp(){
+        const now = new Date(), pad=n=>String(n).padStart(2,'0');
+        return `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+      }
+      function exportBaseName(){
+        return (selectedDetails && selectedDetails.name)
+          ? selectedDetails.name.replace(/[^a-zA-Z0-9_-]+/g,'_')
+          : (selectedAgreementId||'export');
+      }
+
+      function resetLinesUI(){
+        const currentTable = document.getElementById('linesTable');
+        if(!currentTable) return;
+        const wrapper = currentTable.closest('.table-wrapper') || currentTable.parentElement;
+
+        if(!linesTableTemplateHTML){
+          linesTableTemplateHTML = currentTable.outerHTML;
+        }
+
+        try{
+          if ($.fn.DataTable.isDataTable(currentTable)) {
+            $(currentTable).DataTable().destroy(true);
+          }
+        }catch(_){ /* noop */ }
+        dtLines = null;
+
+        if(wrapper){
+          wrapper.innerHTML = linesTableTemplateHTML;
+        }
+        const linesBox = document.getElementById('linesBox');
+        if (linesBox) linesBox.style.display = 'none';
+
+        const b = document.getElementById('btnDownloadCSVLines');
+        if (b) b.disabled = true;
+      }
+
+      // --- ユーティリティ ---
       function hiqFromTitle(t){
         const cr = Array.isArray(t.customerResourcesList) && t.customerResourcesList.length ? t.customerResourcesList[0] : {};
         const ids = splitIdentifiers(t.identifiersList || []);
@@ -744,7 +803,6 @@
           };
         }catch(_){ return { begin:'', end:'' }; }
       }
-
       function splitIdentifiers(list){
         const out = { printIssn:'', onlineIssn:'', printIsbn:'', onlineIsbn:'' };
         try{
@@ -758,50 +816,8 @@
         return out;
       }
 
-      function updateRowWithHIQ(entitlementId, hiqObj){
-        const tr = document.querySelector(`tr[data-entitlement-id="${cssEscape(entitlementId)}"]`);
-        if(!tr) return;
-        const cells = tr.cells;
-        const baseIndex = 12; // 情報列追加により +1
-        const setCell = (idx, val, isLink=false) => {
-          if(!cells[idx]) return;
-          cells[idx].innerHTML = isLink && val ? `<a href="${escapeHtml(val)}" target="_blank" rel="noopener noreferrer">${escapeHtml(val)}</a>` : escapeHtml(val||'');
-        };
-        setCell(baseIndex + 0,  hiqObj.providerName);
-        setCell(baseIndex + 1,  hiqObj.packageName);
-        setCell(baseIndex + 2,  hiqObj.titleName);
-        setCell(baseIndex + 3,  hiqObj.titleId);
-        setCell(baseIndex + 4,  hiqObj.packageId);
-        setCell(baseIndex + 5,  hiqObj.providerId);
-        setCell(baseIndex + 6,  hiqObj.resourceType);
-        setCell(baseIndex + 7,  hiqObj.coverageManagedBegin);
-        setCell(baseIndex + 8,  hiqObj.coverageManagedEnd);
-        setCell(baseIndex + 9,  hiqObj.coverageCustomBegin);
-        setCell(baseIndex + 10, hiqObj.coverageCustomEnd);
-        setCell(baseIndex + 11, hiqObj.url, true);
-        setCell(baseIndex + 12, hiqObj.printIssn);
-        setCell(baseIndex + 13, hiqObj.onlineIssn);
-        setCell(baseIndex + 14, hiqObj.printIsbn);
-        setCell(baseIndex + 15, hiqObj.onlineIsbn);
-        setCell(baseIndex + 16, hiqObj.selected);
-        setCell(baseIndex + 17, hiqObj.label1);
-        setCell(baseIndex + 18, hiqObj.label2);
-        setCell(baseIndex + 19, hiqObj.label3);
-        setCell(baseIndex + 20, hiqObj.label4);
-        setCell(baseIndex + 21, hiqObj.label5);
-        setCell(baseIndex + 22, hiqObj.rootProxy);
-      }
-
-      function updateRowStatus(entitlementId, text){
-        const tr = document.querySelector(`tr[data-entitlement-id="${cssEscape(entitlementId)}"]`);
-        if(!tr) return;
-        const cell = tr.cells[0]; // 一番左の 情報（処理結果）
-        if(cell) cell.textContent = text || '';
-      }
-
       function safe(v){ return v==null? '': String(v); }
       function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
-      function cssEscape(s){ return String(s).replace(/["\\#.;:,\[\]\(\)\s]/g, '\\$&'); }
       function linkCell(u){ if(!u) return ''; const esc = escapeHtml(String(u)); return `<a href="${esc}" target="_blank" rel="noopener noreferrer">${esc}</a>`; }
 
       function getAuthority(e){
@@ -825,7 +841,6 @@
 
       document.getElementById('btnLogin').addEventListener('click', login);
       document.getElementById('btnReloadAgreements').addEventListener('click', loadAgreements);
-      document.getElementById('btnDownloadCSV').addEventListener('click', downloadCSV);
 
       // Agreement一覧の「明細取得」ボタン
       document.addEventListener('click', (e) => {
@@ -837,67 +852,10 @@
         }
       });
 
-      // エクスポート「DL開始」ボタン
-      document.addEventListener('click', (ev)=>{
-        const btn = ev.target.closest('.btnStartExport');
-        if(btn){
-          const pkgId = btn.getAttribute('data-pkgid');
-          startExportForPackage(pkgId);
-        }
-      });
-
-      // --- CSV Export (Agreement Lines + HIQ columns) ---
-      function downloadCSV(){
-        const table = document.getElementById('linesTable');
-        const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr =>
-          Array.from(tr.cells).map((td,i)=>{
-            let t = (i===11 || i===23) ? td.querySelector('a')?.getAttribute('href')||'' : td.innerText;
-            if(/[",\n]/.test(t)) t = '"' + t.replace(/"/g,'""') + '"';
-            return t;
-          }).join(',')
-        );
-        if(!rows.length){ alert('出力するデータがありません'); return; }
-        const headers = [
-          '情報（処理結果）','Agreement ID','Name','Start Date','Status','Entitlement ID','Reference','Label','Provider','Package Name','Publication Type','URL',
-          'HIQ Provider name','HIQ Package name','HIQ Title name','HIQ Title ID','HIQ Package ID','HIQ Provider ID','HIQ Resource type','HIQ Managed begin','HIQ Managed end','HIQ Custom begin','HIQ Custom end','HIQ URL','HIQ Print ISSN','HIQ Online ISSN','HIQ Print ISBN','HIQ Online ISBN','HIQ Selected / Not selected','HIQ Custom label 1','HIQ Custom label 2','HIQ Custom label 3','HIQ Custom label 4','HIQ Custom label 5','HIQ Root proxy'
-        ];
-        const csv = "\uFEFF" + [headers.join(','), ...rows].join('\n');
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const now = new Date(), pad=n=>String(n).padStart(2,'0');
-        const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-        const baseName = (selectedDetails && selectedDetails.name) ? selectedDetails.name.replace(/[^a-zA-Z0-9_-]+/g,'_') : (selectedAgreementId||'export');
-        a.href = url; a.download = `agreement_lines_hiq_${baseName}_${ts}.csv`;
-        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-      }
-
-      function resetLinesUI(){
-      // 1) いまのテーブル&ラッパを把握
-      const currentTable = document.getElementById('linesTable');
-      if(!currentTable) return;
-      const wrapper = currentTable.closest('.table-wrapper') || currentTable.parentElement;
-
-      // 2) 初回だけ、元のテーブル骨組み（thead/空tbody）のHTMLを保存
-      if(!linesTableTemplateHTML){
-        linesTableTemplateHTML = currentTable.outerHTML;
-      }
-
-      // 3) DataTable を完全破棄（DOMラッパも含めて）
-      try{
-        if ($.fn.DataTable.isDataTable(currentTable)) {
-          $(currentTable).DataTable().destroy(true); // true: ラッパ含めて削除
-        }
-      }catch(_){ /* noop */ }
-      dtLines = null;
-
-      // 4) 元のテーブル骨組みに差し戻す（空の #linesTable が復活）
-      if(wrapper){
-        wrapper.innerHTML = linesTableTemplateHTML;
-      }
-      // 表示枠を隠す（初期状態に戻す）
-      const linesBox = document.getElementById('linesBox');
-      if (linesBox) linesBox.style.display = 'none';
-}
-
+      // CSVダウンロード（明細）
+      document.getElementById('btnDownloadCSVLines').addEventListener('click', downloadCSVLines);
+      // CSVダウンロード（タイトル）
+      document.getElementById('btnDownloadCSVTitles').addEventListener('click', downloadCSVTitles);
     </script>
+  </body>
+</html>
