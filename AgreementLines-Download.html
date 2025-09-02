@@ -2,7 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <title>AgreementLines (+Package Info on demand)</title>
+    <title>AgreementLines (+Package Info auto-load)</title>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
     <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.2.2/css/fixedColumns.dataTables.min.css"/>
     <style>
@@ -51,12 +51,12 @@
         <input type="password" id="password" value="admin" />
       </label>
       <hr class="small"/>
-      <div class="small">▼契約明細（Agreement Line）のみ取得する場合は不要です。Package情報を取得したりパッケージのダウンロードをする場合は入力してください。</div>
+      <div class="small">▼契約明細（Agreement Line）のみ取得する場合は不要です。パッケージ情報も同時に自動取得・表示したい場合やパッケージのダウンロードをする場合は入力してください。</div>
        <label>Customer ID（任意）:
-        <input type="text" id="hiqCustomerId" placeholder="例: s1014396" />
+        <input type="text" id="hiqCustomerId" placeholder="例: s1234567" />
       </label>
       <label>Holdings IQ API Key（任意）:
-        <input type="text" id="hiqApiKey" placeholder="例: AKIA..." />
+        <input type="text" id="hiqApiKey" placeholder="例: evasfSEFg234..." />
       </label>
       <button id="btnLogin">ログイン</button>
       <button id="btnReloadAgreements" disabled>Agreement一覧を取得</button>
@@ -92,7 +92,6 @@
         <table id="linesTable">
           <thead>
             <tr>
-              <th>情報</th>
               <th>Level</th>
               <th>Entitlement ID</th>
               <th>Reference</th>
@@ -108,10 +107,12 @@
       </div>
     </div>
 
-    <!-- ▼ パッケージ情報（行ごとに要求時取得） -->
+    <!-- ▼ パッケージ情報（明細取得と同時に自動取得） -->
     <div id="packageInfoBox" class="form-container" style="display:none;">
       <h2>パッケージ情報</h2>
       <div id="packageInfoMsg" class="small"></div>
+      <!-- 🔴 追加：個別エラーの表示領域（累積表示） -->
+      <div id="packageInfoErr" class="small"></div>
       <div class="table-wrapper">
         <table id="packageInfoTable">
           <thead>
@@ -188,7 +189,7 @@
           if ($.fn.DataTable.isDataTable(table)) {
             $(table).DataTable().destroy(true);
           }
-        }catch(_){}
+        }catch(_){ }
         // テーブル骨組み再生成
         const wrapper = table.closest('.table-wrapper');
         if(wrapper){
@@ -214,11 +215,8 @@
         dtPkgTitles = null;
         setPackageTitlesMsg('');
         showPackageTitlesBox(false);
-        // CSV（タイトル）ボタン無効化
         const b = document.getElementById('btnDownloadCSVTitles');
         if (b) b.disabled = true;
-
-        // ✅ 追加：選択中パッケージ情報をクリア
         currentPackageIdForTitles = '';
         currentPackageNameForTitles = '';
       }
@@ -232,14 +230,75 @@
         const el = document.getElementById('packageInfoMsg');
         if (el) el.innerHTML = html ? `<div class="${cls}">${html}</div>` : '';
       }
+      // 🔴 追加：個別エラーを追記表示する
+      function appendPackageInfoErr(html){
+        const el = document.getElementById('packageInfoErr');
+        if(!el) return;
+        const div = document.createElement('div');
+        div.className = 'error';
+        div.innerHTML = html;
+        el.appendChild(div);
+      }
       function resetPackageInfoUI(){
         const table = document.getElementById('packageInfoTable');
         if(!table) return;
         const tbody = table.querySelector('tbody');
         if(tbody) tbody.innerHTML = '';
         setPackageInfoMsg('');
+        const err = document.getElementById('packageInfoErr');
+        if(err) err.innerHTML = '';
         showPackageInfoBox(false);
       }
+
+      // --- Agreements table reset (rebuild skeleton & destroy DataTable) ---
+      function resetAgreementsUI(){
+        const currentTable = document.getElementById('agreementsTable');
+        if(!currentTable) return;
+        const wrapper = currentTable.closest('.table-wrapper') || currentTable.parentElement;
+        try{
+          if ($.fn.DataTable && $.fn.DataTable.isDataTable(currentTable)) {
+            $(currentTable).DataTable().destroy(true);
+          }
+        }catch(_){ }
+        if(!agreementsTableTemplateHTML){
+          agreementsTableTemplateHTML = currentTable.outerHTML;
+        }
+        if(wrapper){
+          wrapper.innerHTML = agreementsTableTemplateHTML;
+        }
+      }
+      // Agreements行をDataTablesに入れやすい形へ
+function agreementRowFromItem(a){
+  return [
+    `<button class="detail-btn" data-id="${escapeHtml(String(a.id))}">明細取得</button>`,
+    escapeHtml(String(a.id)),
+    escapeHtml(a.name || ''),
+    escapeHtml((a.startDate || '').slice(0,10)),
+    escapeHtml((a.agreementStatus && a.agreementStatus.label) || '')
+  ];
+}
+
+  // Agreements用 DataTable 初期化（空で立ち上げる）
+  function initAgreementsTable(){
+    const tbody = document.querySelector('#agreementsTable tbody');
+    if (tbody) tbody.innerHTML = '';
+    if (dtAgreements) { dtAgreements.destroy(); }
+    dtAgreements = $('#agreementsTable').DataTable({
+      paging:false, searching:true, ordering:true, info:false,
+      scrollX:true, autoWidth:false, fixedColumns:{ leftColumns:2 }, scrollY:"260px",
+      deferRender:true
+    });
+    dtAgreements.columns.adjust();
+  }
+
+  // ページで取得した分を都度追加
+  function appendAgreementsRows(items){
+    if (!dtAgreements) initAgreementsTable();
+    const rows = (items || []).map(agreementRowFromItem);
+    if (rows.length) {
+      dtAgreements.rows.add(rows).draw(false);
+    }
+  }
 
       // ▼ Okapi / 状態
       let okapi = { base:'', tenant:'', token:'' };
@@ -249,10 +308,17 @@
       let dtLines = null, dtAgreements = null;
       let activeAgreementSeq = 0;
       let linesTableTemplateHTML = '';
+      let agreementsTableTemplateHTML = '';
 
       const msg = (html, cls='info') => {
         document.getElementById('message').innerHTML = `<div class="${cls}">${html}</div>`;
       };
+
+      function setLinesMsg(html, cls='info'){
+        const el = document.getElementById('loadingMsg');
+        if (!el) return;
+        el.innerHTML = html ? `<div class="${cls}">${html}</div>` : '';
+      }
 
       // --- Login (Okapi) ---
       async function login(){
@@ -288,43 +354,83 @@
       }
 
       // --- Agreements list / details ---
-      async function loadAgreements(){
-        if(!okapi.token){ msg('先にログインしてください。','error'); return; }
-        msg('Agreement一覧を取得中…');
-        try{
-          const res = await fetch(`${okapi.base}/erm/sas?sort=name%3Basc&stats=true&page=1&perPage=100`, {
-            headers: { "x-okapi-token": okapi.token }
-          });
-          if(!res.ok){ msg('Agreement 取得失敗: ' + res.status, 'error'); return; }
-          const data = await res.json();
-          const agreements = data.results || [];
-          document.getElementById('agreementsBox').style.display = 'block';
-          renderAgreementsTable(agreements);
-          msg(`Agreement 取得完了（${agreements.length}件）`, 'success');
-        }catch(e){ msg('通信エラー: ' + e.message, 'error'); }
-      }
+      // --- Agreements list / details ---
+async function loadAgreements(){
+  if(!okapi.token){ msg('先にログインしてください。','error'); return; }
 
-      function renderAgreementsTable(items){
-        const tbody = document.querySelector('#agreementsTable tbody');
-        tbody.innerHTML = '';
-        items.forEach(a => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td><button class="detail-btn" data-id="${a.id}">明細取得</button></td>
-            <td>${escapeHtml(a.id)}</td>
-            <td>${escapeHtml(a.name || '')}</td>
-            <td>${escapeHtml((a.startDate || '').slice(0,10))}</td>
-            <td>${escapeHtml((a.agreementStatus && a.agreementStatus.label) || '')}</td>
-          `;
-          tbody.appendChild(tr);
-        });
-        if(dtAgreements){ dtAgreements.destroy(); }
-        dtAgreements = $('#agreementsTable').DataTable({
-          paging:false, searching:true, ordering:true, info:false,
-          scrollX:true, autoWidth:false, fixedColumns:{ leftColumns:2 }, scrollY:"260px"
-        });
-        dtAgreements.columns.adjust();
-      }
+  msg('Agreement一覧を取得中…');
+  try{
+    const perPage = 20;                  // ← ここを20に
+    let page = 1, totalPages = 1;
+    let totalRecords = null;
+    let fetched = 0;
+
+    const baseUrl = `${okapi.base}/erm/sas?sort=name%3Basc&stats=true&perPage=${perPage}`;
+
+    // UI準備：テーブルを空で立ち上げ、すぐ表示
+    document.getElementById('agreementsBox').style.display = 'block';
+    resetAgreementsUI();
+    initAgreementsTable();
+
+    // 1ページ目
+    let res = await fetch(`${baseUrl}&page=${page}`, { headers: { 'x-okapi-token': okapi.token } });
+    if(!res.ok){ msg('Agreement 取得失敗: ' + res.status, 'error'); return; }
+    let data = await res.json();
+
+    totalPages = data.totalPages || 1;
+    totalRecords = (typeof data.totalRecords === 'number'
+                   ? data.totalRecords
+                   : (typeof data.total === 'number' ? data.total : null));
+
+    const firstChunk = data.results || [];
+    appendAgreementsRows(firstChunk);
+    fetched += firstChunk.length;
+
+    msg(`Agreement一覧を取得中… ページ ${page}/${totalPages} ・ 取得 ${fetched}${totalRecords!=null?`/${totalRecords}`:''}`, 'info');
+
+    // 2ページ目以降：取得しながら都度追加＋進捗更新
+    for(page = 2; page <= totalPages; page++){
+      res = await fetch(`${baseUrl}&page=${page}`, { headers: { 'x-okapi-token': okapi.token } });
+      if(!res.ok){ msg('Agreement 取得失敗: ' + res.status, 'error'); return; }
+      data = await res.json();
+
+      const chunk = data.results || [];
+      appendAgreementsRows(chunk);
+      fetched += chunk.length;
+
+      msg(`Agreement一覧を取得中… ページ ${page}/${totalPages} ・ 取得 ${fetched}${totalRecords!=null?`/${totalRecords}`:''}`, 'info');
+    }
+
+    const totalMsg = totalRecords != null
+      ? `（${fetched}件 / 期待 ${totalRecords}件, 全${totalPages}ページ）`
+      : `（${fetched}件 / 全${totalPages}ページ）`;
+    msg('Agreement 取得完了 ' + totalMsg, 'success');
+
+  }catch(e){
+    msg('通信エラー: ' + e.message, 'error');
+  }
+}
+
+      // function renderAgreementsTable(items){
+      //   const tbody = document.querySelector('#agreementsTable tbody');
+      //   tbody.innerHTML = '';
+      //   items.forEach(a => {
+      //     const tr = document.createElement('tr');
+      //     tr.innerHTML =
+      //       '<td><button class="detail-btn" data-id="' + escapeHtml(String(a.id)) + '">明細取得</button></td>' +
+      //       '<td>' + escapeHtml(String(a.id)) + '</td>' +
+      //       '<td>' + escapeHtml(a.name || '') + '</td>' +
+      //       '<td>' + escapeHtml((a.startDate || '').slice(0,10)) + '</td>' +
+      //       '<td>' + escapeHtml((a.agreementStatus && a.agreementStatus.label) || '') + '</td>';
+      //     tbody.appendChild(tr);
+      //   });
+      //   if(dtAgreements){ dtAgreements.destroy(); }
+      //   dtAgreements = $('#agreementsTable').DataTable({
+      //     paging:false, searching:true, ordering:true, info:false,
+      //     scrollX:true, autoWidth:false, fixedColumns:{ leftColumns:2 }, scrollY:"260px"
+      //   });
+      //   dtAgreements.columns.adjust();
+      // }
 
       async function onPickAgreement(agreementId){
         activeAgreementSeq++;
@@ -345,10 +451,11 @@
         resetPackageInfoUI();
         resetPackageTitlesUI();
         document.getElementById('loadingMsg').textContent = '';
-        msg(`Agreement(${escapeHtml(agreementId)}) の読み込みを開始しました…`);
+        msg('Agreement(' + escapeHtml(agreementId) + ') の読み込みを開始しました…');
 
+        // メタデータ & 明細の取得
         await fetchAgreementDetails(agreementId, seq);
-        await fetchEntitlements(agreementId, seq);
+        await fetchEntitlements(agreementId, seq); // ここで自動的にパッケージ情報もロードします
       }
 
       async function fetchAgreementDetails(id, seq){
@@ -363,14 +470,12 @@
         msg('Agreement メタデータ取得完了', 'success');
       }
 
-      // ========== Agreement Lines 取得 ==========
+      // ========== Agreement Lines 取得（完了後にパッケージ情報を自動収集） ==========
       async function fetchEntitlements(agreementId, seq){
         const linesBox = document.getElementById('linesBox');
         if (linesBox) linesBox.style.display = 'block';
 
-        const loading = document.getElementById('loadingMsg');
-        loading.innerHTML = '<div class="info">Agreement Line 取得中…</div>';
-        msg('Agreement Line 取得中', 'info');
+        setLinesMsg('Agreement Line 取得中…', 'info');
 
         const perPage = 100;
         let page = 1, totalPages = 1;
@@ -378,29 +483,30 @@
         try{
           let url = `${okapi.base}/erm/entitlements?filters=owner%3D%3D${encodeURIComponent(agreementId)}&sort=type%3Basc&sort=resource.name%3Basc&sort=reference%3Basc&sort=id%3Basc&stats=true&page=${page}&perPage=${perPage}`;
           let res = await fetch(url, { headers: { "x-okapi-token": okapi.token } });
-          if(!res.ok){ loading.textContent=''; msg('Entitlements 取得失敗: ' + res.status, 'error'); return; }
+          if(!res.ok){ setLinesMsg('Entitlements 取得失敗: ' + res.status, 'error'); return; }
           let data = await res.json();
           if(seq !== activeAgreementSeq) return;
           totalPages = data.totalPages || 1;
           all.push(...(data.results||[]));
           for(page=2; page<=totalPages; page++){
-            loading.textContent = `Agreement Line 取得中… (${page}/${totalPages})`;
+            setLinesMsg(`Agreement Line 取得中… (${page}/${totalPages})`, 'info');
             url = `${okapi.base}/erm/entitlements?filters=owner%3D%3D${encodeURIComponent(agreementId)}&sort=type%3Basc&sort=resource.name%3Basc&sort=reference%3Basc&sort=id%3Basc&stats=true&page=${page}&perPage=${perPage}`;
             res = await fetch(url, { headers: { "x-okapi-token": okapi.token } });
-            if(!res.ok){ loading.textContent=''; msg('Entitlements 取得失敗: ' + res.status, 'error'); return; }
+            if(!res.ok){ setLinesMsg('Entitlements 取得失敗: ' + res.status, 'error'); return; }
             data = await res.json();
             if(seq !== activeAgreementSeq) return;
             all.push(...(data.results||[]));
           }
 
           renderLinesTable(all);
-
-          loading.textContent='';
-          msg(`Agreement Line 取得完了（合計: ${all.length}行）`, 'success');
+          setLinesMsg(`Agreement Line 取得完了（合計: ${all.length}行）`, 'success');
 
           const b = document.getElementById('btnDownloadCSVLines');
           if (b) b.disabled = all.length === 0;
-        }catch(e){ console.error(e); loading.textContent=''; msg('通信エラー: ' + e.message, 'error'); }
+
+          // 🔄 明細からユニークなパッケージIDを抽出し、自動でパッケージ情報を取得
+          autoLoadPackageInfoForEntitlements(all);
+        }catch(e){ console.error(e); setLinesMsg('通信エラー: ' + e.message, 'error'); }
       }
 
       function renderLinesTable(items){
@@ -412,7 +518,7 @@
           const tr = document.createElement('tr');
           tr.setAttribute('data-entitlement-id', e.id || '');
 
-          // 参照から vendorId / packageId を抽出
+          // 参照から vendorId / packageId を抽出（必要に応じて属性に保持）
           const ref = (e.reference || '').trim();
           let parsed = parseReference3(ref) || parseReference2(ref);
           let pkgId = parsed?.packageId || '';
@@ -429,10 +535,7 @@
             ? '<span class="badge">パッケージ</span>'
             : '<span class="badge">タイトル</span>';
 
-          const infoCellHtml = `<button class="btnGetPackageInfo" data-package-id="${escapeHtml(String(pkgId||''))}" data-vendor-id="${escapeHtml(String(vId||''))}">パッケージ情報取得</button>`;
-
           const cells = [
-            infoCellHtml,
             levelBadge,
             safe(e.id||''),
             safe(e.reference||''),
@@ -443,7 +546,7 @@
             linkCell(e.reference_object?.url || '')
           ];
 
-          tr.innerHTML = cells.map((cell,i)=> (i===8) ? `<td>${cell}</td>` : `<td>${i===0||i===1?cell:escapeHtml(cell)}</td>`).join('');
+          tr.innerHTML = cells.map((cell,i)=> (i===7) ? `<td>${cell}</td>` : `<td>${i===0?cell:escapeHtml(cell)}</td>`).join('');
           tbody.appendChild(tr);
         });
 
@@ -451,12 +554,65 @@
         dtLines = $("#linesTable").DataTable({
           paging:false, searching:true, ordering:true, info:false,
           scrollX:true, autoWidth:false, fixedColumns:{ leftColumns:2 },
-          scrollY:"360px"
+          scrollY:"220px"
         });
         dtLines.columns.adjust();
       }
 
-      // --- パッケージ情報の取得 ---
+      // --- 明細からユニークなパッケージを収集し、自動取得 ---
+      async function autoLoadPackageInfoForEntitlements(items){
+        // 入力欄から最新の HIQ 資格情報を読む
+        hiq.apiKey     = document.getElementById('hiqApiKey').value.trim();
+        hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
+
+        resetPackageInfoUI();
+        showPackageInfoBox(true);
+
+        if(!(hiq.apiKey && hiq.customerId)){
+          setPackageInfoMsg('HIQ: API Key と Customer ID を入力すると、明細取得と同時にパッケージ情報も自動取得します。', 'info');
+          return; // 資格情報が無い場合はスキップ（明細は表示済み）
+        }
+
+        // ユニークな packageId を抽出
+        const pkgIdSet = new Set();
+        for(const e of items){
+          const ref = (e.reference || '').trim();
+          let parsed = parseReference3(ref) || parseReference2(ref);
+          let pkgId = parsed?.packageId || '';
+          if(!pkgId && e.reference_object?.packageData?.id){ pkgId = String(e.reference_object.packageData.id); }
+          if(pkgId) pkgIdSet.add(String(pkgId));
+        }
+
+        const pkgIds = Array.from(pkgIdSet);
+        if(pkgIds.length === 0){
+          setPackageInfoMsg('この契約明細に紐づくパッケージは見つかりませんでした。', 'info');
+          return;
+        }
+
+        setPackageInfoMsg(`パッケージ情報を取得中… (0/${pkgIds.length})`);
+
+        const detailsList = [];
+        let done = 0;
+        for(const pid of pkgIds){
+          try{
+            const details = await getPackageDetails(pid);
+            detailsList.push({ packageId: pid, details });
+          }catch(e){
+            console.error('getPackageDetails error', pid, e);
+            // 🔴 画面に個別エラーメッセージを表示 + テーブルにもエラー行を出す
+            appendPackageInfoErr(`Package ID <code class="k">${escapeHtml(String(pid))}</code> の取得に失敗しました: ${escapeHtml(e.message)}`);
+            detailsList.push({ packageId: pid, error: e.message });
+          }finally{
+            done++;
+            setPackageInfoMsg(`パッケージ情報を取得中… (${done}/${pkgIds.length})`);
+          }
+        }
+
+        renderPackageInfoTable(detailsList);
+        setPackageInfoMsg(`パッケージ情報の取得完了（${detailsList.length} / ${pkgIds.length}）`, 'success');
+      }
+
+      // --- パッケージ情報の取得（単体） ---
       async function getPackageDetails(packageId){
         hiq.apiKey     = document.getElementById('hiqApiKey').value.trim();
         hiq.customerId = document.getElementById('hiqCustomerId').value.trim();
@@ -467,67 +623,70 @@
         const base = 'https://gssapps.ebscohost.com/auchikawa/iq/holdings_getPackageDetails.php';
         const url = `${base}?account=${encodeURIComponent(hiq.customerId)}&package=${encodeURIComponent(packageId)}`;
         const res = await fetch(url, { headers });
-        if(!res.ok){ throw new Error(`Package Details 取得失敗: ${res.status}`); }
+        if(!res.ok){
+          // ステータスだけでなく、どの Package かを出す
+          throw new Error(`Package Details(${packageId}) 取得失敗: ${res.status}`);
+        }
         return await res.json();
       }
 
-      function renderPackageInfo(packageId, details){
+      // --- パッケージ情報テーブル（複数行）描画 ---
+      function renderPackageInfoTable(items){
         const table = document.getElementById('packageInfoTable');
         const tbody = table.querySelector('tbody');
         tbody.innerHTML = '';
 
-        const pkgName  = details?.packageName ?? '';
-        const vendor   = details?.vendorName  ?? '';
-        const selCount = details?.selectedCount ?? '';
-        const ttlCount = details?.titleCount    ?? '';
-        const freeAcc  = details?.packageFreeAccess ?? '';
-        const vendorId = details?.vendorId != null ? String(details.vendorId) : '';
+        for(const it of items){
+          const packageId = it.packageId;
+          const details = it.details || {};
 
-        const canExpand = typeof details?.titleCount === 'number' && details.titleCount <= 10000;
-        const opCell = canExpand
-          ? `<button class="btnExpandTitles" data-package-id="${escapeHtml(String(packageId))}" data-vendor-id="${escapeHtml(String(vendorId))}" data-package-name="${escapeHtml(String(pkgName))}">タイトル展開</button>`
-          : `パッケージ内のタイトル数が多すぎます。HLMよりDLしてください`;
+          const tr = document.createElement('tr');
+          tr.setAttribute('data-package-id', String(packageId));
 
-        const tr = document.createElement('tr');
-        tr.setAttribute('data-package-id', String(packageId));
-        if(vendorId) tr.setAttribute('data-vendor-id', String(vendorId));
-        tr.innerHTML = [
-          opCell,
-          escapeHtml(vendorId),
-          escapeHtml(String(packageId)),
-          escapeHtml(pkgName),
-          escapeHtml(vendor),
-          escapeHtml(String(selCount)),
-          escapeHtml(String(ttlCount)),
-          escapeHtml(String(freeAcc))
-        ].map((c,i)=>`<td>${c}</td>`).join('');
-        tbody.appendChild(tr);
+          // 🔴 エラー行：詳細が取れなかった場合はテーブルにも明示
+          if (it.error){
+            tr.innerHTML = [
+              '<span class="badge">エラー</span>',
+              '',
+              escapeHtml(String(packageId)),
+              `<span class="error">取得失敗: ${escapeHtml(String(it.error))}</span>`,
+              '',
+              '',
+              '',
+              ''
+            ].map((c)=>`<td>${c}</td>`).join('');
+            tbody.appendChild(tr);
+            continue;
+          }
+
+          const pkgName  = details?.packageName ?? '';
+          const vendor   = details?.vendorName  ?? '';
+          const selCount = details?.selectedCount ?? '';
+          const ttlCount = details?.titleCount    ?? '';
+          const freeAcc  = details?.packageFreeAccess ?? '';
+          const vendorId = details?.vendorId != null ? String(details.vendorId) : '';
+
+          const canExpand = typeof details?.titleCount === 'number' && details.titleCount <= 10000;
+          const opCell = canExpand
+            ? `<button class="btnExpandTitles" data-package-id="${escapeHtml(String(packageId))}" data-vendor-id="${escapeHtml(String(vendorId))}" data-package-name="${escapeHtml(String(pkgName))}">タイトル展開</button>`
+            : `パッケージ内のタイトル数が多すぎます。HLMよりDLしてください`;
+
+          if(vendorId) tr.setAttribute('data-vendor-id', String(vendorId));
+          tr.innerHTML = [
+            opCell,
+            escapeHtml(vendorId),
+            escapeHtml(String(packageId)),
+            escapeHtml(pkgName),
+            escapeHtml(vendor),
+            escapeHtml(String(selCount)),
+            escapeHtml(String(ttlCount)),
+            escapeHtml(String(freeAcc))
+          ].map((c)=>`<td>${c}</td>`).join('');
+          tbody.appendChild(tr);
+        }
+
         showPackageInfoBox(true);
       }
-
-      // --- クリックイベント：パッケージ情報取得 ---
-      document.addEventListener('click', async (ev)=>{
-        const btn = ev.target.closest('.btnGetPackageInfo');
-        if(!btn) return;
-
-        const row = btn.closest('tr');
-        const packageId = btn.getAttribute('data-package-id') || row?.getAttribute('data-package-id') || '';
-        const vendorId  = btn.getAttribute('data-vendor-id') || row?.getAttribute('data-vendor-id') || '';
-
-        if(!packageId){ msg('Package ID を取得できませんでした。','error'); return; }
-
-        resetPackageInfoUI();
-        setPackageInfoMsg('パッケージ情報を取得中…');
-        try{
-          const details = await getPackageDetails(packageId);
-          if(!row.getAttribute('data-vendor-id') && details?.vendorId != null){ row.setAttribute('data-vendor-id', String(details.vendorId)); }
-          renderPackageInfo(packageId, details);
-          setPackageInfoMsg('パッケージ情報の取得完了。', 'success');
-        }catch(e){
-          console.error(e);
-          setPackageInfoMsg('パッケージ情報の取得に失敗しました: ' + e.message, 'error');
-        }
-      });
 
       // --- クリックイベント：タイトル展開 ---
       document.addEventListener('click', async (ev)=>{
@@ -546,12 +705,11 @@
         const vendorId = btn.getAttribute('data-vendor-id') || '';
         if(!packageId){ msg('Package ID を取得できませんでした。','error'); return; }
 
-        // ✅ 追加：現在のパッケージ情報を記録（全件CSVで使用）
+        // UI 準備
+        resetPackageTitlesUI();
         currentPackageIdForTitles = packageId;
         currentPackageNameForTitles = packageName;
 
-        // UI 準備
-        resetPackageTitlesUI();
         const heading = document.getElementById('packageTitlesHeading');
         if(heading) heading.textContent = `パッケージ内タイトル一覧（Package ${packageId} : ${packageName || 'N/A'}）`;
         showPackageTitlesBox(true);
@@ -566,7 +724,7 @@
           if (b) b.disabled = list.length === 0;
         }catch(e){
           console.error(e);
-          setPackageTitlesMsg('タイトルの取得に失敗しました。', 'error');
+          setPackageTitlesMsg('タイトルの取得に失敗しました: ' + escapeHtml(e.message), 'error');
           const b = document.getElementById('btnDownloadCSVTitles');
           if (b) b.disabled = true;
         }
@@ -665,15 +823,15 @@
         if(!trs.length){ alert('出力するデータがありません'); return; }
         const rows = trs.map(tr => {
           const tds = Array.from(tr.cells);
-          const urlA = tds[8]?.querySelector('a');
+          const urlA = tds[7]?.querySelector('a');
           const cols = [
-            tds[2]?.innerText || '', // Entitlement ID
-            tds[1]?.innerText || '', // Level
-            tds[3]?.innerText || '', // Reference
-            tds[4]?.innerText || '', // Label
-            tds[5]?.innerText || '', // Provider
-            tds[6]?.innerText || '', // Package Name
-            tds[7]?.innerText || '', // Publication Type
+            tds[1]?.innerText || '', // Entitlement ID
+            tds[0]?.innerText || '', // Level
+            tds[2]?.innerText || '', // Reference
+            tds[3]?.innerText || '', // Label
+            tds[4]?.innerText || '', // Provider
+            tds[5]?.innerText || '', // Package Name
+            tds[6]?.innerText || '', // Publication Type
             urlA?.getAttribute('href') || '' // URL
           ];
           return cols.map(t => /[",\n]/.test(t) ? '"' + t.replace(/"/g,'""') + '"' : t).join(',');
