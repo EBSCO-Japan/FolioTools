@@ -425,10 +425,12 @@
             const isRefdata = (p.type && (p.type.type || p.type) + "")
               .toLowerCase()
               .includes("refdata");
+            const typeStr = (p.type && (p.type.type || p.type) + "") || "";
             const multi = !!(
               p.multivalued ||
               p.multiValued ||
-              p.type?.multivalued
+              p.type?.multivalued ||
+              /multi/i.test(typeStr)   // ← type文字列に "multi" を含んでいたら true
             );
 
             // ★ ここが新規：category.values をそのまま options に落とす
@@ -569,14 +571,6 @@
         const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
         return !hasOptions && !isMulti;
         }
-        // 既存: Text専用の判定（あなたのコードに合わせて流用）
-function isTextOnlyKey(key){
-  const opts = state.meta.cpOptionsByKey[key];
-  const cp = state.meta.customProps.find(c=>c.key===key);
-  const hasOptions = Array.isArray(opts) && opts.length > 0;
-  const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
-  return !hasOptions && !isMulti;
-}
 
     // ★ 追加：列キー→ヘッダーに表示する型ラベル
     function getColumnTypeLabel(key){
@@ -812,6 +806,62 @@ function isTextOnlyKey(key){
                 (cp && cp.multi) ||
                 (currentVal || '').includes(';');
 
+          // === MultiSelect: 語彙あり かつ マルチ値なら <select multiple> ===
+          if (hasOptions && looksMulti) {
+            const sel = document.createElement('select');
+            sel.className = 'editable';
+            sel.dataset.key = key;
+            sel.dataset.id = base.id;
+            sel.multiple = true;
+            // 表示数はほどよく（必要に応じて調整）
+            sel.size = Math.min(6, Math.max(3, options.length));
+
+            // 現在値を value[] に正規化
+            const curVals = currentVal
+              .split(/[;；]/)
+              .map(s => s.trim())
+              .filter(Boolean)
+              .map(txt => mapLabelToValue(key, txt));
+
+            // 選択肢を生成（表示・内部とも value を用いる）
+            options.forEach(o => {
+              const opt = document.createElement('option');
+              opt.value = o.value;
+              opt.textContent = o.value;
+              if (curVals.includes(o.value)) opt.selected = true;
+              sel.appendChild(opt);
+            });
+
+            // 初期ハイライト
+            const curStr = curVals.join('; ');
+            if (isCellChanged(base.id, key, curStr)) sel.classList.add('changed');
+
+            // 変更時は選択値を '; ' 連結して onEditInline に渡す
+            sel.addEventListener('change', (ev) => {
+              // ここでは value を書き換えない！
+              // ハイライトは onEditInline 内で計算された value を使って更新される
+              onEditInline(ev);
+
+              // もしこの場でハイライトを更新したいなら、joined を作って isCellChanged を呼ぶ
+              const joined = Array.from(sel.selectedOptions).map(o => o.value).join('; ');
+              if (isCellChanged(base.id, key, joined)) sel.classList.add('changed');
+              else sel.classList.remove('changed');
+            });
+
+            // クリックだけでトグルできるようにする（Ctrl/⌘不要）
+            sel.addEventListener('mousedown', (e) => {
+              const t = e.target;
+              if (t && t.tagName === 'OPTION') {
+                e.preventDefault();           // 既定の単一選択化を止める
+                t.selected = !t.selected;     // クリックで選択状態を反転
+                sel.focus();                  // フォーカス保持（スクロール抑止）
+                // 変更イベントを発火して onEditInline へ流す
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            });
+            div.appendChild(sel); td.appendChild(div); return td;
+          }
+
             if(hasOptions && !looksMulti){
                 // 単一選択: option の value/表示ともに "value" を用いる
                 const sel = document.createElement('select'); sel.className='editable'; sel.dataset.key=key; sel.dataset.id=base.id;
@@ -829,12 +879,15 @@ function isTextOnlyKey(key){
                 td.appendChild(div); return td;
             }
 
-            // 複数値 or 選択肢なし→Text入力
-            const input = document.createElement('input'); input.type='text'; input.className='editable';
-            input.value = currentVal;
-            input.dataset.key = key; input.dataset.id = base.id;
-            const isTextOnly = isTextOnlyKey(key);
-            input.placeholder = '';
+            // Text 型は常に textarea / それ以外（複数値や候補あり）は input
+            const isText = isTextOnlyKey(key);
+            const useTextarea = isText || /[\r\n]/.test(currentVal);
+            const field = useTextarea ? document.createElement('textarea') : document.createElement('input');
+            if (!useTextarea) field.type = 'text';
+            field.className = 'editable';
+            field.value = currentVal;
+            field.dataset.key = key; field.dataset.id = base.id;
+            field.placeholder = '';
 
             // 候補がある場合のみ datalist を付与（※空配列なら付けない）
             if(hasOptions){
@@ -849,13 +902,17 @@ function isTextOnlyKey(key){
                 });
                 document.body.appendChild(dl);
                 }
-                input.setAttribute('list', listId);
+                if (!useTextarea) field.setAttribute('list', listId);
             }
 
-            input.addEventListener('input', onEditInline);
-            if(isCellChanged(base.id, key, input.value)) input.classList.add('changed');
-            div.appendChild(input); td.appendChild(div); return td;
-            };
+            field.addEventListener('input', onEditInline);
+            if (isCellChanged(base.id, key, field.value)) field.classList.add('changed');
+            if (useTextarea) {
+              field.style.minHeight = '60px';
+              field.style.resize = 'vertical';
+            }
+            div.appendChild(field); td.appendChild(div); return td;
+          };
 
           const tdStatus = (value) => {
             const td = document.createElement("td");
@@ -903,18 +960,29 @@ function isTextOnlyKey(key){
       }
 
       // ===== PUT 準備系 =====
-      function onEditInline(e) {
-        const input = e.target;
-        const { id, key } = input.dataset;
-        const value = input.value;
-        const row = state.rows.find((r) => r.base.id === id);
-        if (!row) return;
-        if (defaultHeaders.includes(key)) row.base[key] = value;
-        else row.custom[key] = value;
-        if (isCellChanged(id, key, value)) input.classList.add("changed");
-        else input.classList.remove("changed");
-        updateButtons();
-      }
+function onEditInline(e) {
+  const input = e.target;
+  const { id, key } = input.dataset;
+
+  // ★ multiple select は value を自前で組み立てる
+  let value;
+  if (input.tagName === 'SELECT' && input.multiple) {
+    value = Array.from(input.selectedOptions).map(o => o.value).join('; ');
+  } else {
+    value = input.value;
+  }
+
+  const row = state.rows.find((r) => r.base.id === id);
+  if (!row) return;
+
+  if (defaultHeaders.includes(key)) row.base[key] = value;
+  else row.custom[key] = value;
+
+  if (isCellChanged(id, key, value)) input.classList.add("changed");
+  else input.classList.remove("changed");
+
+  updateButtons();
+}
 
       function revertAll() {
         state.rows = state.rows.map((r) => {
@@ -988,46 +1056,19 @@ function isTextOnlyKey(key){
         const at = new Date().toISOString();
         state.audit.push({ id, actor, at, field, from, to });
       }
+
       function diffRowForAudit(row) {
-        const id = row.base.id;
-        const orig = state.original.get(id);
-        if (row.base.name !== orig.base.name)
-          pushAudit(id, "name", orig.base.name || "", row.base.name || "");
-        if (row.base.status !== orig.base.status)
-          pushAudit(
-            id,
-            "status",
-            orig.base.status || "",
-            row.base.status || ""
-          );
-        state.meta.customProps.forEach(cp=>{
-  const key = cp.key;
-  const oldVal = orig.custom[key] ?? '';
-  const newVal = row.custom[key] ?? '';
-  if(oldVal === newVal) return;
-
-  const currentArr = payload.customProperties[key];
-  const opts = state.meta.cpOptionsByKey[key];
-  const hasOptions = Array.isArray(opts) && opts.length > 0;
-  const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
-  const isTextOnly = !hasOptions && !isMulti;
-
-  if (hasOptions) {
-    // 語彙あり → label→value 変換して保存
-    payload.customProperties[key] =
-      parseCustomInputToPayloadWithOptions(key, newVal, currentArr);
-  } else if (isTextOnly) {
-    // ★ Text型 → 文字列のまま保存（; で分割しない）
-    payload.customProperties[key] =
-      parseCustomInputToPayloadText(newVal);
-  } else {
-    // multi 等 → 既存どおり ; 区切り対応
-    payload.customProperties[key] =
-      parseCustomInputToPayload(newVal, currentArr);
-  }
-});
-
-      }
+      const id = row.base.id;
+      const orig = state.original.get(id);
+      if (row.base.name !== orig.base.name) pushAudit(id, "name", orig.base.name || "", row.base.name || "");
+      if (row.base.status !== orig.base.status) pushAudit(id, "status", orig.base.status || "", row.base.status || "");
+      state.meta.customProps.forEach(cp => {
+        const key = cp.key;
+        const oldVal = orig.custom[key] ?? '';
+        const newVal = row.custom[key] ?? '';
+        if (oldVal !== newVal) pushAudit(id, key, oldVal, newVal);
+      });
+    }
       function exportAuditCSV() {
         if (state.audit.length === 0) return;
         const header = ["id", "actor", "timestamp", "field", "from", "to"];
@@ -1101,11 +1142,20 @@ function isTextOnlyKey(key){
               if (oldVal === newVal) return;
               const currentArr = payload.customProperties[key];
               const opts = state.meta.cpOptionsByKey[key];
-                if (Array.isArray(opts) && opts.length > 0) {
-                payload.customProperties[key] = parseCustomInputToPayloadWithOptions(key, newVal, currentArr);
-                } else {
-                payload.customProperties[key] = parseCustomInputToPayload(newVal, currentArr);
-                }
+              const hasOptions = Array.isArray(opts) && opts.length > 0;
+              const isText = isTextOnlyKey(key);
+              if (hasOptions) {
+                payload.customProperties[key] =
+                  parseCustomInputToPayloadWithOptions(key, newVal, currentArr);
+              } else if (isText) {
+                // Text 型：そのまま文字列（; 分割しない）
+                payload.customProperties[key] =
+                  parseCustomInputToPayloadText(newVal);
+              } else {
+                // 複数値など：; 区切り対応
+                payload.customProperties[key] =
+                  parseCustomInputToPayload(newVal, currentArr);
+              }
             });
             const putRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
               method: "PUT",
