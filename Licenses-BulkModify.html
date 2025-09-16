@@ -575,7 +575,7 @@
     // ★ 追加：列キー→ヘッダーに表示する型ラベル
     function getColumnTypeLabel(key){
     if (key === 'id' || key === 'created') return 'ReadOnly';
-    if (key === 'name') return '';
+    if (key === 'name') return '文';
     if (key === 'status') {
         // ステータス語彙があれば単一選択、なければ Text
         return (state.meta.statusOptions && state.meta.statusOptions.length > 0) ? '単' : '文';
