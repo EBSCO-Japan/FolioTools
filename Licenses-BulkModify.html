@@ -18,107 +18,331 @@
         --border: #e5e7eb;
         --changed: #fafa96;
       }
-      * { box-sizing: border-box; }
-      body {
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        margin: 0; padding: 24px; color: var(--text); background: var(--bg);
+      * {
+        box-sizing: border-box;
       }
-      h1 { font-size: 22px; margin: 0 0 8px; }
-      .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
+          sans-serif;
+        margin: 0;
+        padding: 24px;
+        color: var(--text);
+        background: var(--bg);
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 8px;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
 
       .card {
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: 12px;
-        box-shadow: 0 1px 2px rgba(0,0,0,.04);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       }
 
       .form {
         display: grid;
         gap: 10px;
-        grid-template-columns: repeat(4, minmax(140px, 1fr)); /* 監査ユーザー欄削除につき4列 */
+        grid-template-columns: repeat(
+          4,
+          minmax(140px, 1fr)
+        ); /* 監査ユーザー欄削除につき4列 */
         padding: 16px;
       }
-      .form label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
-      .form input, .form select { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+      .form label {
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form input,
+      .form select {
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
 
-      .row { display: flex; align-items: center; gap: 8px; }
-      
-      .th-btn .label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .th-btn .pill{flex:0 0 auto}
-      .th-btn .arrow{flex:0 0 auto;opacity:.8}
-      .th-btn{display:flex;align-items:center;gap:8px;min-width:0}
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .th-btn .label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .th-btn .pill {
+        flex: 0 0 auto;
+      }
+      .th-btn .arrow {
+        flex: 0 0 auto;
+        opacity: 0.8;
+      }
+      .th-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
 
       .btn {
-        appearance: none; border: none; background: var(--brand); color: #fff;
-        padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
+        appearance: none;
+        border: none;
+        background: var(--brand);
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
       }
-      .btn:disabled { opacity: .5; cursor: not-allowed; }
-      .btn.secondary { background: #111827; }
-      .btn.ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
-      .btn.warn { background: var(--warn); color: #111; }
-      .btn.ok { background: var(--ok); }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn.secondary {
+        background: #111827;
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--brand);
+        border: 1px solid var(--brand);
+      }
+      .btn.warn {
+        background: var(--warn);
+        color: #111;
+      }
+      .btn.ok {
+        background: var(--ok);
+      }
 
-      .toolbar { display: flex; gap: 8px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
-      .toolbar .spacer { flex: 1; }
-      .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); background: #fff; }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+      .toolbar .spacer {
+        flex: 1;
+      }
+      .pill {
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #fff;
+      }
 
-      thead th:not(:last-child), tbody td:not(:last-child) { border-right: 1px solid var(--border); }
-      .table-wrap { margin-top: 16px; overflow: auto; }
-      table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
-      colgroup col { width: 160px; }
+      thead th:not(:last-child),
+      tbody td:not(:last-child) {
+        border-right: 1px solid var(--border);
+      }
+      .table-wrap {
+        margin-top: 16px;
+        overflow: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
+      }
+      colgroup col {
+        width: 160px;
+      }
       thead th {
-        position: sticky; top: 0; background: #fcfcfd; z-index: 2; border-bottom: 1px solid var(--border);
-        font-size: 12px; color: #374151; text-align: left; padding: 10px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        position: sticky;
+        top: 0;
+        background: #fcfcfd;
+        z-index: 2;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+        color: #374151;
+        text-align: left;
+        padding: 10px 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      tbody td { border-bottom: 1px solid var(--border); padding: 0; }
-      tbody tr:nth-child(odd) td { background: #fff; }
-      tbody tr:nth-child(even) td { background: #fafafa; }
-      .cell { padding: 6px 8px; min-width: 120px; }
-      .cell.readonly { color: var(--muted); font-size: 12px; }
+      tbody td {
+        border-bottom: 1px solid var(--border);
+        padding: 0;
+      }
+      tbody tr:nth-child(odd) td {
+        background: #fff;
+      }
+      tbody tr:nth-child(even) td {
+        background: #fafafa;
+      }
+      .cell {
+        padding: 6px 8px;
+        min-width: 120px;
+      }
+      .cell.readonly {
+        color: var(--muted);
+        font-size: 12px;
+      }
 
-      .editable { display: block; width: 100%; padding: 8px 10px; border: 1px solid transparent; background: transparent; border-radius: 6px; font: inherit; }
-      .editable:focus { outline: none; border-color: var(--brand); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
-      .changed { background: var(--changed); }
-      .changed::after { content: "●"; color: var(--warn); margin-left: 6px; font-size: 10px; vertical-align: middle; }
+      .editable {
+        display: block;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid transparent;
+        background: transparent;
+        border-radius: 6px;
+        font: inherit;
+      }
+      .editable:focus {
+        outline: none;
+        border-color: var(--brand);
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      }
+      .changed {
+        background: var(--changed);
+      }
+      .changed::after {
+        content: "●";
+        color: var(--warn);
+        margin-left: 6px;
+        font-size: 10px;
+        vertical-align: middle;
+      }
 
-      .status { margin-top: 12px; padding: 10px 12px; border-radius: 8px; display: none; white-space: pre-line; }
-      .status.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; display: block; }
-      .status.ok   { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; display: block; }
-      .status.warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; display: block; }
-      .status.err  { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: block; }
+      .status {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        display: none;
+        white-space: pre-line;
+      }
+      .status.info {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+        display: block;
+      }
+      .status.ok {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+        display: block;
+      }
+      .status.warn {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+        display: block;
+      }
+      .status.err {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        display: block;
+      }
 
-      .tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; font-size: 12px; background: #eef2ff; color: #3730a3; }
-      .legend { display: flex; gap: 12px; align-items: center; font-size: 12px; color: var(--muted); }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: #eef2ff;
+        color: #3730a3;
+      }
+      .legend {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        font-size: 12px;
+        color: var(--muted);
+      }
 
-      .footer { margin-top: 24px; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+      .footer {
+        margin-top: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
 
-      .resizer { position: absolute; right: 0; top: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; }
-      .resizing { cursor: col-resize; }
+      .resizer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 6px;
+        height: 100%;
+        cursor: col-resize;
+        user-select: none;
+      }
+      .resizing {
+        cursor: col-resize;
+      }
     </style>
   </head>
   <body>
     <h1>FOLIO Licenses Inline Editor</h1>
-    <div class="sub">CSVダウンロード/再アップロードの代わりに、画面上で編集 → 変更点だけPUTします。</div>
+    <div class="sub">
+      CSVダウンロード/再アップロードの代わりに、画面上で編集 →
+      変更点だけPUTします。
+    </div>
 
     <div class="card">
       <div class="form">
-        <label>Base URL<input id="baseUrl" type="text" value="https://folio-quesnelia-okapi.dev.folio.org"/></label>
-        <label>Tenant<input id="tenant" type="text" value="diku"/></label>
-        <label>Username<input id="username" type="text" value="diku_admin"/></label>
-        <label>Password<input id="password" type="password" value="admin"/></label>
+        <label
+          >Base URL<input
+            id="baseUrl"
+            type="text"
+            value="https://folio-quesnelia-okapi.dev.folio.org"
+        /></label>
+        <label>Tenant<input id="tenant" type="text" value="diku" /></label>
+        <label
+          >Username<input id="username" type="text" value="diku_admin"
+        /></label>
+        <label
+          >Password<input id="password" type="password" value="admin"
+        /></label>
       </div>
 
       <div class="toolbar">
         <button id="loadBtn" class="btn">ライセンス読込</button>
         <button id="saveBtn" class="btn ok" disabled>変更を保存</button>
-        <button id="revertBtn" class="btn ghost" disabled>変更を元に戻す</button>
+        <button id="revertBtn" class="btn ghost" disabled>
+          変更を元に戻す
+        </button>
         <div class="spacer"></div>
-        <label class="row" style="gap:6px;font-size:12px;color:var(--muted)"><input type="checkbox" id="onlyChanged"/> 変更のみ表示</label>
-        <input id="q" type="text" placeholder="名前/ステータスでフィルタ" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;width:240px;"/>
+        <label
+          class="row"
+          style="gap: 6px; font-size: 12px; color: var(--muted)"
+          ><input type="checkbox" id="onlyChanged" /> 変更のみ表示</label
+        >
+        <input
+          id="q"
+          type="text"
+          placeholder="名前/ステータスでフィルタ"
+          style="
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 240px;
+          "
+        />
       </div>
 
-      <div id="status" class="status info" style="display:none"></div>
+      <div id="status" class="status info" style="display: none"></div>
 
       <div class="table-wrap">
         <table id="grid">
@@ -128,203 +352,468 @@
         </table>
       </div>
 
-      <div class="toolbar" style="border-top:1px dashed var(--border)">
+      <div class="toolbar" style="border-top: 1px dashed var(--border)">
         <div class="legend">
           <span class="tag">変更あり</span>
-          <span>各セルはセミコロン区切りで複数値に対応（配列型）／列幅はヘッダー右端ドラッグで変更</span>
+          <span
+            >各セルはセミコロン区切りで複数値に対応（配列型）／列幅はヘッダー右端ドラッグで変更</span
+          >
         </div>
       </div>
     </div>
 
-    <div class="footer">© Inline Editor sample — supports scalar/object/array customProperties, diff-only PUT, status vocab, column resizing</div>
+    <div class="footer">
+      © Inline Editor sample — supports scalar/object/array customProperties,
+      diff-only PUT, status vocab, column resizing
+    </div>
 
     <script>
-  const el = (id) => document.getElementById(id);
-  const state = {
-    token: null,
-    loginUser: "",
-    meta: {
-      customProps: [], // {key,label,ctx,isRefdata,refKey,multi,categoryId,categoryDesc,categoryInternal,categoryValues:[{id,value,label}],dataType}
-      statusOptions: [],
-      refdataMap: {},
-      cpOptionsByKey: {},   // key -> [{id,value,label}]
-      cpMultiByKey: {},     // key -> boolean
-      cpDataTypeByKey: {},  // key -> 'text'|'integer'|'decimal'|'date'
-    },
-    rows: [],             // { base:{}, custom:{} }
-    original: new Map(),  // id -> row clone
-    columns: [],
-    filterText: "",
-    onlyChanged: false,
-    sortKey: "name",      // 例: "name" や カスタムキー
-    sortDir: "asc",     // "asc" | "desc"
-  };
+      const el = (id) => document.getElementById(id);
+      const state = {
+        token: null,
+        loginUser: "",
+        meta: {
+          customProps: [], // {key,label,ctx,isRefdata,refKey,multi,categoryId,categoryDesc,categoryInternal,categoryValues:[{id,value,label}],dataType}
+          statusOptions: [],
+          refdataMap: {},
+          cpOptionsByKey: {}, // key -> [{id,value,label}]
+          cpMultiByKey: {}, // key -> boolean
+          cpDataTypeByKey: {}, // key -> 'text'|'integer'|'decimal'|'date'
+        },
+        rows: [], // { base:{}, custom:{} }
+        original: new Map(), // id -> row clone
+        columns: [],
+        filterText: "",
+        onlyChanged: false,
+        sortKey: "name", // 例: "name" や カスタムキー
+        sortDir: "asc", // "asc" | "desc"
+      };
 
-  const defaultHeaders = ["id","created","name","status"];
+      const defaultHeaders = ["id", "created", "name", "status"];
 
-  function setStatus(msg, kind="info"){ const s=el("status"); s.textContent=msg; s.className=`status ${kind}`; s.style.display="block"; }
-  function clearStatus(){ const s=el("status"); s.style.display="none"; s.textContent=""; }
+      function setStatus(msg, kind = "info") {
+        const s = el("status");
+        s.textContent = msg;
+        s.className = `status ${kind}`;
+        s.style.display = "block";
+      }
+      function clearStatus() {
+        const s = el("status");
+        s.style.display = "none";
+        s.textContent = "";
+      }
 
-  async function login(baseUrl, tenant, username, password){
-    const res = await fetch(`${baseUrl}/authn/login`,{ method:"POST", headers:{"Content-Type":"application/json","x-okapi-tenant":tenant}, body: JSON.stringify({ username, password })});
-    if(!res.ok) throw new Error("認証に失敗しました");
-    return res.headers.get("x-okapi-token");
-  }
-// ▼ どこかユーティリティ群の近くに追記
-function getRowValue(row, key){
-  if (defaultHeaders.includes(key)) return row.base[key] ?? "";
-  return row.custom[key] ?? "";
-}
-
-function compareByType(a, b, key){
-  const dt = getDataTypeForKey(key);     // "text" | "integer" | "decimal" | "date"
-  const av = getRowValue(a, key);
-  const bv = getRowValue(b, key);
-
-  if (dt === "integer" || dt === "decimal") {
-    const na = parseFloat(String(av).replace(/[, ]/g, "")); 
-    const nb = parseFloat(String(bv).replace(/[, ]/g, ""));
-    const aOk = Number.isFinite(na), bOk = Number.isFinite(nb);
-    if (aOk && bOk) return na - nb;
-    if (aOk) return -1; if (bOk) return 1;
-    // どちらも数値でない → 文字列比較へフォールバック
-  }
-
-  if (dt === "date") {
-    const da = (String(av).match(/^\d{4}-\d{2}-\d{2}/) || [null])[0];
-    const db = (String(bv).match(/^\d{4}-\d{2}-\d{2}/) || [null])[0];
-    if (da && db) return da.localeCompare(db);   // ISO日付は文字比較でOK
-    if (da) return -1; if (db) return 1;
-    // どちらも日付でない → 文字列比較へ
-  }
-
-  // テキスト（マルチは「; 」連結済みなのでそのまま）
-  const sa = String(av).toLocaleLowerCase();
-  const sb = String(bv).toLocaleLowerCase();
-  return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: "base" });
-}
-
-function sortRows(rows){
-  const { sortKey, sortDir } = state;
-  if (!sortKey) return rows;
-  const sorted = [...rows].sort((a,b) => compareByType(a,b,sortKey));
-  return sortDir === "desc" ? sorted.reverse() : sorted;
-}
-
-  // ----- Meta fetch -----
-  async function fetchCustomProps(baseUrl, tenant, token){
-    const list=[]; let page=1,totalPages=1; const max=100;
-    do{
-      const url=`${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=${max}&stats=true&filters=retired%3D%3Dfalse&page=${page}`;
-      const res=await fetch(url,{ headers:{"x-okapi-tenant":tenant,"x-okapi-token":token}});
-      if(!res.ok) break; const data=await res.json(); totalPages=data.totalPages||1;
-      (data.results||[]).forEach(p=>{
-        if(!p||!p.name) return;
-        const typeStr = (p.type && (p.type.type || p.type)+"") || "";
-        const isRefdata = /refdata/i.test(typeStr);
-        const multi = !!(p.multivalued || p.multiValued || p.type?.multivalued || /multi/i.test(typeStr));
-        const cat = p.category || {};
-        const categoryValues = Array.isArray(cat.values)
-          ? cat.values.map(v=>({ id: v.id, value: v.value ?? v.label ?? String(v), label: v.label ?? v.value ?? String(v) }))
-          : [];
-        list.push({
-          key: p.name,
-          ctx: p.ctx || "",
-          isRefdata,
-          refKey: p.primary || p.category || p.refdataCategory || p.ctx || null,
-          multi,
-          categoryId: cat.id || null,
-          categoryDesc: cat.desc || "",
-          categoryInternal: !!cat.internal,
-          categoryValues,
-          dataType: /date/i.test(typeStr) ? "date" : /integer/i.test(typeStr) ? "integer" : /decimal/i.test(typeStr) ? "decimal" : "text",
-          label: p.label || p.name || "",
-          typeId: p.id || null
+      async function login(baseUrl, tenant, username, password) {
+        const res = await fetch(`${baseUrl}/authn/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-okapi-tenant": tenant,
+          },
+          body: JSON.stringify({ username, password }),
         });
-      });
-      page++;
-    }while(page<=totalPages);
-    return list;
-  }
+        if (!res.ok) throw new Error("認証に失敗しました");
+        return res.headers.get("x-okapi-token");
+      }
+      // ▼ どこかユーティリティ群の近くに追記
+      function getRowValue(row, key) {
+        if (defaultHeaders.includes(key)) return row.base[key] ?? "";
+        return row.custom[key] ?? "";
+      }
 
-  async function fetchRefdata(baseUrl, tenant, token){
-    try{
-      const res=await fetch(`${baseUrl}/licenses/refdata`,{ headers:{"x-okapi-tenant":tenant,"x-okapi-token":token}});
-      if(!res.ok) return { status:[], map:{} };
-      const data=await res.json(); let status=[]; const map={};
-      (data||[]).forEach(entry=>{
-        const desc=(entry?.desc||"").trim();
-        const values=(entry.values||[]).map(v=>({ value: v.value ?? v.label ?? v, label: v.label ?? v.value ?? String(v) }));
-        if(desc) map[desc]=values; if(/status/i.test(desc)) status.push(...values);
-      });
-      const seen=new Set(); status=status.filter(o=>{ const k=o.value||o.label; if(seen.has(k)) return false; seen.add(k); return true; });
-      return { status, map };
-    }catch{ return { status:[], map:{} }; }
-  }
+      function compareByType(a, b, key) {
+        const dt = getDataTypeForKey(key); // "text" | "integer" | "decimal" | "date"
+        const av = getRowValue(a, key);
+        const bv = getRowValue(b, key);
 
-  async function fetchLicenses(baseUrl, tenant, token){
-    const out=[]; let page=1, perPage=100, totalPages=1;
-    do{
-      const res=await fetch(`${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,{ headers:{"x-okapi-tenant":tenant,"x-okapi-token":token}});
-      if(!res.ok) break; const data=await res.json(); totalPages=data.totalPages||1;
-      (data.results||[]).forEach(lic=>{
-        const base={ id: lic.id, created: lic.dateCreated?.slice(0,10)||"", name: lic.name, status: lic.status?.label || lic.status || "" };
-        const custom={};
-        Object.entries(lic.customProperties||{}).forEach(([key, items])=>{
-          if(!Array.isArray(items)||items.length===0) return;
-          const v=items[0].value; let display="";
-          if(Array.isArray(v)) display=v.map(x=>x.value||String(x)).join("; ");
-          else if(v && typeof v==="object") display=v.value||""; else display=v!=null?String(v):"";
-          custom[key]=display;
+        if (dt === "integer" || dt === "decimal") {
+          const na = parseFloat(String(av).replace(/[, ]/g, ""));
+          const nb = parseFloat(String(bv).replace(/[, ]/g, ""));
+          const aOk = Number.isFinite(na),
+            bOk = Number.isFinite(nb);
+          if (aOk && bOk) return na - nb;
+          if (aOk) return -1;
+          if (bOk) return 1;
+          // どちらも数値でない → 文字列比較へフォールバック
+        }
+
+        if (dt === "date") {
+          const da = (String(av).match(/^\d{4}-\d{2}-\d{2}/) || [null])[0];
+          const db = (String(bv).match(/^\d{4}-\d{2}-\d{2}/) || [null])[0];
+          if (da && db) return da.localeCompare(db); // ISO日付は文字比較でOK
+          if (da) return -1;
+          if (db) return 1;
+          // どちらも日付でない → 文字列比較へ
+        }
+
+        // テキスト（マルチは「; 」連結済みなのでそのまま）
+        const sa = String(av).toLocaleLowerCase();
+        const sb = String(bv).toLocaleLowerCase();
+        return sa.localeCompare(sb, undefined, {
+          numeric: true,
+          sensitivity: "base",
         });
-        out.push({ base, custom });
-      });
-      page++;
-    }while(page<=totalPages);
-    return out;
-  }
+      }
 
-  // ----- Normalizers -----
-  function _normalizeForCompare(s){ let t=(s??"").toString(); if(t.normalize) t=t.normalize("NFC"); t=t.replace(/[\u200B-\u200D\uFEFF]/g,""); t=t.replace(/\r\n?/g,"\n"); t=t.replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g," "); return t; }
-  function normFieldValue(v){ const s=_normalizeForCompare(v).trim(); if(!s) return ""; const parts=s.split(/[;；]/).map(p=>p.trim()).filter(Boolean).map(p=>p.replace(/\s+/g," ")); return parts.join("; "); }
-  function normTextForCompare(v){ return (v??"").toString().replace(/\r\n?/g,"\n").replace(/[\u200B-\u200D\uFEFF]/g,"").replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g," ").trim().replace(/\s+/g," "); }
-  function normNumericForCompare(v){ const s=(v??"").toString().trim(); if(!s) return ""; return s.replace(/[\s,]/g,"").replace(/[\u3000]/g,""); }
-  function normDateForCompare(v){ const s=(v??"").toString().trim(); const m=s.match(/(\d{4}-\d{2}-\d{2})/); return m?m[1]:s; }
+      function sortRows(rows) {
+        const { sortKey, sortDir } = state;
+        if (!sortKey) return rows;
+        const sorted = [...rows].sort((a, b) => compareByType(a, b, sortKey));
+        return sortDir === "desc" ? sorted.reverse() : sorted;
+      }
 
-  function getDataTypeForKey(key){ const cp=state.meta.customProps.find(c=>c.key===key); const mapped=state.meta.cpDataTypeByKey[key]; return mapped || cp?.dataType || "text"; }
-  function isTextOnlyKey(key){ const dt=getDataTypeForKey(key); const opts=state.meta.cpOptionsByKey[key]; const cp=state.meta.customProps.find(c=>c.key===key); const hasOptions=Array.isArray(opts)&&opts.length>0; const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi); return dt==="text" && !hasOptions && !isMulti; }
-  function isScalarSingleKey(key){ const dt=getDataTypeForKey(key); const opts=state.meta.cpOptionsByKey[key]; const cp=state.meta.customProps.find(c=>c.key===key); const hasOptions=Array.isArray(opts)&&opts.length>0; const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi); return ((dt==="text"||dt==="decimal"||dt==="integer"||dt==="date") && !hasOptions && !isMulti); }
-  function normByKey(key,v){ const dt=getDataTypeForKey(key); if(dt==="integer"||dt==="decimal") return normNumericForCompare(v); if(dt==="date") return normDateForCompare(v); return isTextOnlyKey(key)?normTextForCompare(v):normFieldValue(v); }
+      // ----- Meta fetch -----
+      async function fetchCustomProps(baseUrl, tenant, token) {
+        const list = [];
+        let page = 1,
+          totalPages = 1;
+        const max = 100;
+        do {
+          const url = `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=${max}&stats=true&filters=retired%3D%3Dfalse&page=${page}`;
+          const res = await fetch(url, {
+            headers: { "x-okapi-tenant": tenant, "x-okapi-token": token },
+          });
+          if (!res.ok) break;
+          const data = await res.json();
+          totalPages = data.totalPages || 1;
+          (data.results || []).forEach((p) => {
+            if (!p || !p.name) return;
+            const typeStr = (p.type && (p.type.type || p.type) + "") || "";
+            const isRefdata = /refdata/i.test(typeStr);
+            const multi = !!(
+              p.multivalued ||
+              p.multiValued ||
+              p.type?.multivalued ||
+              /multi/i.test(typeStr)
+            );
+            const cat = p.category || {};
+            const categoryValues = Array.isArray(cat.values)
+              ? cat.values.map((v) => ({
+                  id: v.id,
+                  value: v.value ?? v.label ?? String(v),
+                  label: v.label ?? v.value ?? String(v),
+                }))
+              : [];
+            list.push({
+              key: p.name,
+              ctx: p.ctx || "",
+              isRefdata,
+              refKey:
+                p.primary || p.category || p.refdataCategory || p.ctx || null,
+              multi,
+              categoryId: cat.id || null,
+              categoryDesc: cat.desc || "",
+              categoryInternal: !!cat.internal,
+              categoryValues,
+              dataType: /date/i.test(typeStr)
+                ? "date"
+                : /integer/i.test(typeStr)
+                ? "integer"
+                : /decimal/i.test(typeStr)
+                ? "decimal"
+                : "text",
+              label: p.label || p.name || "",
+              typeId: p.id || null,
+            });
+          });
+          page++;
+        } while (page <= totalPages);
+        return list;
+      }
 
-  function getColumnTypeLabel(key){ if(key==="id"||key==="created") return "ReadOnly"; if(key==="name") return "文"; if(key==="status") return (state.meta.statusOptions?.length>0)?"単":"文"; const dt=getDataTypeForKey(key); const opts=state.meta.cpOptionsByKey[key]; const cp=state.meta.customProps.find(c=>c.key===key); const hasOptions=Array.isArray(opts)&&opts.length>0; const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi); if(hasOptions) return isMulti?"複":"単"; if(dt==="integer") return "整数"; if(dt==="decimal") return "小数"; if(dt==="date") return "日"; return "文"; }
-  function getColumnLabel(key){ if(key==="id") return "ID"; if(key==="created") return "作成日"; if(key==="name") return "名称"; if(key==="status") return "ステータス"; return key; }
+      async function fetchRefdata(baseUrl, tenant, token) {
+        try {
+          const res = await fetch(`${baseUrl}/licenses/refdata`, {
+            headers: { "x-okapi-tenant": tenant, "x-okapi-token": token },
+          });
+          if (!res.ok) return { status: [], map: {} };
+          const data = await res.json();
+          let status = [];
+          const map = {};
+          (data || []).forEach((entry) => {
+            const desc = (entry?.desc || "").trim();
+            const values = (entry.values || []).map((v) => ({
+              value: v.value ?? v.label ?? v,
+              label: v.label ?? v.value ?? String(v),
+            }));
+            if (desc) map[desc] = values;
+            if (/status/i.test(desc)) status.push(...values);
+          });
+          const seen = new Set();
+          status = status.filter((o) => {
+            const k = o.value || o.label;
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          });
+          return { status, map };
+        } catch {
+          return { status: [], map: {} };
+        }
+      }
 
-  function mapLabelToValue(key,text){ const options=state.meta.cpOptionsByKey[key]; if(!options) return text; const hit=options.find(o=>o.label===text||o.value===text||o.id===text); return hit?hit.value:text; }
+      async function fetchLicenses(baseUrl, tenant, token) {
+        const out = [];
+        let page = 1,
+          perPage = 100,
+          totalPages = 1;
+        do {
+          const res = await fetch(
+            `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
+            { headers: { "x-okapi-tenant": tenant, "x-okapi-token": token } }
+          );
+          if (!res.ok) break;
+          const data = await res.json();
+          totalPages = data.totalPages || 1;
+          (data.results || []).forEach((lic) => {
+            const base = {
+              id: lic.id,
+              created: lic.dateCreated?.slice(0, 10) || "",
+              name: lic.name,
+              status: lic.status?.label || lic.status || "",
+            };
+            const custom = {};
+            Object.entries(lic.customProperties || {}).forEach(
+              ([key, items]) => {
+                if (!Array.isArray(items) || items.length === 0) return;
+                const v = items[0].value;
+                let display = "";
+                if (Array.isArray(v))
+                  display = v.map((x) => x.value || String(x)).join("; ");
+                else if (v && typeof v === "object") display = v.value || "";
+                else display = v != null ? String(v) : "";
+                custom[key] = display;
+              }
+            );
+            out.push({ base, custom });
+          });
+          page++;
+        } while (page <= totalPages);
+        return out;
+      }
 
-  function buildColumns(){ const customKeys=state.meta.customProps.map(c=>c.key); state.columns=[...defaultHeaders, ...customKeys]; }
+      // ----- Normalizers -----
+      function _normalizeForCompare(s) {
+        let t = (s ?? "").toString();
+        if (t.normalize) t = t.normalize("NFC");
+        t = t.replace(/[\u200B-\u200D\uFEFF]/g, "");
+        t = t.replace(/\r\n?/g, "\n");
+        t = t.replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ");
+        return t;
+      }
+      function normFieldValue(v) {
+        const s = _normalizeForCompare(v).trim();
+        if (!s) return "";
+        const parts = s
+          .split(/[;；]/)
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .map((p) => p.replace(/\s+/g, " "));
+        return parts.join("; ");
+      }
+      function normTextForCompare(v) {
+        return (v ?? "")
+          .toString()
+          .replace(/\r\n?/g, "\n")
+          .replace(/[\u200B-\u200D\uFEFF]/g, "")
+          .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ")
+          .trim()
+          .replace(/\s+/g, " ");
+      }
+      function normNumericForCompare(v) {
+        const s = (v ?? "").toString().trim();
+        if (!s) return "";
+        return s.replace(/[\s,]/g, "").replace(/[\u3000]/g, "");
+      }
+      function normDateForCompare(v) {
+        const s = (v ?? "").toString().trim();
+        const m = s.match(/(\d{4}-\d{2}-\d{2})/);
+        return m ? m[1] : s;
+      }
 
-  function isCellChanged(id,key,value){ const orig=state.original.get(id); if(!orig) return false; const cur=normByKey(key,value); if(defaultHeaders.includes(key)){ const was=normByKey(key,orig.base[key]); return was!==cur; } else { const was=normByKey(key,orig.custom[key]); return was!==cur; } }
-  function rowHasChanges(row){ const id=row.base.id; return state.columns.some(col=>{ if(col==="id"||col==="created") return false; const value=defaultHeaders.includes(col)?row.base[col]:row.custom[col]; return isCellChanged(id,col,value); }); }
-  function updateButtons(){ const changed=state.rows.some(rowHasChanges); el("saveBtn").disabled=!changed; el("revertBtn").disabled=!changed; }
+      function getDataTypeForKey(key) {
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const mapped = state.meta.cpDataTypeByKey[key];
+        return mapped || cp?.dataType || "text";
+      }
+      function isTextOnlyKey(key) {
+        const dt = getDataTypeForKey(key);
+        const opts = state.meta.cpOptionsByKey[key];
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const hasOptions = Array.isArray(opts) && opts.length > 0;
+        const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
+        return dt === "text" && !hasOptions && !isMulti;
+      }
+      function isScalarSingleKey(key) {
+        const dt = getDataTypeForKey(key);
+        const opts = state.meta.cpOptionsByKey[key];
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const hasOptions = Array.isArray(opts) && opts.length > 0;
+        const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
+        return (
+          (dt === "text" ||
+            dt === "decimal" ||
+            dt === "integer" ||
+            dt === "date") &&
+          !hasOptions &&
+          !isMulti
+        );
+      }
+      function normByKey(key, v) {
+        const dt = getDataTypeForKey(key);
+        if (dt === "integer" || dt === "decimal")
+          return normNumericForCompare(v);
+        if (dt === "date") return normDateForCompare(v);
+        return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
+      }
 
-  function buildColgroup(){ const cg=el("colgroup"); cg.innerHTML=""; for(let i=0;i<state.columns.length;i++){ const col=document.createElement("col"); col.style.width="160px"; cg.appendChild(col);} }
-  function makeResizer(th, index){ const resizer=document.createElement("div"); resizer.className="resizer"; th.style.position="relative"; th.appendChild(resizer); let startX=0,startW=0; const col=el("colgroup").children[index]; const onMove=(e)=>{ const dx=e.clientX-startX; const w=Math.max(80,startW+dx); col.style.width=w+"px"; document.body.classList.add("resizing");}; const onUp=()=>{ document.removeEventListener("mousemove",onMove); document.removeEventListener("mouseup",onUp); document.body.classList.remove("resizing");}; resizer.addEventListener("mousedown",(e)=>{ startX=e.clientX; startW=parseInt(col.style.width||"160",10); document.addEventListener("mousemove",onMove); document.addEventListener("mouseup",onUp);}); }
+      function getColumnTypeLabel(key) {
+        if (key === "id" || key === "created") return "ReadOnly";
+        if (key === "name") return "文";
+        if (key === "status")
+          return state.meta.statusOptions?.length > 0 ? "単" : "文";
+        const dt = getDataTypeForKey(key);
+        const opts = state.meta.cpOptionsByKey[key];
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const hasOptions = Array.isArray(opts) && opts.length > 0;
+        const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
+        if (hasOptions) return isMulti ? "複" : "単";
+        if (dt === "integer") return "整数";
+        if (dt === "decimal") return "小数";
+        if (dt === "date") return "日";
+        return "文";
+      }
+      function getColumnLabel(key) {
+        if (key === "id") return "ID";
+        if (key === "created") return "作成日";
+        if (key === "name") return "名称";
+        if (key === "status") return "ステータス";
+        return key;
+      }
 
+      function mapLabelToValue(key, text) {
+        const options = state.meta.cpOptionsByKey[key];
+        if (!options) return text;
+        const hit = options.find(
+          (o) => o.label === text || o.value === text || o.id === text
+        );
+        return hit ? hit.value : text;
+      }
 
-  function onEditInline(e){ const input=e.target; const { id, key }=input.dataset; let value; if(input.tagName==="SELECT" && input.multiple){ value=Array.from(input.selectedOptions).map(o=>o.value).join("; "); } else { value=input.value; } const row=state.rows.find(r=>r.base.id===id); if(!row) return; if(defaultHeaders.includes(key)) row.base[key]=value; else row.custom[key]=value; if(isCellChanged(id,key,value)) input.classList.add("changed"); else input.classList.remove("changed"); updateButtons(); }
+      function buildColumns() {
+        const customKeys = state.meta.customProps.map((c) => c.key);
+        state.columns = [...defaultHeaders, ...customKeys];
+      }
 
-  function revertAll(){ state.rows = state.rows.map(r=>{ const orig=JSON.parse(JSON.stringify(state.original.get(r.base.id))); return { base: orig.base, custom: orig.custom }; }); render(); }
-function render(){
-  const thead = el("thead");
-  const header1 = document.createElement("tr");
+      function isCellChanged(id, key, value) {
+        const orig = state.original.get(id);
+        if (!orig) return false;
+        const cur = normByKey(key, value);
+        if (defaultHeaders.includes(key)) {
+          const was = normByKey(key, orig.base[key]);
+          return was !== cur;
+        } else {
+          const was = normByKey(key, orig.custom[key]);
+          return was !== cur;
+        }
+      }
+      function rowHasChanges(row) {
+        const id = row.base.id;
+        return state.columns.some((col) => {
+          if (col === "id" || col === "created") return false;
+          const value = defaultHeaders.includes(col)
+            ? row.base[col]
+            : row.custom[col];
+          return isCellChanged(id, col, value);
+        });
+      }
+      function updateButtons() {
+        const changed = state.rows.some(rowHasChanges);
+        el("saveBtn").disabled = !changed;
+        el("revertBtn").disabled = !changed;
+      }
 
-  // ヘッダー（並び替えボタン付き）
-const headersHtml = state.columns.map((key) => {
-  const label = getColumnLabel(key);
-  const type  = getColumnTypeLabel(key);
-  const isSorted = state.sortKey === key;
-  const arrow = isSorted ? (state.sortDir === "asc" ? "▲" : "▼") : "♢";
-  return `
+      function buildColgroup() {
+        const cg = el("colgroup");
+        cg.innerHTML = "";
+        for (let i = 0; i < state.columns.length; i++) {
+          const col = document.createElement("col");
+          col.style.width = "160px";
+          cg.appendChild(col);
+        }
+      }
+      function makeResizer(th, index) {
+        const resizer = document.createElement("div");
+        resizer.className = "resizer";
+        th.style.position = "relative";
+        th.appendChild(resizer);
+        let startX = 0,
+          startW = 0;
+        const col = el("colgroup").children[index];
+        const onMove = (e) => {
+          const dx = e.clientX - startX;
+          const w = Math.max(80, startW + dx);
+          col.style.width = w + "px";
+          document.body.classList.add("resizing");
+        };
+        const onUp = () => {
+          document.removeEventListener("mousemove", onMove);
+          document.removeEventListener("mouseup", onUp);
+          document.body.classList.remove("resizing");
+        };
+        resizer.addEventListener("mousedown", (e) => {
+          startX = e.clientX;
+          startW = parseInt(col.style.width || "160", 10);
+          document.addEventListener("mousemove", onMove);
+          document.addEventListener("mouseup", onUp);
+        });
+      }
+
+      function onEditInline(e) {
+        const input = e.target;
+        const { id, key } = input.dataset;
+        let value;
+        if (input.tagName === "SELECT" && input.multiple) {
+          value = Array.from(input.selectedOptions)
+            .map((o) => o.value)
+            .join("; ");
+        } else {
+          value = input.value;
+        }
+        const row = state.rows.find((r) => r.base.id === id);
+        if (!row) return;
+        if (defaultHeaders.includes(key)) row.base[key] = value;
+        else row.custom[key] = value;
+        if (isCellChanged(id, key, value)) input.classList.add("changed");
+        else input.classList.remove("changed");
+        updateButtons();
+      }
+
+      function revertAll() {
+        state.rows = state.rows.map((r) => {
+          const orig = JSON.parse(
+            JSON.stringify(state.original.get(r.base.id))
+          );
+          return { base: orig.base, custom: orig.custom };
+        });
+        render();
+      }
+      function render() {
+        const thead = el("thead");
+        const header1 = document.createElement("tr");
+
+        // ヘッダー（並び替えボタン付き）
+        const headersHtml = state.columns
+          .map((key) => {
+            const label = getColumnLabel(key);
+            const type = getColumnTypeLabel(key);
+            const isSorted = state.sortKey === key;
+            const arrow = isSorted
+              ? state.sortDir === "asc"
+                ? "▲"
+                : "▼"
+              : "♢";
+            return `
     <th title="${label}">
       <button class="th-btn" data-sortkey="${key}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:0">
         <span class="label">${label}</span>
@@ -332,454 +821,600 @@ const headersHtml = state.columns.map((key) => {
         <span class="arrow" aria-hidden="true">${arrow}</span>
       </button>
     </th>`;
-}).join("");
-header1.innerHTML = headersHtml;
+          })
+          .join("");
+        header1.innerHTML = headersHtml;
 
+        header1.innerHTML = headersHtml;
 
-  header1.innerHTML = headersHtml;
-
-  // ソートトグル
-  header1.querySelectorAll(".th-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const key = btn.dataset.sortkey;
-      if (state.sortKey === key) {
-        state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
-      } else {
-        state.sortKey = key;
-        state.sortDir = "asc";
-      }
-      render();
-    });
-  });
-
-  // thead 反映（ここで再代入しない）
-  thead.innerHTML = "";
-  thead.appendChild(header1);
-
-  // 列リサイズハンドル
-  buildColgroup();
-  Array.from(thead.querySelectorAll("th")).forEach((th, i) => makeResizer(th, i));
-
-  // --- 本体 ---
-  const tbody = el("tbody");
-  tbody.innerHTML = "";
-
-  const q = state.filterText.trim().toLowerCase();
-  const rows = state.rows.filter(r => {
-    const changedOk = state.onlyChanged ? rowHasChanges(r) : true;
-    if (!changedOk) return false;
-    if (!q) return true;
-    return (
-      (r.base.name || "").toLowerCase().includes(q) ||
-      (r.base.status || "").toLowerCase().includes(q)
-    );
-  });
-
-  const rowsSorted = sortRows(rows);
-
-  rowsSorted.forEach(({ base, custom }) => {
-    const tr = document.createElement("tr");
-
-    const tdRO = (value) => {
-      const td = document.createElement("td");
-      const div = document.createElement("div");
-      div.className = "cell readonly";
-      div.textContent = value ?? "";
-      td.appendChild(div);
-      return td;
-    };
-
-    const tdText = (key, value) => {
-      const td = document.createElement("td");
-      const div = document.createElement("div");
-      div.className = "cell";
-
-      const cp = state.meta.customProps.find(c => c.key === key);
-      const optionsFromRefdata =
-        cp && cp.isRefdata && cp.refKey && state.meta.refdataMap[cp.refKey]
-          ? state.meta.refdataMap[cp.refKey]
-          : null;
-      const fromLicense = state.meta.cpOptionsByKey[key] || null;
-      const options = Array.isArray(fromLicense) && fromLicense.length > 0
-        ? fromLicense
-        : (Array.isArray(optionsFromRefdata) && optionsFromRefdata.length > 0 ? optionsFromRefdata : null);
-      const hasOptions = Array.isArray(options) && options.length > 0;
-      const currentVal = mapLabelToValue(key, value ?? "");
-      const looksMulti =
-        state.meta.cpMultiByKey[key] ||
-        (cp && cp.multi) ||
-        (currentVal || "").includes(";");
-      const dt = getDataTypeForKey(key);
-
-      // MultiSelect
-      if (hasOptions && looksMulti) {
-        const sel = document.createElement("select");
-        sel.className = "editable";
-        sel.dataset.key = key;
-        sel.dataset.id = base.id;
-        sel.multiple = true;
-        sel.size = Math.min(6, Math.max(3, options.length));
-
-        const curVals = currentVal
-          .split(/[;；]/)
-          .map(s => s.trim())
-          .filter(Boolean)
-          .map(txt => mapLabelToValue(key, txt));
-
-        options.forEach(o => {
-          const opt = document.createElement("option");
-          opt.value = o.value;
-          opt.textContent = o.value;
-          if (curVals.includes(o.value)) opt.selected = true;
-          sel.appendChild(opt);
-        });
-
-        const curStr = curVals.join("; ");
-        if (isCellChanged(base.id, key, curStr)) sel.classList.add("changed");
-
-        sel.addEventListener("change", (ev) => {
-          onEditInline(ev);
-          const joined = Array.from(sel.selectedOptions).map(o => o.value).join("; ");
-          if (isCellChanged(base.id, key, joined)) sel.classList.add("changed");
-          else sel.classList.remove("changed");
-        });
-
-        sel.addEventListener("mousedown", (e) => {
-          const t = e.target;
-          if (t && t.tagName === "OPTION") {
-            e.preventDefault();
-            t.selected = !t.selected;
-            sel.focus();
-            sel.dispatchEvent(new Event("change", { bubbles: true }));
-          }
-        });
-
-        div.appendChild(sel);
-        td.appendChild(div);
-        return td;
-      }
-
-      // SingleSelect
-      if (hasOptions && !looksMulti) {
-        const sel = document.createElement("select");
-        sel.className = "editable";
-        sel.dataset.key = key;
-        sel.dataset.id = base.id;
-        const optEmpty = document.createElement("option");
-        optEmpty.value = "";
-        optEmpty.textContent = "";
-        sel.appendChild(optEmpty);
-        options.forEach(o => {
-          const opt = document.createElement("option");
-          opt.value = o.value;
-          opt.textContent = o.value;
-          sel.appendChild(opt);
-        });
-        sel.value = currentVal;
-        if (isCellChanged(base.id, key, sel.value)) sel.classList.add("changed");
-        sel.addEventListener("change", onEditInline);
-        div.appendChild(sel);
-        td.appendChild(div);
-        return td;
-      }
-
-      // Text / Date / Integer / Decimal
-      let field;
-      if (!hasOptions && !looksMulti && dt === "date") {
-        field = document.createElement("input");
-        field.type = "date";
-        field.value = currentVal || "";
-      } else if (!hasOptions && !looksMulti && (dt === "integer" || dt === "decimal")) {
-        field = document.createElement("input");
-        field.type = "number";
-        if (dt === "integer") field.step = "1";
-        if (dt === "decimal") field.step = "any";
-        field.inputMode = "decimal";
-        field.value = currentVal;
-      } else {
-        const isText = isTextOnlyKey(key);
-        const useTextarea = isText || /[\r\n]/.test(currentVal);
-        field = useTextarea ? document.createElement("textarea") : document.createElement("input");
-        if (!useTextarea) field.type = "text";
-        field.value = currentVal;
-        if (field.tagName === "TEXTAREA") {
-          field.style.minHeight = "60px";
-          field.style.resize = "vertical";
-        }
-      }
-
-      field.className = "editable";
-      field.dataset.key = key;
-      field.dataset.id = base.id;
-      field.placeholder = "";
-
-      if (options && (!field.matches("textarea") && field.type === "text")) {
-        const listId = `dl_${key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-        let dl = document.getElementById(listId);
-        if (!dl) {
-          dl = document.createElement("datalist");
-          dl.id = listId;
-          options.forEach(o => {
-            const opt = document.createElement("option");
-            opt.value = o.value;
-            dl.appendChild(opt);
+        // ソートトグル
+        header1.querySelectorAll(".th-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const key = btn.dataset.sortkey;
+            if (state.sortKey === key) {
+              state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+            } else {
+              state.sortKey = key;
+              state.sortDir = "asc";
+            }
+            render();
           });
-          document.body.appendChild(dl);
-        }
-        field.setAttribute("list", listId);
-      }
-
-      field.addEventListener("input", onEditInline);
-      if (isCellChanged(base.id, key, field.value)) field.classList.add("changed");
-
-      div.appendChild(field);
-      td.appendChild(div);
-      return td;
-    };
-
-    const tdStatus = (value) => {
-      const td = document.createElement("td");
-      const div = document.createElement("div");
-      div.className = "cell";
-      if (state.meta.statusOptions && state.meta.statusOptions.length) {
-        const sel = document.createElement("select");
-        sel.className = "editable";
-        sel.dataset.key = "status";
-        sel.dataset.id = base.id;
-        const optEmpty = document.createElement("option");
-        optEmpty.value = "";
-        optEmpty.textContent = "";
-        sel.appendChild(optEmpty);
-        state.meta.statusOptions.forEach(o => {
-          const opt = document.createElement("option");
-          opt.value = o.label;
-          opt.textContent = o.label;
-          sel.appendChild(opt);
         });
-        sel.value = value ?? "";
-        if (isCellChanged(base.id, "status", sel.value)) sel.classList.add("changed");
-        sel.addEventListener("change", onEditInline);
-        div.appendChild(sel);
-      } else {
-        return tdText("status", value);
+
+        // thead 反映（ここで再代入しない）
+        thead.innerHTML = "";
+        thead.appendChild(header1);
+
+        // 列リサイズハンドル
+        buildColgroup();
+        Array.from(thead.querySelectorAll("th")).forEach((th, i) =>
+          makeResizer(th, i)
+        );
+
+        // --- 本体 ---
+        const tbody = el("tbody");
+        tbody.innerHTML = "";
+
+        const q = state.filterText.trim().toLowerCase();
+        const rows = state.rows.filter((r) => {
+          const changedOk = state.onlyChanged ? rowHasChanges(r) : true;
+          if (!changedOk) return false;
+          if (!q) return true;
+          return (
+            (r.base.name || "").toLowerCase().includes(q) ||
+            (r.base.status || "").toLowerCase().includes(q)
+          );
+        });
+
+        const rowsSorted = sortRows(rows);
+
+        rowsSorted.forEach(({ base, custom }) => {
+          const tr = document.createElement("tr");
+
+          const tdRO = (value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell readonly";
+            div.textContent = value ?? "";
+            td.appendChild(div);
+            return td;
+          };
+
+          const tdText = (key, value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell";
+
+            const cp = state.meta.customProps.find((c) => c.key === key);
+            const optionsFromRefdata =
+              cp &&
+              cp.isRefdata &&
+              cp.refKey &&
+              state.meta.refdataMap[cp.refKey]
+                ? state.meta.refdataMap[cp.refKey]
+                : null;
+            const fromLicense = state.meta.cpOptionsByKey[key] || null;
+            const options =
+              Array.isArray(fromLicense) && fromLicense.length > 0
+                ? fromLicense
+                : Array.isArray(optionsFromRefdata) &&
+                  optionsFromRefdata.length > 0
+                ? optionsFromRefdata
+                : null;
+            const hasOptions = Array.isArray(options) && options.length > 0;
+            const currentVal = mapLabelToValue(key, value ?? "");
+            const looksMulti =
+              state.meta.cpMultiByKey[key] ||
+              (cp && cp.multi) ||
+              (currentVal || "").includes(";");
+            const dt = getDataTypeForKey(key);
+
+            // MultiSelect
+            if (hasOptions && looksMulti) {
+              const sel = document.createElement("select");
+              sel.className = "editable";
+              sel.dataset.key = key;
+              sel.dataset.id = base.id;
+              sel.multiple = true;
+              sel.size = Math.min(6, Math.max(3, options.length));
+
+              const curVals = currentVal
+                .split(/[;；]/)
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .map((txt) => mapLabelToValue(key, txt));
+
+              options.forEach((o) => {
+                const opt = document.createElement("option");
+                opt.value = o.value;
+                opt.textContent = o.value;
+                if (curVals.includes(o.value)) opt.selected = true;
+                sel.appendChild(opt);
+              });
+
+              const curStr = curVals.join("; ");
+              if (isCellChanged(base.id, key, curStr))
+                sel.classList.add("changed");
+
+              sel.addEventListener("change", (ev) => {
+                onEditInline(ev);
+                const joined = Array.from(sel.selectedOptions)
+                  .map((o) => o.value)
+                  .join("; ");
+                if (isCellChanged(base.id, key, joined))
+                  sel.classList.add("changed");
+                else sel.classList.remove("changed");
+              });
+
+              sel.addEventListener("mousedown", (e) => {
+                const t = e.target;
+                if (t && t.tagName === "OPTION") {
+                  e.preventDefault();
+                  t.selected = !t.selected;
+                  sel.focus();
+                  sel.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+              });
+
+              div.appendChild(sel);
+              td.appendChild(div);
+              return td;
+            }
+
+            // SingleSelect
+            if (hasOptions && !looksMulti) {
+              const sel = document.createElement("select");
+              sel.className = "editable";
+              sel.dataset.key = key;
+              sel.dataset.id = base.id;
+              const optEmpty = document.createElement("option");
+              optEmpty.value = "";
+              optEmpty.textContent = "";
+              sel.appendChild(optEmpty);
+              options.forEach((o) => {
+                const opt = document.createElement("option");
+                opt.value = o.value;
+                opt.textContent = o.value;
+                sel.appendChild(opt);
+              });
+              sel.value = currentVal;
+              if (isCellChanged(base.id, key, sel.value))
+                sel.classList.add("changed");
+              sel.addEventListener("change", onEditInline);
+              div.appendChild(sel);
+              td.appendChild(div);
+              return td;
+            }
+
+            // Text / Date / Integer / Decimal
+            let field;
+            if (!hasOptions && !looksMulti && dt === "date") {
+              field = document.createElement("input");
+              field.type = "date";
+              field.value = currentVal || "";
+            } else if (
+              !hasOptions &&
+              !looksMulti &&
+              (dt === "integer" || dt === "decimal")
+            ) {
+              field = document.createElement("input");
+              field.type = "number";
+              if (dt === "integer") field.step = "1";
+              if (dt === "decimal") field.step = "any";
+              field.inputMode = "decimal";
+              field.value = currentVal;
+            } else {
+              const isText = isTextOnlyKey(key);
+              const useTextarea = isText || /[\r\n]/.test(currentVal);
+              field = useTextarea
+                ? document.createElement("textarea")
+                : document.createElement("input");
+              if (!useTextarea) field.type = "text";
+              field.value = currentVal;
+              if (field.tagName === "TEXTAREA") {
+                field.style.minHeight = "60px";
+                field.style.resize = "vertical";
+              }
+            }
+
+            field.className = "editable";
+            field.dataset.key = key;
+            field.dataset.id = base.id;
+            field.placeholder = "";
+
+            if (
+              options &&
+              !field.matches("textarea") &&
+              field.type === "text"
+            ) {
+              const listId = `dl_${key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+              let dl = document.getElementById(listId);
+              if (!dl) {
+                dl = document.createElement("datalist");
+                dl.id = listId;
+                options.forEach((o) => {
+                  const opt = document.createElement("option");
+                  opt.value = o.value;
+                  dl.appendChild(opt);
+                });
+                document.body.appendChild(dl);
+              }
+              field.setAttribute("list", listId);
+            }
+
+            field.addEventListener("input", onEditInline);
+            if (isCellChanged(base.id, key, field.value))
+              field.classList.add("changed");
+
+            div.appendChild(field);
+            td.appendChild(div);
+            return td;
+          };
+
+          const tdStatus = (value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell";
+            if (state.meta.statusOptions && state.meta.statusOptions.length) {
+              const sel = document.createElement("select");
+              sel.className = "editable";
+              sel.dataset.key = "status";
+              sel.dataset.id = base.id;
+              const optEmpty = document.createElement("option");
+              optEmpty.value = "";
+              optEmpty.textContent = "";
+              sel.appendChild(optEmpty);
+              state.meta.statusOptions.forEach((o) => {
+                const opt = document.createElement("option");
+                opt.value = o.label;
+                opt.textContent = o.label;
+                sel.appendChild(opt);
+              });
+              sel.value = value ?? "";
+              if (isCellChanged(base.id, "status", sel.value))
+                sel.classList.add("changed");
+              sel.addEventListener("change", onEditInline);
+              div.appendChild(sel);
+            } else {
+              return tdText("status", value);
+            }
+            td.appendChild(div);
+            return td;
+          };
+
+          tr.appendChild(tdRO(base.id));
+          tr.appendChild(tdRO(base.created));
+          tr.appendChild(tdText("name", base.name));
+          tr.appendChild(tdStatus(base.status));
+          state.meta.customProps.forEach((cp) => {
+            tr.appendChild(tdText(cp.key, custom[cp.key] ?? ""));
+          });
+          tbody.appendChild(tr);
+        });
+
+        updateButtons();
       }
-      td.appendChild(div);
-      return td;
-    };
 
-    tr.appendChild(tdRO(base.id));
-    tr.appendChild(tdRO(base.created));
-    tr.appendChild(tdText("name", base.name));
-    tr.appendChild(tdStatus(base.status));
-    state.meta.customProps.forEach(cp => {
-      tr.appendChild(tdText(cp.key, custom[cp.key] ?? ""));
-    });
-    tbody.appendChild(tr);
-  });
-
-  updateButtons();
-}
-
-  // ----- PUT payload builders -----
-  // Build full refdata object with owner for a given cp and token text
-  function buildRefdataValueObject(cp, tokenText){
-    if(!cp) return null; const txt=(tokenText||"").trim(); if(!txt) return null;
-    const hit = (cp.categoryValues||[]).find(v=> v.value===txt || v.label===txt || v.id===txt );
-    if(!hit) return null;
-    return {
-      id: hit.id,
-      value: hit.value,
-      label: hit.label,
-      owner: { id: cp.categoryId || cp.refKey || null, desc: cp.categoryDesc || "", internal: !!cp.categoryInternal }
-    };
-  }
-
-  function parseCustomInputToPayload(val, current){
-    const trimmed=(val||"").trim(); if(!trimmed) return [{ _delete:true }];
-    const parts=trimmed.split(/;|；/).map(s=>s.trim()).filter(Boolean);
-    if(parts.length>1) return [{ _delete:false, value: parts.map(v=>({ value: v })) }];
-    if(current && Array.isArray(current) && current[0] && typeof current[0].value==="object" && current[0].value!==null && "value" in current[0].value) return [{ _delete:false, value: { value: trimmed } }];
-    return [{ _delete:false, value: trimmed }];
-  }
-
-function parseCustomInputToPayloadWithOptionsRich(key, val, current){
-  const cp = state.meta.customProps.find(c => c.key === key);
-  const trimmed = (val || "").trim();
-
-  // トークン化
-  const tokens = trimmed
-    ? trimmed.split(/;|；/).map(s => s.trim()).filter(Boolean)
-    : [];
-
-  const looksMulti =
-    !!(state.meta.cpMultiByKey[key] || cp?.multi || tokens.length > 1);
-
-  if (looksMulti) {
-    // 0件（= 全選択解除）のとき： value は []、かつ _delete:true を同一オブジェクトに付与
-    if (tokens.length === 0) {
-      if (Array.isArray(current) && current.length > 0) {
-        const base = { ...current[0] };      // 既存を尊重（id/internal/type を維持）
-        base.value = [];                     // 空配列に上書き
-        base._delete = true;                 // 削除フラグを同一レコードに付与
-        return [base];
+      // ----- PUT payload builders -----
+      // Build full refdata object with owner for a given cp and token text
+      function buildRefdataValueObject(cp, tokenText) {
+        if (!cp) return null;
+        const txt = (tokenText || "").trim();
+        if (!txt) return null;
+        const hit = (cp.categoryValues || []).find(
+          (v) => v.value === txt || v.label === txt || v.id === txt
+        );
+        if (!hit) return null;
+        return {
+          id: hit.id,
+          value: hit.value,
+          label: hit.label,
+          owner: {
+            id: cp.categoryId || cp.refKey || null,
+            desc: cp.categoryDesc || "",
+            internal: !!cp.categoryInternal,
+          },
+        };
       }
-      // 新規（現在値なし）の場合は cp メタから type を補完
-      const created = buildMultiRefdataContainer(cp, null, []); // value: []
-      if (created && created[0]) created[0]._delete = true;
-      return created;
-    }
 
-    // 選択あり：refdata 配列を構築して通常どおり
-    const arr = tokens.map(t => buildRefdataValueObject(cp, t)).filter(Boolean);
-    return buildMultiRefdataContainer(cp, current, arr);
-  }
+      function parseCustomInputToPayload(val, current) {
+        const trimmed = (val || "").trim();
+        if (!trimmed) return [{ _delete: true }];
+        const parts = trimmed
+          .split(/;|；/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (parts.length > 1)
+          return [{ _delete: false, value: parts.map((v) => ({ value: v })) }];
+        if (
+          current &&
+          Array.isArray(current) &&
+          current[0] &&
+          typeof current[0].value === "object" &&
+          current[0].value !== null &&
+          "value" in current[0].value
+        )
+          return [{ _delete: false, value: { value: trimmed } }];
+        return [{ _delete: false, value: trimmed }];
+      }
 
-  // 単一選択：空なら削除（従来どおり）
-  if (!trimmed) return [{ _delete: true }];
+      function parseCustomInputToPayloadWithOptionsRich(key, val, current) {
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const trimmed = (val || "").trim();
 
-  // 単一選択はスカラ値
-  const mapped = mapLabelToValue(key, tokens[0] || "");
-  if (current && Array.isArray(current) && current[0] &&
-      typeof current[0].value === "object" && current[0].value !== null &&
-      "value" in current[0].value) {
-    return [{ _delete: false, value: { value: mapped } }];
-  }
-  return [{ _delete: false, value: mapped }];
-}
+        // トークン化
+        const tokens = trimmed
+          ? trimmed
+              .split(/;|；/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [];
 
-  function parseCustomInputToPayloadScalar(val){ const trimmed=(val||"").trim(); if(!trimmed) return [{ _delete:true }]; return [{ _delete:false, value: trimmed }]; }
+        const looksMulti = !!(
+          state.meta.cpMultiByKey[key] ||
+          cp?.multi ||
+          tokens.length > 1
+        );
 
-  async function saveChanges(){
-    const baseUrl=el("baseUrl").value.trim(); const tenant=el("tenant").value.trim();
-    const headers={ "Content-Type":"application/json", "x-okapi-tenant":tenant, "x-okapi-token":state.token };
-    const changedRows=state.rows.filter(rowHasChanges);
-    if(changedRows.length===0){ setStatus("保存対象の変更はありません。","info"); return; }
-    setStatus(`保存中… ${changedRows.length}件`,"info");
-    let ok=0, ng=0; const details=[];
-    for(const row of changedRows){
-      const id=row.base.id;
-      try{
-        const curRes=await fetch(`${baseUrl}/licenses/licenses/${id}`,{ headers });
-        if(!curRes.ok) throw new Error(`GET ${id} 失敗 (${curRes.status})`);
-        const payload=await curRes.json();
-        const orig=state.original.get(id);
-        if(row.base.name!==orig.base.name) payload.name=row.base.name;
-        if(row.base.status!==orig.base.status) payload.status=row.base.status;
-        payload.customProperties = payload.customProperties || {};
-
-        state.meta.customProps.forEach(cp=>{
-          const key=cp.key; const oldVal=orig.custom[key]??""; const newVal=row.custom[key]??""; if(oldVal===newVal) return;
-          const currentArr=payload.customProperties[key];
-          const hasOptions = Array.isArray(state.meta.cpOptionsByKey[key]) && state.meta.cpOptionsByKey[key].length>0;
-          const looksMulti = !!(state.meta.cpMultiByKey[key] || cp.multi || (newVal||"").includes(";"));
-
-          if(hasOptions){
-            // Refdata: multi は value に refdataオブジェクト配列、single はスカラ値
-            payload.customProperties[key] = parseCustomInputToPayloadWithOptionsRich(key, newVal, currentArr);
-         } else if (isScalarSingleKey(key)) {
-            // Date / Decimal / Integer / Text の単一値：空なら id/internal/type を保持して _delete:true
-            payload.customProperties[key] =
-              parseCustomInputToPayloadScalarSmart(key, newVal, currentArr);
-          }else {
-            payload.customProperties[key]=parseCustomInputToPayload(newVal, currentArr);
+        if (looksMulti) {
+          // 0件（= 全選択解除）のとき： value は []、かつ _delete:true を同一オブジェクトに付与
+          if (tokens.length === 0) {
+            if (Array.isArray(current) && current.length > 0) {
+              const base = { ...current[0] }; // 既存を尊重（id/internal/type を維持）
+              base.value = []; // 空配列に上書き
+              base._delete = true; // 削除フラグを同一レコードに付与
+              return [base];
+            }
+            // 新規（現在値なし）の場合は cp メタから type を補完
+            const created = buildMultiRefdataContainer(cp, null, []); // value: []
+            if (created && created[0]) created[0]._delete = true;
+            return created;
           }
-        });
 
-        const putRes=await fetch(`${baseUrl}/licenses/licenses/${id}`,{ method:"PUT", headers, body: JSON.stringify(payload) });
-        if(!putRes.ok){ const text=await putRes.text().catch(()=>putRes.statusText); throw new Error(`PUT ${id} 失敗: ${text}`); }
-        ok++; state.original.set(id, JSON.parse(JSON.stringify(row)));
-      }catch(e){ ng++; details.push(`${id}: ${e.message}`); }
-    }
-    if(ng===0) setStatus(`保存完了: ${ok}件更新しました。`,"ok");
-    else if(ok>0) setStatus(`一部成功: 成功${ok}件 / 失敗${ng}件\n${details.join("\n")}`,"warn");
-    else setStatus(`保存に失敗しました:\n${details.join("\n")}`,"err");
-    updateButtons();
-  }
-// Multi-Refdata のコンテナ（id/internal/type を維持 or 補完）を作る
-function buildMultiRefdataContainer(cp, currentArr, refdataArray) {
-  // 既存があれば id/internal/type を維持して value だけ差し替え
-  if (Array.isArray(currentArr) && currentArr.length > 0) {
-    const base = Object.assign({}, currentArr[0]); // shallow clone
-    base.value = Array.isArray(refdataArray) ? refdataArray : [];
-    return [base];
-  }
-  // 新規作成（cpメタから type を補完）。value は空配列も許容
-  const typeObj = {
-    id: cp?.typeId || undefined,
-    retired: false,
-    name: cp?.key,
-    primary: true,
-    category: {
-      id: cp?.categoryId || null,
-      desc: cp?.categoryDesc || "",
-      internal: !!cp?.categoryInternal,
-      values: (cp?.categoryValues || []).map(v => ({
-        id: v.id, value: v.value, label: v.label
-      }))
-    },
-    defaultInternal: true,
-    label: cp?.label || cp?.key
-  };
-  return [{
-    internal: true,
-    value: Array.isArray(refdataArray) ? refdataArray : [],
-    type: typeObj
-  }];
-}
-// 単一スカラー(Text/Integer/Decimal/Date)用：空なら既存の id/internal/type を保持して _delete:true
-function parseCustomInputToPayloadScalarSmart(key, val, currentArr) {
-  const trimmed = (val || "").trim();
+          // 選択あり：refdata 配列を構築して通常どおり
+          const arr = tokens
+            .map((t) => buildRefdataValueObject(cp, t))
+            .filter(Boolean);
+          return buildMultiRefdataContainer(cp, current, arr);
+        }
 
-  // 空 = 削除
-  if (!trimmed) {
-    // 既存があれば、その容器(id/internal/type)を維持して _delete:true を付与
-    if (Array.isArray(currentArr) && currentArr.length > 0) {
-      const base = { ...currentArr[0] }; // shallow clone
-      base._delete = true;
-      // value を持っている場合は明示的に null に（backend が参照しても安全）
-      if ("value" in base) base.value = null;
-      return [base];
-    }
-    // 新規（容器がない）なら従来どおり最小形
-    return [{ _delete: true }];
-  }
+        // 単一選択：空なら削除（従来どおり）
+        if (!trimmed) return [{ _delete: true }];
 
-  // 値ありなら通常のスカラ値
-  return [{ _delete: false, value: trimmed }];
-}
+        // 単一選択はスカラ値
+        const mapped = mapLabelToValue(key, tokens[0] || "");
+        if (
+          current &&
+          Array.isArray(current) &&
+          current[0] &&
+          typeof current[0].value === "object" &&
+          current[0].value !== null &&
+          "value" in current[0].value
+        ) {
+          return [{ _delete: false, value: { value: mapped } }];
+        }
+        return [{ _delete: false, value: mapped }];
+      }
 
+      function parseCustomInputToPayloadScalar(val) {
+        const trimmed = (val || "").trim();
+        if (!trimmed) return [{ _delete: true }];
+        return [{ _delete: false, value: trimmed }];
+      }
 
-  async function loadAll(){
-    const baseUrl=el("baseUrl").value.trim(); const tenant=el("tenant").value.trim(); const username=el("username").value.trim(); const password=el("password").value;
-    try{
-      setStatus("認証中…","info"); el("loadBtn").disabled=true;
-      state.token = await login(baseUrl, tenant, username, password);
-      state.loginUser = username;
+      async function saveChanges() {
+        const baseUrl = el("baseUrl").value.trim();
+        const tenant = el("tenant").value.trim();
+        const headers = {
+          "Content-Type": "application/json",
+          "x-okapi-tenant": tenant,
+          "x-okapi-token": state.token,
+        };
+        const changedRows = state.rows.filter(rowHasChanges);
+        if (changedRows.length === 0) {
+          setStatus("保存対象の変更はありません。", "info");
+          return;
+        }
+        setStatus(`保存中… ${changedRows.length}件`, "info");
+        let ok = 0,
+          ng = 0;
+        const details = [];
+        for (const row of changedRows) {
+          const id = row.base.id;
+          try {
+            const curRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
+              headers,
+            });
+            if (!curRes.ok)
+              throw new Error(`GET ${id} 失敗 (${curRes.status})`);
+            const payload = await curRes.json();
+            const orig = state.original.get(id);
+            if (row.base.name !== orig.base.name) payload.name = row.base.name;
+            if (row.base.status !== orig.base.status)
+              payload.status = row.base.status;
+            payload.customProperties = payload.customProperties || {};
 
-      setStatus("メタデータ取得中…","info");
-      state.meta.customProps = await fetchCustomProps(baseUrl, tenant, state.token);
-      state.meta.cpOptionsByKey = Object.fromEntries(state.meta.customProps.map(cp=>[cp.key, cp.categoryValues || []]));
-      state.meta.cpMultiByKey   = Object.fromEntries(state.meta.customProps.map(cp=>[cp.key, !!cp.multi]));
-      state.meta.cpDataTypeByKey= Object.fromEntries(state.meta.customProps.map(cp=>[cp.key, cp.dataType || "text"]));
+            state.meta.customProps.forEach((cp) => {
+              const key = cp.key;
+              const oldVal = orig.custom[key] ?? "";
+              const newVal = row.custom[key] ?? "";
+              if (oldVal === newVal) return;
+              const currentArr = payload.customProperties[key];
+              const hasOptions =
+                Array.isArray(state.meta.cpOptionsByKey[key]) &&
+                state.meta.cpOptionsByKey[key].length > 0;
+              const looksMulti = !!(
+                state.meta.cpMultiByKey[key] ||
+                cp.multi ||
+                (newVal || "").includes(";")
+              );
 
-      const ref=await fetchRefdata(baseUrl, tenant, state.token); state.meta.statusOptions=ref.status||[]; state.meta.refdataMap=ref.map||{};
+              if (hasOptions) {
+                // Refdata: multi は value に refdataオブジェクト配列、single はスカラ値
+                payload.customProperties[key] =
+                  parseCustomInputToPayloadWithOptionsRich(
+                    key,
+                    newVal,
+                    currentArr
+                  );
+              } else if (isScalarSingleKey(key)) {
+                // Date / Decimal / Integer / Text の単一値：空なら id/internal/type を保持して _delete:true
+                payload.customProperties[key] =
+                  parseCustomInputToPayloadScalarSmart(key, newVal, currentArr);
+              } else {
+                payload.customProperties[key] = parseCustomInputToPayload(
+                  newVal,
+                  currentArr
+                );
+              }
+            });
 
-      setStatus("ライセンス取得中…","info");
-      const rows=await fetchLicenses(baseUrl, tenant, state.token);
-      state.rows = rows.map(r=>({ base:r.base, custom:r.custom }));
-      state.original = new Map(state.rows.map(r=>[r.base.id, JSON.parse(JSON.stringify(r))]));
+            const putRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
+              method: "PUT",
+              headers,
+              body: JSON.stringify(payload),
+            });
+            if (!putRes.ok) {
+              const text = await putRes.text().catch(() => putRes.statusText);
+              throw new Error(`PUT ${id} 失敗: ${text}`);
+            }
+            ok++;
+            state.original.set(id, JSON.parse(JSON.stringify(row)));
+          } catch (e) {
+            ng++;
+            details.push(`${id}: ${e.message}`);
+          }
+        }
+        if (ng === 0) setStatus(`保存完了: ${ok}件更新しました。`, "ok");
+        else if (ok > 0)
+          setStatus(
+            `一部成功: 成功${ok}件 / 失敗${ng}件\n${details.join("\n")}`,
+            "warn"
+          );
+        else setStatus(`保存に失敗しました:\n${details.join("\n")}`, "err");
+        updateButtons();
+      }
+      // Multi-Refdata のコンテナ（id/internal/type を維持 or 補完）を作る
+      function buildMultiRefdataContainer(cp, currentArr, refdataArray) {
+        // 既存があれば id/internal/type を維持して value だけ差し替え
+        if (Array.isArray(currentArr) && currentArr.length > 0) {
+          const base = Object.assign({}, currentArr[0]); // shallow clone
+          base.value = Array.isArray(refdataArray) ? refdataArray : [];
+          return [base];
+        }
+        // 新規作成（cpメタから type を補完）。value は空配列も許容
+        const typeObj = {
+          id: cp?.typeId || undefined,
+          retired: false,
+          name: cp?.key,
+          primary: true,
+          category: {
+            id: cp?.categoryId || null,
+            desc: cp?.categoryDesc || "",
+            internal: !!cp?.categoryInternal,
+            values: (cp?.categoryValues || []).map((v) => ({
+              id: v.id,
+              value: v.value,
+              label: v.label,
+            })),
+          },
+          defaultInternal: true,
+          label: cp?.label || cp?.key,
+        };
+        return [
+          {
+            internal: true,
+            value: Array.isArray(refdataArray) ? refdataArray : [],
+            type: typeObj,
+          },
+        ];
+      }
+      // 単一スカラー(Text/Integer/Decimal/Date)用：空なら既存の id/internal/type を保持して _delete:true
+      function parseCustomInputToPayloadScalarSmart(key, val, currentArr) {
+        const trimmed = (val || "").trim();
 
-      buildColumns(); clearStatus(); render();
-    }catch(err){ console.error(err); setStatus(err.message||"読み込みに失敗しました","err"); }
-    finally{ el("loadBtn").disabled=false; }
-  }
+        // 空 = 削除
+        if (!trimmed) {
+          // 既存があれば、その容器(id/internal/type)を維持して _delete:true を付与
+          if (Array.isArray(currentArr) && currentArr.length > 0) {
+            const base = { ...currentArr[0] }; // shallow clone
+            base._delete = true;
+            // value を持っている場合は明示的に null に（backend が参照しても安全）
+            if ("value" in base) base.value = null;
+            return [base];
+          }
+          // 新規（容器がない）なら従来どおり最小形
+          return [{ _delete: true }];
+        }
 
-  // events
-  el("loadBtn").addEventListener("click", loadAll);
-  el("saveBtn").addEventListener("click", saveChanges);
-  el("revertBtn").addEventListener("click", revertAll);
-  el("q").addEventListener("input", (e)=>{ state.filterText=e.target.value; render(); });
-  el("onlyChanged").addEventListener("change", (e)=>{ state.onlyChanged=e.target.checked; render(); });
-</script>
+        // 値ありなら通常のスカラ値
+        return [{ _delete: false, value: trimmed }];
+      }
+
+      async function loadAll() {
+        const baseUrl = el("baseUrl").value.trim();
+        const tenant = el("tenant").value.trim();
+        const username = el("username").value.trim();
+        const password = el("password").value;
+        try {
+          setStatus("認証中…", "info");
+          el("loadBtn").disabled = true;
+          state.token = await login(baseUrl, tenant, username, password);
+          state.loginUser = username;
+
+          setStatus("メタデータ取得中…", "info");
+          state.meta.customProps = await fetchCustomProps(
+            baseUrl,
+            tenant,
+            state.token
+          );
+          state.meta.cpOptionsByKey = Object.fromEntries(
+            state.meta.customProps.map((cp) => [
+              cp.key,
+              cp.categoryValues || [],
+            ])
+          );
+          state.meta.cpMultiByKey = Object.fromEntries(
+            state.meta.customProps.map((cp) => [cp.key, !!cp.multi])
+          );
+          state.meta.cpDataTypeByKey = Object.fromEntries(
+            state.meta.customProps.map((cp) => [cp.key, cp.dataType || "text"])
+          );
+
+          const ref = await fetchRefdata(baseUrl, tenant, state.token);
+          state.meta.statusOptions = ref.status || [];
+          state.meta.refdataMap = ref.map || {};
+
+          setStatus("ライセンス取得中…", "info");
+          const rows = await fetchLicenses(baseUrl, tenant, state.token);
+          state.rows = rows.map((r) => ({ base: r.base, custom: r.custom }));
+          state.original = new Map(
+            state.rows.map((r) => [r.base.id, JSON.parse(JSON.stringify(r))])
+          );
+
+          buildColumns();
+          clearStatus();
+          render();
+        } catch (err) {
+          console.error(err);
+          setStatus(err.message || "読み込みに失敗しました", "err");
+        } finally {
+          el("loadBtn").disabled = false;
+        }
+      }
+
+      // events
+      el("loadBtn").addEventListener("click", loadAll);
+      el("saveBtn").addEventListener("click", saveChanges);
+      el("revertBtn").addEventListener("click", revertAll);
+      el("q").addEventListener("input", (e) => {
+        state.filterText = e.target.value;
+        render();
+      });
+      el("onlyChanged").addEventListener("change", (e) => {
+        state.onlyChanged = e.target.checked;
+        render();
+      });
+    </script>
   </body>
 </html>
