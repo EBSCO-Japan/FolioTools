@@ -137,27 +137,27 @@
         flex: 1;
       }
       /* ヘッダー内カテゴリ用の小バッジ */
-.ctx-badge{
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: #eef2ff;
-  border: 1px solid var(--border);
-  color: var(--brand-600);
-  font-size: 11px;
-  line-height: 1.2;
-  max-width: 100%;
-  vertical-align: middle;
-  /* 長いカテゴリ名は省略表示 */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.th-btn .label{
-  /* バッジ＋改行を許可（既存のnowrapを上書き） */
-  white-space: normal;
-  line-height: 1.25;
-}
+      .ctx-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #eef2ff;
+        border: 1px solid var(--border);
+        color: var(--brand-600);
+        font-size: 11px;
+        line-height: 1.2;
+        max-width: 100%;
+        vertical-align: middle;
+        /* 長いカテゴリ名は省略表示 */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .th-btn .label {
+        /* バッジ＋改行を許可（既存のnowrapを上書き） */
+        white-space: normal;
+        line-height: 1.25;
+      }
       .pill {
         font-size: 12px;
         padding: 4px 8px;
@@ -221,14 +221,14 @@
         text-overflow: ellipsis;
       }
       /* 先頭4列（基本4カラム）のヘッダー色を差別化 */
-thead th.primary{
-  background: #eef2ff;           /* お好みで調整 */
-}
+      thead th.primary {
+        background: #eef2ff; /* お好みで調整 */
+      }
 
-/* Name列ヘッダーが sticky left の上書きで白くならないように最優先で指定 */
-table thead th.primary:nth-child(3){
-  background: #eef2ff;
-}
+      /* Name列ヘッダーが sticky left の上書きで白くならないように最優先で指定 */
+      table thead th.primary:nth-child(3) {
+        background: #eef2ff;
+      }
       tbody td {
         border-bottom: 1px solid var(--border);
         padding: 0;
@@ -884,7 +884,7 @@ table thead th.primary:nth-child(3){
           .map((key) => {
             const label = getColumnLabel(key); // カラム名
             const type = getColumnTypeLabel(key); // ピル表示
-            const isDefault = ["id","created","name","status"].includes(key);
+            const isDefault = ["id", "created", "name", "status"].includes(key);
             const ctx = state.ctxByKey?.[key] ?? ""; // カテゴリ
             const isSorted = state.sortKey === key;
             const arrow = isSorted
@@ -907,19 +907,19 @@ table thead th.primary:nth-child(3){
           .join("");
         headerRow.innerHTML = headersHtml;
         thead.appendChild(headerRow);
-         // ← ソート用クリックを復活
- headerRow.querySelectorAll(".th-btn").forEach((btn) => {
-   btn.addEventListener("click", () => {
-     const key = btn.dataset.sortkey;
-     if (state.sortKey === key) {
-       state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
-     } else {
-       state.sortKey = key;
-       state.sortDir = "asc";
-     }
-     render();
-   });
- });
+        // ← ソート用クリックを復活
+        headerRow.querySelectorAll(".th-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const key = btn.dataset.sortkey;
+            if (state.sortKey === key) {
+              state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+            } else {
+              state.sortKey = key;
+              state.sortDir = "asc";
+            }
+            render();
+          });
+        });
 
         // 列リサイズハンドル（従来どおり）
         buildColgroup();
