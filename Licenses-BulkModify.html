@@ -25,44 +25,68 @@
       }
       h1 { font-size: 22px; margin: 0 0 8px; }
       .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
-      .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
-      .form { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(140px, 1fr)); padding: 16px; }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.04);
+      }
+
+      .form {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(4, minmax(140px, 1fr)); /* 監査ユーザー欄削除につき4列 */
+        padding: 16px;
+      }
       .form label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
       .form input, .form select { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+
       .row { display: flex; align-items: center; gap: 8px; }
-      .btn { appearance: none; border: none; background: var(--brand); color: #fff; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+      .btn {
+        appearance: none; border: none; background: var(--brand); color: #fff;
+        padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
+      }
       .btn:disabled { opacity: .5; cursor: not-allowed; }
       .btn.secondary { background: #111827; }
       .btn.ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
       .btn.warn { background: var(--warn); color: #111; }
       .btn.ok { background: var(--ok); }
+
       .toolbar { display: flex; gap: 8px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
       .toolbar .spacer { flex: 1; }
       .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); background: #fff; }
+
       thead th:not(:last-child), tbody td:not(:last-child) { border-right: 1px solid var(--border); }
       .table-wrap { margin-top: 16px; overflow: auto; }
       table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
       colgroup col { width: 160px; }
-      thead th { position: sticky; top: 0; background: #fcfcfd; z-index: 2; border-bottom: 1px solid var(--border); font-size: 12px; color: #374151; text-align: left; padding: 10px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: sticky; }
+      thead th {
+        position: sticky; top: 0; background: #fcfcfd; z-index: 2; border-bottom: 1px solid var(--border);
+        font-size: 12px; color: #374151; text-align: left; padding: 10px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
       tbody td { border-bottom: 1px solid var(--border); padding: 0; }
       tbody tr:nth-child(odd) td { background: #fff; }
       tbody tr:nth-child(even) td { background: #fafafa; }
       .cell { padding: 6px 8px; min-width: 120px; }
       .cell.readonly { color: var(--muted); font-size: 12px; }
+
       .editable { display: block; width: 100%; padding: 8px 10px; border: 1px solid transparent; background: transparent; border-radius: 6px; font: inherit; }
       .editable:focus { outline: none; border-color: var(--brand); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
       .changed { background: var(--changed); }
       .changed::after { content: "●"; color: var(--warn); margin-left: 6px; font-size: 10px; vertical-align: middle; }
+
       .status { margin-top: 12px; padding: 10px 12px; border-radius: 8px; display: none; white-space: pre-line; }
       .status.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; display: block; }
       .status.ok   { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; display: block; }
       .status.warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; display: block; }
       .status.err  { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: block; }
-      .kvs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; align-items: end; }
-      .kvs .row input[type="text"] { width: 100%; }
+
       .tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; font-size: 12px; background: #eef2ff; color: #3730a3; }
       .legend { display: flex; gap: 12px; align-items: center; font-size: 12px; color: var(--muted); }
+
       .footer { margin-top: 24px; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+
       .resizer { position: absolute; right: 0; top: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; }
       .resizing { cursor: col-resize; }
     </style>
@@ -73,22 +97,23 @@
 
     <div class="card">
       <div class="form">
-        <label>Base URL<input id="baseUrl" type="text" value="https://folio-quesnelia-okapi.dev.folio.org" /></label>
-        <label>Tenant<input id="tenant" type="text" value="diku" /></label>
-        <label>Username<input id="username" type="text" value="diku_admin" /></label>
-        <label>Password<input id="password" type="password" value="admin" /></label>
-        <!-- 監査ユーザー入力欄を削除しました -->
+        <label>Base URL<input id="baseUrl" type="text" value="https://folio-quesnelia-okapi.dev.folio.org"/></label>
+        <label>Tenant<input id="tenant" type="text" value="diku"/></label>
+        <label>Username<input id="username" type="text" value="diku_admin"/></label>
+        <label>Password<input id="password" type="password" value="admin"/></label>
       </div>
+
       <div class="toolbar">
         <button id="loadBtn" class="btn">ライセンス読込</button>
         <button id="saveBtn" class="btn ok" disabled>変更を保存</button>
         <button id="revertBtn" class="btn ghost" disabled>変更を元に戻す</button>
-        <button id="exportAuditBtn" class="btn secondary" disabled>差分CSVダウンロード</button>
         <div class="spacer"></div>
-        <label class="row" style="gap: 6px; font-size: 12px; color: var(--muted)"><input type="checkbox" id="onlyChanged" /> 変更のみ表示</label>
-        <input id="q" type="text" placeholder="名前/ステータスでフィルタ" style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; width: 240px;" />
+        <label class="row" style="gap:6px;font-size:12px;color:var(--muted)"><input type="checkbox" id="onlyChanged"/> 変更のみ表示</label>
+        <input id="q" type="text" placeholder="名前/ステータスでフィルタ" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;width:240px;"/>
       </div>
-      <div id="status" class="status info" style="display: none"></div>
+
+      <div id="status" class="status info" style="display:none"></div>
+
       <div class="table-wrap">
         <table id="grid">
           <colgroup id="colgroup"></colgroup>
@@ -96,7 +121,8 @@
           <tbody id="tbody"></tbody>
         </table>
       </div>
-      <div class="toolbar" style="border-top: 1px dashed var(--border)">
+
+      <div class="toolbar" style="border-top:1px dashed var(--border)">
         <div class="legend">
           <span class="tag">変更あり</span>
           <span>各セルはセミコロン区切りで複数値に対応（配列型）／列幅はヘッダー右端ドラッグで変更</span>
@@ -104,182 +130,343 @@
       </div>
     </div>
 
-    <div class="footer">© Inline Editor sample — supports scalar/object/array customProperties, diff-only PUT, status vocab, audit CSV, column resizing</div>
+    <div class="footer">© Inline Editor sample — supports scalar/object/array customProperties, diff-only PUT, status vocab, column resizing</div>
 
     <script>
       const el = (id) => document.getElementById(id);
       const state = {
         token: null,
-        loginUser: "", // ← ログインユーザー名を監査に使用
-        meta: { customProps: [], statusOptions: [], refdataMap: {}, cpOptionsByKey: {}, cpMultiByKey: {} },
-        rows: [], // { base:{}, custom:{} }
-        original: new Map(), // id -> { base, custom }
+        loginUser: "", // ログインIDを監査用ユーザー名に利用（今はCSVなしだが内部保持）
+        meta: {
+          customProps: [],
+          statusOptions: [],
+          refdataMap: {},
+          cpOptionsByKey: {},
+          cpMultiByKey: {},
+          cpDataTypeByKey: {},
+        },
+        rows: [],             // { base:{}, custom:{} }
+        original: new Map(),  // id -> { base, custom }
         columns: [],
         filterText: "",
         onlyChanged: false,
-        audit: [], // {id, actor, at, field, from, to}
       };
 
       const defaultHeaders = ["id", "created", "name", "status"];
 
-      function setStatus(msg, kind = "info") { const s = el("status"); s.textContent = msg; s.className = `status ${kind}`; s.style.display = "block"; }
-      function clearStatus() { const s = el("status"); s.style.display = "none"; s.textContent = ""; }
+      function setStatus(msg, kind="info"){ const s=el("status"); s.textContent=msg; s.className=`status ${kind}`; s.style.display="block"; }
+      function clearStatus(){ const s=el("status"); s.style.display="none"; s.textContent=""; }
 
-      async function login(baseUrl, tenant, username, password) {
-        const res = await fetch(`${baseUrl}/authn/login`, { method: "POST", headers: { "Content-Type": "application/json", "x-okapi-tenant": tenant }, body: JSON.stringify({ username, password }) });
-        if (!res.ok) throw new Error("認証に失敗しました");
+      async function login(baseUrl, tenant, username, password){
+        const res = await fetch(`${baseUrl}/authn/login`, {
+          method:"POST",
+          headers:{ "Content-Type":"application/json", "x-okapi-tenant":tenant },
+          body: JSON.stringify({ username, password })
+        });
+        if(!res.ok) throw new Error("認証に失敗しました");
         return res.headers.get("x-okapi-token");
       }
 
-      // 置換：fetchCustomProps（原文そのまま）
-      async function fetchCustomProps(baseUrl, tenant, token) {
-        const list = []; let page = 1, totalPages = 1; const max = 100;
-        do {
+      // Custom Properties メタ（型の語で判定：decimal/integer/date）
+      async function fetchCustomProps(baseUrl, tenant, token){
+        const list=[]; let page=1,totalPages=1; const max=100;
+        do{
           const url = `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=${max}&stats=true&filters=retired%3D%3Dfalse&page=${page}`;
-          const res = await fetch(url, { headers: { "x-okapi-tenant": tenant, "x-okapi-token": token } });
-          if (!res.ok) break; const data = await res.json(); totalPages = data.totalPages || 1;
-          (data.results || []).forEach((p) => {
-            if (!p || !p.name) return;
-            const isRefdata = (p.type && (p.type.type || p.type) + "").toLowerCase().includes("refdata");
-            const typeStr = (p.type && (p.type.type || p.type) + "") || "";
+          const res = await fetch(url,{ headers:{ "x-okapi-tenant":tenant, "x-okapi-token":token }});
+          if(!res.ok) break;
+          const data = await res.json(); totalPages = data.totalPages || 1;
+          (data.results||[]).forEach(p=>{
+            if(!p || !p.name) return;
+            const typeStr = (p.type && (p.type.type || p.type)+"") || "";
+            const isRefdata = typeStr.toLowerCase().includes("refdata");
             const multi = !!(p.multivalued || p.multiValued || p.type?.multivalued || /multi/i.test(typeStr));
-            const cat = p.category || {}; const categoryId = cat.id || null;
-            const categoryValues = Array.isArray(cat.values) ? cat.values.map((v) => ({ value: v.value ?? v.label ?? String(v), label: v.label ?? v.value ?? String(v) })) : [];
+            const cat = p.category || {};
+            const categoryValues = Array.isArray(cat.values) ? cat.values.map(v=>({ value: v.value ?? v.label ?? String(v), label: v.label ?? v.value ?? String(v) })) : [];
             const refKey = p.primary || p.category || p.refdataCategory || p.ctx || null;
-            list.push({ key: p.name, ctx: p.ctx || "", isRefdata, refKey, multi, categoryId, categoryValues, label: p.label || p.name || "" });
+
+            list.push({
+              key: p.name,
+              ctx: p.ctx || "",
+              isRefdata,
+              refKey,
+              multi,
+              categoryValues,
+              dataType: /date/i.test(typeStr) ? "date"
+                      : /integer/i.test(typeStr) ? "integer"
+                      : /decimal/i.test(typeStr) ? "decimal"
+                      : "text",
+              label: p.label || p.name || ""
+            });
           });
           page++;
-        } while (page <= totalPages);
+        } while(page <= totalPages);
         return list;
       }
 
-      async function fetchRefdata(baseUrl, tenant, token) {
-        try {
-          const res = await fetch(`${baseUrl}/licenses/refdata`, { headers: { "x-okapi-tenant": tenant, "x-okapi-token": token } });
-          if (!res.ok) return { status: [], map: {} }; const data = await res.json();
-          let status = []; const map = {};
-          (data || []).forEach((entry) => {
-            const desc = (entry?.desc || "").trim();
-            const values = (entry.values || []).map((v) => ({ value: v.value ?? v.label ?? v, label: v.label ?? v.value ?? String(v) }));
-            if (desc) map[desc] = values; if (desc.toLowerCase().includes("status")) status.push(...values);
+      // Refdata 語彙（status を抽出）
+      async function fetchRefdata(baseUrl, tenant, token){
+        try{
+          const res = await fetch(`${baseUrl}/licenses/refdata`, { headers:{ "x-okapi-tenant":tenant, "x-okapi-token":token }});
+          if(!res.ok) return { status:[], map:{} };
+          const data = await res.json();
+          let status=[]; const map={};
+          (data||[]).forEach(entry=>{
+            const desc=(entry?.desc||"").trim();
+            const values=(entry.values||[]).map(v=>({ value: v.value ?? v.label ?? v, label: v.label ?? v.value ?? String(v) }));
+            if(desc) map[desc]=values;
+            if(desc.toLowerCase().includes("status")) status.push(...values);
           });
-          const seen = new Set(); status = status.filter((o) => { const k = o.value || o.label; if (seen.has(k)) return false; seen.add(k); return true; });
+          const seen=new Set();
+          status = status.filter(o=>{ const k=o.value || o.label; if(seen.has(k)) return false; seen.add(k); return true; });
           return { status, map };
-        } catch (e) { return { status: [], map: {} }; }
+        }catch{ return { status:[], map:{} }; }
       }
 
-      async function fetchLicenses(baseUrl, tenant, token) {
-        const out = []; let page = 1, perPage = 100, totalPages = 1;
-        do {
-          const res = await fetch(`${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,{ headers: { "x-okapi-tenant": tenant, "x-okapi-token": token } });
-          if (!res.ok) break; const data = await res.json(); totalPages = data.totalPages || 1;
-          (data.results || []).forEach((lic) => {
-            const base = { id: lic.id, created: lic.dateCreated?.slice(0, 10) || "", name: lic.name, status: lic.status?.label || lic.status || "", };
-            const custom = {}; Object.entries(lic.customProperties || {}).forEach(([key, items]) => {
-              if (!Array.isArray(items) || items.length === 0) return; const item = items[0]; const v = item.value; let display = "";
-              if (Array.isArray(v)) display = v.map((x) => x.value || String(x)).join("; ");
-              else if (v && typeof v === "object") display = v.value || ""; else display = v != null ? String(v) : "";
+      // ライセンス一覧
+      async function fetchLicenses(baseUrl, tenant, token){
+        const out=[]; let page=1, perPage=100, totalPages=1;
+        do{
+          const res = await fetch(`${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`, { headers:{ "x-okapi-tenant":tenant, "x-okapi-token":token }});
+          if(!res.ok) break;
+          const data = await res.json(); totalPages = data.totalPages || 1;
+          (data.results||[]).forEach(lic=>{
+            const base = { id: lic.id, created: lic.dateCreated?.slice(0,10) || "", name: lic.name, status: lic.status?.label || lic.status || "" };
+            const custom = {};
+            Object.entries(lic.customProperties||{}).forEach(([key, items])=>{
+              if(!Array.isArray(items) || items.length===0) return;
+              const v = items[0].value;
+              let display = "";
+              if(Array.isArray(v)) display = v.map(x=>x.value || String(x)).join("; ");
+              else if(v && typeof v==="object") display = v.value || "";
+              else display = v!=null ? String(v) : "";
               custom[key] = display;
             });
             out.push({ base, custom });
           });
           page++;
-        } while (page <= totalPages);
+        } while(page <= totalPages);
         return out;
       }
 
-      function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
-
-      function _normalizeForCompare(s){ let t = (s ?? "").toString(); if (t.normalize) t = t.normalize("NFC"); t = t.replace(/[\u200B-\u200D\uFEFF]/g, ""); t = t.replace(/\r\n?/g, "\n"); t = t.replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " "); return t; }
-      function normFieldValue(v){ const s = _normalizeForCompare(v).trim(); if (!s) return ""; const parts = s.split(/[;；]/).map(p => p.trim()).filter(Boolean).map(p => p.replace(/\s+/g, " ")); return parts.join("; "); }
-
-      function isTextOnlyKey(key){ const opts = state.meta.cpOptionsByKey[key]; const cp = state.meta.customProps.find(c=>c.key===key); const hasOptions = Array.isArray(opts) && opts.length > 0; const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi); return !hasOptions && !isMulti; }
-      function getColumnTypeLabel(key){ if (key === 'id' || key === 'created') return 'ReadOnly'; if (key === 'name') return '文'; if (key === 'status') { return (state.meta.statusOptions && state.meta.statusOptions.length > 0) ? '単' : '文'; } const opts = state.meta.cpOptionsByKey[key]; const hasOptions = Array.isArray(opts) && opts.length > 0; const cp = state.meta.customProps.find(c=>c.key===key); const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi); if (!hasOptions && !isMulti) return '文'; return isMulti ? '複' : '単'; }
-      function getColumnLabel(key){ if (key === 'id') return 'ID'; if (key === 'created') return '作成日'; if (key === 'name') return '名称'; if (key === 'status') return 'ステータス'; return key; }
-      function normTextForCompare(v){ const s = (v ?? "").toString().replace(/\r\n?/g, "\n").replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ").trim().replace(/\s+/g, " "); return s; }
-      function normByKey(key, v){ return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v); }
-
-      function extractOptionsFromLicensePayload(payload) {
-        const optMap = {}; const multiMap = {};
-        try {
-          const cps = payload && payload.customProperties ? payload.customProperties : {};
-          Object.entries(cps).forEach(([key, arr]) => {
-            const first = Array.isArray(arr) && arr.length ? arr[0] : null; if (!first) return; const def = first.definition || first; const cat = def.category || def?.definition?.category; const type = (def.type || def?.definition?.type || "").toString().toLowerCase(); const values = cat && Array.isArray(cat.values) ? cat.values : null;
-            if (values && values.length) { optMap[key] = values.map((v) => ({ value: v.value ?? v.label ?? String(v), label: v.label ?? v.value ?? String(v) })); multiMap[key] = type.includes("multi"); }
-          });
-        } catch (e) {}
-        return { optMap, multiMap };
+      // ---- 比較・正規化ユーティリティ ----
+      function _normalizeForCompare(s){
+        let t=(s??"").toString();
+        if(t.normalize) t=t.normalize("NFC");
+        t=t.replace(/[\u200B-\u200D\uFEFF]/g,"");   // ゼロ幅
+        t=t.replace(/\r\n?/g,"\n");                 // 改行統一
+        t=t.replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g," "); // 特殊スペース
+        return t;
+      }
+      function normFieldValue(v){
+        const s=_normalizeForCompare(v).trim(); if(!s) return "";
+        const parts=s.split(/[;；]/).map(p=>p.trim()).filter(Boolean).map(p=>p.replace(/\s+/g," "));
+        return parts.join("; ");
+      }
+      function normTextForCompare(v){
+        return (v??"").toString()
+          .replace(/\r\n?/g,"\n")
+          .replace(/[\u200B-\u200D\uFEFF]/g,"")
+          .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g," ")
+          .trim().replace(/\s+/g," ");
+      }
+      function normNumericForCompare(v){
+        const s=(v??"").toString().trim();
+        if(!s) return "";
+        return s.replace(/[\s,]/g,"").replace(/[\u3000]/g,"");
+      }
+      function normDateForCompare(v){
+        const s=(v??"").toString().trim();
+        const m=s.match(/(\d{4}-\d{2}-\d{2})/);
+        return m ? m[1] : s;
       }
 
-      function mapLabelToValue(key, text) { const options = state.meta.cpOptionsByKey[key]; if (!options) return text; const hit = options.find((o) => o.label === text || o.value === text); return hit ? hit.value : text; }
-      function buildColumns() { const customKeys = state.meta.customProps.map((c) => c.key); state.columns = [...defaultHeaders, ...customKeys]; }
+      function getDataTypeForKey(key){
+        const cp=state.meta.customProps.find(c=>c.key===key);
+        const mapped=state.meta.cpDataTypeByKey[key];
+        return mapped || cp?.dataType || "text";
+      }
+      function isTextOnlyKey(key){
+        const dt=getDataTypeForKey(key);
+        const opts=state.meta.cpOptionsByKey[key];
+        const cp=state.meta.customProps.find(c=>c.key===key);
+        const hasOptions=Array.isArray(opts)&&opts.length>0;
+        const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi);
+        return dt==="text" && !hasOptions && !isMulti;
+      }
+      // Text/Decimal/Integer/Date で候補なし＆非マルチ → 単一スカラー
+      function isScalarSingleKey(key){
+        const dt=getDataTypeForKey(key);
+        const opts=state.meta.cpOptionsByKey[key];
+        const cp=state.meta.customProps.find(c=>c.key===key);
+        const hasOptions=Array.isArray(opts)&&opts.length>0;
+        const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi);
+        return ((dt==="text"||dt==="decimal"||dt==="integer"||dt==="date") && !hasOptions && !isMulti);
+      }
 
-      function isCellChanged(id, key, value){ const orig = state.original.get(id); if(!orig) return false; const cur = normByKey(key, value); if(defaultHeaders.includes(key)){ const was = normByKey(key, orig.base[key]); return was !== cur; } else { const was = normByKey(key, orig.custom[key]); return was !== cur; } }
-      function rowHasChanges(row) { const id = row.base.id; return state.columns.some((col) => { if (col === "id" || col === "created") return false; const value = defaultHeaders.includes(col) ? row.base[col] : row.custom[col]; return isCellChanged(id, col, value); }); }
-      function updateButtons() { const changed = state.rows.some(rowHasChanges); el("saveBtn").disabled = !changed; el("revertBtn").disabled = !changed; el("exportAuditBtn").disabled = state.audit.length === 0; }
+      function getColumnTypeLabel(key){
+        if(key==="id"||key==="created") return "ReadOnly";
+        if(key==="name") return "文";
+        if(key==="status") return (state.meta.statusOptions?.length>0) ? "単" : "文";
+        const dt=getDataTypeForKey(key);
+        const opts=state.meta.cpOptionsByKey[key];
+        const cp=state.meta.customProps.find(c=>c.key===key);
+        const hasOptions=Array.isArray(opts)&&opts.length>0;
+        const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi);
+        if(hasOptions) return isMulti ? "複" : "単";
+        if(dt==="integer") return "整数";
+        if(dt==="decimal") return "小数";
+        if(dt==="date") return "日";
+        return "文";
+      }
+      function getColumnLabel(key){
+        if(key==="id") return "ID";
+        if(key==="created") return "作成日";
+        if(key==="name") return "名称";
+        if(key==="status") return "ステータス";
+        return key;
+      }
 
-      function buildColgroup() { const cg = el("colgroup"); cg.innerHTML = ""; for (let i = 0; i < state.columns.length; i++) { const col = document.createElement("col"); col.style.width = "160px"; cg.appendChild(col); } }
-      function makeResizer(th, index) { const resizer = document.createElement("div"); resizer.className = "resizer"; th.style.position = "relative"; th.appendChild(resizer); let startX = 0; let startW = 0; const col = el("colgroup").children[index]; const onMove = (e) => { const dx = e.clientX - startX; const w = Math.max(80, startW + dx); col.style.width = w + "px"; document.body.classList.add("resizing"); }; const onUp = () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); document.body.classList.remove("resizing"); }; resizer.addEventListener("mousedown", (e) => { startX = e.clientX; startW = parseInt(col.style.width || "160", 10); document.addEventListener("mousemove", onMove); document.addEventListener("mouseup", onUp); }); }
+      function normByKey(key, v){
+        const dt=getDataTypeForKey(key);
+        if(dt==="integer"||dt==="decimal") return normNumericForCompare(v);
+        if(dt==="date") return normDateForCompare(v);
+        return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
+      }
 
-      function render() {
-        const thead = el('thead'); const header1 = document.createElement('tr');
-        const headerKeys = state.columns;
-        const headers = headerKeys.map((key)=>({ key, label: getColumnLabel(key), type: getColumnTypeLabel(key) }));
-        header1.innerHTML = headers.map((h)=>`<th title="${h.label}"><div style="display:flex;align-items:center;gap:8px"><span>${h.label}</span><span class="pill">${h.type}</span></div></th>`).join('');
-        thead.innerHTML = ''; thead.appendChild(header1);
-        buildColgroup(); Array.from(thead.querySelectorAll("th")).forEach((th, i) => makeResizer(th, i));
-        const tbody = el("tbody"); tbody.innerHTML = "";
-        const q = state.filterText.trim().toLowerCase();
-        const rows = state.rows.filter((r) => { const changedOk = state.onlyChanged ? rowHasChanges(r) : true; if (!changedOk) return false; if (!q) return true; return ((r.base.name || "").toLowerCase().includes(q) || (r.base.status || "").toLowerCase().includes(q)); });
+      function mapLabelToValue(key, text){
+        const options=state.meta.cpOptionsByKey[key];
+        if(!options) return text;
+        const hit=options.find(o=>o.label===text || o.value===text);
+        return hit ? hit.value : text;
+      }
 
-        rows.forEach(({ base, custom }) => {
-          const tr = document.createElement("tr");
-          const tdRO = (value) => { const td = document.createElement("td"); const div = document.createElement("div"); div.className = "cell readonly"; div.textContent = value ?? ""; td.appendChild(div); return td; };
+      function buildColumns(){ const customKeys=state.meta.customProps.map(c=>c.key); state.columns=[...defaultHeaders, ...customKeys]; }
 
-          const tdText = (key, value)=>{
-            const td = document.createElement('td'); const div = document.createElement('div'); div.className = 'cell';
-            const cp = state.meta.customProps.find(c=>c.key===key);
-            const optionsFromRefdata = (cp && cp.isRefdata && cp.refKey && state.meta.refdataMap[cp.refKey]) ? state.meta.refdataMap[cp.refKey] : null;
+      function isCellChanged(id, key, value){
+        const orig=state.original.get(id); if(!orig) return false;
+        const cur=normByKey(key, value);
+        if(defaultHeaders.includes(key)){
+          const was=normByKey(key, orig.base[key]); return was!==cur;
+        } else {
+          const was=normByKey(key, orig.custom[key]); return was!==cur;
+        }
+      }
+      function rowHasChanges(row){
+        const id=row.base.id;
+        return state.columns.some(col=>{
+          if(col==="id"||col==="created") return false;
+          const value=defaultHeaders.includes(col) ? row.base[col] : row.custom[col];
+          return isCellChanged(id, col, value);
+        });
+      }
+      function updateButtons(){
+        const changed=state.rows.some(rowHasChanges);
+        el("saveBtn").disabled=!changed;
+        el("revertBtn").disabled=!changed;
+      }
+
+      function buildColgroup(){
+        const cg=el("colgroup"); cg.innerHTML="";
+        for(let i=0;i<state.columns.length;i++){ const col=document.createElement("col"); col.style.width="160px"; cg.appendChild(col); }
+      }
+      function makeResizer(th, index){
+        const resizer=document.createElement("div"); resizer.className="resizer"; th.style.position="relative"; th.appendChild(resizer);
+        let startX=0, startW=0; const col=el("colgroup").children[index];
+        const onMove=(e)=>{ const dx=e.clientX-startX; const w=Math.max(80, startW+dx); col.style.width=w+"px"; document.body.classList.add("resizing"); };
+        const onUp=()=>{ document.removeEventListener("mousemove",onMove); document.removeEventListener("mouseup",onUp); document.body.classList.remove("resizing"); };
+        resizer.addEventListener("mousedown",(e)=>{ startX=e.clientX; startW=parseInt(col.style.width||"160",10); document.addEventListener("mousemove",onMove); document.addEventListener("mouseup",onUp); });
+      }
+
+      function render(){
+        // header
+        const thead=el("thead"); const header1=document.createElement("tr");
+        const headers = state.columns.map(key=>({ key, label: getColumnLabel(key), type: getColumnTypeLabel(key) }));
+        header1.innerHTML = headers.map(h=>`<th title="${h.label}"><div style="display:flex;align-items:center;gap:8px"><span>${h.label}</span><span class="pill">${h.type}</span></div></th>`).join("");
+        thead.innerHTML=""; thead.appendChild(header1);
+        buildColgroup(); Array.from(thead.querySelectorAll("th")).forEach((th,i)=>makeResizer(th,i));
+
+        // body
+        const tbody=el("tbody"); tbody.innerHTML="";
+        const q=state.filterText.trim().toLowerCase();
+        const rows=state.rows.filter(r=>{
+          const changedOk = state.onlyChanged ? rowHasChanges(r) : true;
+          if(!changedOk) return false;
+          if(!q) return true;
+          return ((r.base.name||"").toLowerCase().includes(q) || (r.base.status||"").toLowerCase().includes(q));
+        });
+
+        rows.forEach(({base, custom})=>{
+          const tr=document.createElement("tr");
+          const tdRO=(value)=>{ const td=document.createElement("td"); const div=document.createElement("div"); div.className="cell readonly"; div.textContent=value??""; td.appendChild(div); return td; };
+
+          const tdText=(key, value)=>{
+            const td=document.createElement("td"); const div=document.createElement("div"); div.className="cell";
+            const cp=state.meta.customProps.find(c=>c.key===key);
+            const optionsFromRefdata = cp && cp.isRefdata && cp.refKey && state.meta.refdataMap[cp.refKey] ? state.meta.refdataMap[cp.refKey] : null;
             const fromLicense = state.meta.cpOptionsByKey[key] || null;
-            const options = Array.isArray(fromLicense) && fromLicense.length > 0 ? fromLicense : (Array.isArray(optionsFromRefdata) && optionsFromRefdata.length > 0 ? optionsFromRefdata : null);
-            const hasOptions = Array.isArray(options) && options.length > 0;
-            const currentVal = mapLabelToValue(key, value ?? '');
-            const looksMulti = state.meta.cpMultiByKey[key] || (cp && cp.multi) || (currentVal || '').includes(';');
+            const options = Array.isArray(fromLicense)&&fromLicense.length>0 ? fromLicense : (Array.isArray(optionsFromRefdata)&&optionsFromRefdata.length>0 ? optionsFromRefdata : null);
+            const hasOptions = Array.isArray(options) && options.length>0;
 
-            if (hasOptions && looksMulti) {
-              const sel = document.createElement('select'); sel.className = 'editable'; sel.dataset.key = key; sel.dataset.id = base.id; sel.multiple = true; sel.size = Math.min(6, Math.max(3, options.length));
-              const curVals = currentVal.split(/[;；]/).map(s => s.trim()).filter(Boolean).map(txt => mapLabelToValue(key, txt));
-              options.forEach(o => { const opt = document.createElement('option'); opt.value = o.value; opt.textContent = o.value; if (curVals.includes(o.value)) opt.selected = true; sel.appendChild(opt); });
-              const curStr = curVals.join('; ');
-              if (isCellChanged(base.id, key, curStr)) sel.classList.add('changed');
-              sel.addEventListener('change', (ev) => { onEditInline(ev); const joined = Array.from(sel.selectedOptions).map(o => o.value).join('; '); if (isCellChanged(base.id, key, joined)) sel.classList.add('changed'); else sel.classList.remove('changed'); });
-              sel.addEventListener('mousedown', (e) => { const t = e.target; if (t && t.tagName === 'OPTION') { e.preventDefault(); t.selected = !t.selected; sel.focus(); sel.dispatchEvent(new Event('change', { bubbles: true })); } });
+            const currentVal = mapLabelToValue(key, value ?? "");
+            const looksMulti = state.meta.cpMultiByKey[key] || (cp && cp.multi) || (currentVal||"").includes(";");
+            const dt = getDataTypeForKey(key);
+
+            // MultiSelect
+            if(hasOptions && looksMulti){
+              const sel=document.createElement("select"); sel.className="editable"; sel.dataset.key=key; sel.dataset.id=base.id; sel.multiple=true; sel.size=Math.min(6, Math.max(3, options.length));
+              const curVals=currentVal.split(/[;；]/).map(s=>s.trim()).filter(Boolean).map(txt=>mapLabelToValue(key, txt));
+              options.forEach(o=>{ const opt=document.createElement("option"); opt.value=o.value; opt.textContent=o.value; if(curVals.includes(o.value)) opt.selected=true; sel.appendChild(opt); });
+              const curStr=curVals.join("; "); if(isCellChanged(base.id, key, curStr)) sel.classList.add("changed");
+              sel.addEventListener("change",(ev)=>{ onEditInline(ev); const joined=Array.from(sel.selectedOptions).map(o=>o.value).join("; "); if(isCellChanged(base.id, key, joined)) sel.classList.add("changed"); else sel.classList.remove("changed"); });
+              sel.addEventListener("mousedown",(e)=>{ const t=e.target; if(t && t.tagName==="OPTION"){ e.preventDefault(); t.selected=!t.selected; sel.focus(); sel.dispatchEvent(new Event("change",{bubbles:true})); }});
               div.appendChild(sel); td.appendChild(div); return td;
             }
 
+            // SingleSelect
             if(hasOptions && !looksMulti){
-              const sel = document.createElement('select'); sel.className='editable'; sel.dataset.key=key; sel.dataset.id=base.id;
-              const optEmpty = document.createElement('option'); optEmpty.value=''; optEmpty.textContent=''; sel.appendChild(optEmpty);
-              options.forEach(o=>{ const opt=document.createElement('option'); opt.value = o.value; opt.textContent = o.value; sel.appendChild(opt); });
-              sel.value = currentVal; if(isCellChanged(base.id, key, sel.value)) sel.classList.add('changed'); sel.addEventListener('change', onEditInline);
+              const sel=document.createElement("select"); sel.className="editable"; sel.dataset.key=key; sel.dataset.id=base.id;
+              const optEmpty=document.createElement("option"); optEmpty.value=""; optEmpty.textContent=""; sel.appendChild(optEmpty);
+              options.forEach(o=>{ const opt=document.createElement("option"); opt.value=o.value; opt.textContent=o.value; sel.appendChild(opt); });
+              sel.value=currentVal; if(isCellChanged(base.id, key, sel.value)) sel.classList.add("changed"); sel.addEventListener("change", onEditInline);
               div.appendChild(sel); td.appendChild(div); return td;
             }
 
-            const isText = isTextOnlyKey(key); const useTextarea = isText || /[\r\n]/.test(currentVal);
-            const field = useTextarea ? document.createElement('textarea') : document.createElement('input');
-            if (!useTextarea) field.type = 'text'; field.className = 'editable'; field.value = currentVal; field.dataset.key = key; field.dataset.id = base.id; field.placeholder = '';
-            if(hasOptions){ const listId = `dl_${key.replace(/[^a-zA-Z0-9_-]/g, '_')}`; let dl = document.getElementById(listId); if(!dl){ dl = document.createElement('datalist'); dl.id = listId; options.forEach(o=>{ const opt = document.createElement('option'); opt.value = o.value; dl.appendChild(opt); }); document.body.appendChild(dl); } if (!useTextarea) field.setAttribute('list', listId); }
-            field.addEventListener('input', onEditInline); if (isCellChanged(base.id, key, field.value)) field.classList.add('changed'); if (useTextarea) { field.style.minHeight = '60px'; field.style.resize = 'vertical'; }
+            // Scalar inputs（Text/Decimal/Integer/Date）
+            let field;
+            if(!hasOptions && !looksMulti && dt==="date"){
+              field=document.createElement("input"); field.type="date"; field.value=currentVal||"";
+            } else if(!hasOptions && !looksMulti && (dt==="integer" || dt==="decimal")){
+              field=document.createElement("input"); field.type="number";
+              if(dt==="integer") field.step="1";
+              if(dt==="decimal") field.step="any";
+              field.inputMode="decimal";
+              field.value=currentVal;
+            } else {
+              const isText=isTextOnlyKey(key); const useTextarea=isText || /[\r\n]/.test(currentVal);
+              field = useTextarea ? document.createElement("textarea") : document.createElement("input");
+              if(!useTextarea) field.type="text";
+              field.value=currentVal;
+              if(field.tagName==="TEXTAREA"){ field.style.minHeight="60px"; field.style.resize="vertical"; }
+            }
+
+            field.className="editable"; field.dataset.key=key; field.dataset.id=base.id; field.placeholder="";
+            if(options && (!field.matches("textarea") && field.type==="text")){
+              const listId=`dl_${key.replace(/[^a-zA-Z0-9_-]/g,"_")}`;
+              let dl=document.getElementById(listId);
+              if(!dl){ dl=document.createElement("datalist"); dl.id=listId; options.forEach(o=>{ const opt=document.createElement("option"); opt.value=o.value; dl.appendChild(opt); }); document.body.appendChild(dl); }
+              field.setAttribute("list", listId);
+            }
+            field.addEventListener("input", onEditInline);
+            if(isCellChanged(base.id, key, field.value)) field.classList.add("changed");
             div.appendChild(field); td.appendChild(div); return td;
           };
 
-          const tdStatus = (value) => {
-            const td = document.createElement("td"); const div = document.createElement("div"); div.className = "cell";
-            if (state.meta.statusOptions && state.meta.statusOptions.length) {
-              const sel = document.createElement("select"); sel.className = "editable"; sel.dataset.key = "status"; sel.dataset.id = base.id;
-              const optEmpty = document.createElement("option"); optEmpty.value = ""; optEmpty.textContent = ""; sel.appendChild(optEmpty);
-              state.meta.statusOptions.forEach((o) => { const opt = document.createElement("option"); opt.value = o.label; opt.textContent = o.label; sel.appendChild(opt); });
-              sel.value = value ?? ""; if (isCellChanged(base.id, "status", sel.value)) sel.classList.add("changed"); sel.addEventListener("change", onEditInline); div.appendChild(sel);
+          const tdStatus=(value)=>{ const td=document.createElement("td"); const div=document.createElement("div"); div.className="cell";
+            if(state.meta.statusOptions && state.meta.statusOptions.length){
+              const sel=document.createElement("select"); sel.className="editable"; sel.dataset.key="status"; sel.dataset.id=base.id;
+              const optEmpty=document.createElement("option"); optEmpty.value=""; optEmpty.textContent=""; sel.appendChild(optEmpty);
+              state.meta.statusOptions.forEach(o=>{ const opt=document.createElement("option"); opt.value=o.label; opt.textContent=o.label; sel.appendChild(opt); });
+              sel.value=value??""; if(isCellChanged(base.id,"status",sel.value)) sel.classList.add("changed"); sel.addEventListener("change", onEditInline); div.appendChild(sel);
             } else { return tdText("status", value); }
             td.appendChild(div); return td;
           };
@@ -288,168 +475,155 @@
           tr.appendChild(tdRO(base.created));
           tr.appendChild(tdText("name", base.name));
           tr.appendChild(tdStatus(base.status));
-          state.meta.customProps.forEach((cp) => { tr.appendChild(tdText(cp.key, custom[cp.key] ?? "")); });
+          state.meta.customProps.forEach(cp=>{ tr.appendChild(tdText(cp.key, custom[cp.key] ?? "")); });
+
           tbody.appendChild(tr);
         });
+
         updateButtons();
       }
 
-      function onEditInline(e) {
-        const input = e.target; const { id, key } = input.dataset; let value;
-        if (input.tagName === 'SELECT' && input.multiple) { value = Array.from(input.selectedOptions).map(o => o.value).join('; '); } else { value = input.value; }
-        const row = state.rows.find((r) => r.base.id === id); if (!row) return;
-        if (defaultHeaders.includes(key)) row.base[key] = value; else row.custom[key] = value;
-        if (isCellChanged(id, key, value)) input.classList.add("changed"); else input.classList.remove("changed");
+      function onEditInline(e){
+        const input=e.target; const { id, key }=input.dataset;
+        let value;
+        if(input.tagName==="SELECT" && input.multiple){
+          value=Array.from(input.selectedOptions).map(o=>o.value).join("; ");
+        } else {
+          value=input.value;
+        }
+        const row=state.rows.find(r=>r.base.id===id); if(!row) return;
+        if(defaultHeaders.includes(key)) row.base[key]=value; else row.custom[key]=value;
+        if(isCellChanged(id, key, value)) input.classList.add("changed"); else input.classList.remove("changed");
         updateButtons();
       }
 
-      function revertAll() { state.rows = state.rows.map((r) => { const orig = deepClone(state.original.get(r.base.id)); return { base: orig.base, custom: orig.custom }; }); render(); }
-
-      function parseCustomInputToPayload(val, current) {
-        const trimmed = (val || "").trim(); if (!trimmed) { return [{ _delete: true }]; }
-        const parts = trimmed.split(/;|；/).map((s) => s.trim()).filter(Boolean);
-        if (parts.length > 1) { return [{ _delete: false, value: parts.map((v) => ({ value: v })) }]; }
-        if (current && Array.isArray(current) && current[0] && typeof current[0].value === "object" && current[0].value !== null && "value" in current[0].value) { return [{ _delete: false, value: { value: trimmed } }]; }
-        return [{ _delete: false, value: trimmed }];
-      }
-      function parseCustomInputToPayloadWithOptions(key, val, current) {
-        const trimmed = (val || "").trim(); if (!trimmed) { return [{ _delete: true }]; }
-        const map = (txt) => mapLabelToValue(key, txt);
-        const parts = trimmed.split(/;|；/).map((s) => s.trim()).filter(Boolean);
-        if (parts.length > 1) { return [{ _delete: false, value: parts.map((v) => ({ value: map(v) })) }]; }
-        if (current && Array.isArray(current) && current[0] && typeof current[0].value === "object" && current[0].value !== null && "value" in current[0].value) { return [{ _delete: false, value: { value: map(trimmed) } }]; }
-        return [{ _delete: false, value: map(trimmed) }];
-      }
-      function parseCustomInputToPayloadText(val){ const trimmed = (val || '').trim(); if(!trimmed) return [{ _delete: true }]; return [{ _delete: false, value: trimmed }]; }
-
-      function pushAudit(id, field, from, to) {
-        const actor = state.loginUser || ""; const at = new Date().toISOString(); state.audit.push({ id, actor, at, field, from, to });
+      function revertAll(){
+        state.rows = state.rows.map(r=>{ const orig=JSON.parse(JSON.stringify(state.original.get(r.base.id))); return { base: orig.base, custom: orig.custom }; });
+        render();
       }
 
-      function diffRowForAudit(row) {
-        const id = row.base.id; const orig = state.original.get(id);
-        if (row.base.name !== orig.base.name) pushAudit(id, "name", orig.base.name || "", row.base.name || "");
-        if (row.base.status !== orig.base.status) pushAudit(id, "status", orig.base.status || "", row.base.status || "");
-        state.meta.customProps.forEach(cp => { const key = cp.key; const oldVal = orig.custom[key] ?? ''; const newVal = row.custom[key] ?? ''; if (oldVal !== newVal) pushAudit(id, key, oldVal, newVal); });
+      // PUT 組み立て
+      function parseCustomInputToPayload(val, current){
+        const trimmed=(val||"").trim(); if(!trimmed) return [{ _delete:true }];
+        const parts=trimmed.split(/;|；/).map(s=>s.trim()).filter(Boolean);
+        if(parts.length>1) return [{ _delete:false, value: parts.map(v=>({ value: v })) }];
+        if(current && Array.isArray(current) && current[0] && typeof current[0].value==="object" && current[0].value!==null && "value" in current[0].value)
+          return [{ _delete:false, value: { value: trimmed } }];
+        return [{ _delete:false, value: trimmed }];
+      }
+      function parseCustomInputToPayloadWithOptions(key, val, current){
+        const trimmed=(val||"").trim(); if(!trimmed) return [{ _delete:true }];
+        const map=(txt)=>mapLabelToValue(key, txt);
+        const parts=trimmed.split(/;|；/).map(s=>s.trim()).filter(Boolean);
+        if(parts.length>1) return [{ _delete:false, value: parts.map(v=>({ value: map(v) })) }];
+        if(current && Array.isArray(current) && current[0] && typeof current[0].value==="object" && current[0].value!==null && "value" in current[0].value)
+          return [{ _delete:false, value: { value: map(trimmed) } }];
+        return [{ _delete:false, value: map(trimmed) }];
+      }
+      // 単一スカラー（Text/Decimal/Integer/Date）はセミコロン分割しない
+      function parseCustomInputToPayloadScalar(val){
+        const trimmed=(val||"").trim(); if(!trimmed) return [{ _delete:true }];
+        return [{ _delete:false, value: trimmed }];
       }
 
-      function exportAuditCSV() {
-        if (state.audit.length === 0) return;
-        // 日本語ヘッダー＋わかりやすい列名
-        const header = [
-          "ライセンスID",
-          "項目名",
-          "修正前",
-          "修正後",
-          "変更日時(UTC)",
-          "操作ユーザー"
-        ];
-        const wrap = (v) => {
-          const s = (v ?? "").toString();
-          // カンマ・ダブルクオート・改行を含めば CSV のクオート対象
-          return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-        };
-        const toLabel = (fieldKey) => getColumnLabel(fieldKey);
-        const csv = [header.join(",")]
-          .concat(
-            state.audit.map((r) => [
-              wrap(r.id),
-              wrap(toLabel(r.field)),
-              wrap(r.from),
-              wrap(r.to),
-              wrap(r.at),
-              wrap(r.actor)
-            ].join(","))
-          )
-          .join("\n"); // ← 改行で結合
-        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob); const a = document.createElement("a");
-        a.href = url; a.download = `audit_${new Date().toISOString().replace(/[:T\-]/g, "").slice(0, 14)}.csv`;
-        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-      }
+      async function saveChanges(){
+        const baseUrl=el("baseUrl").value.trim();
+        const tenant=el("tenant").value.trim();
+        const headers={ "Content-Type":"application/json", "x-okapi-tenant":tenant, "x-okapi-token":state.token };
 
-      async function saveChanges() {
-        const baseUrl = el("baseUrl").value.trim(); const tenant = el("tenant").value.trim();
-        const headers = { "Content-Type": "application/json", "x-okapi-tenant": tenant, "x-okapi-token": state.token };
-        const changedRows = state.rows.filter(rowHasChanges);
-        if (changedRows.length === 0) { setStatus("保存対象の変更はありません。", "info"); return; }
-        setStatus(`保存中… ${changedRows.length}件`, "info"); let ok = 0, ng = 0; const details = [];
-        for (const row of changedRows) {
-          const id = row.base.id;
-          try {
-            const curRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, { headers });
-            if (!curRes.ok) throw new Error(`GET ${id} 失敗 (${curRes.status})`);
-            const payload = await curRes.json(); const orig = state.original.get(id);
-            if (row.base.name !== orig.base.name) payload.name = row.base.name;
-            if (row.base.status !== orig.base.status) payload.status = row.base.status;
+        const changedRows=state.rows.filter(rowHasChanges);
+        if(changedRows.length===0){ setStatus("保存対象の変更はありません。","info"); return; }
+
+        setStatus(`保存中… ${changedRows.length}件`,"info");
+        let ok=0, ng=0; const details=[];
+        for(const row of changedRows){
+          const id=row.base.id;
+          try{
+            const curRes=await fetch(`${baseUrl}/licenses/licenses/${id}`, { headers });
+            if(!curRes.ok) throw new Error(`GET ${id} 失敗 (${curRes.status})`);
+            const payload=await curRes.json();
+            const orig=state.original.get(id);
+
+            if(row.base.name!==orig.base.name) payload.name=row.base.name;
+            if(row.base.status!==orig.base.status) payload.status=row.base.status;
+
             payload.customProperties = payload.customProperties || {};
-            state.meta.customProps.forEach((cp) => {
-              const key = cp.key; const oldVal = orig.custom[key] ?? ""; const newVal = row.custom[key] ?? ""; if (oldVal === newVal) return;
-              const currentArr = payload.customProperties[key]; const opts = state.meta.cpOptionsByKey[key]; const hasOptions = Array.isArray(opts) && opts.length > 0; const isText = isTextOnlyKey(key);
-              if (hasOptions) {
-                payload.customProperties[key] = parseCustomInputToPayloadWithOptions(key, newVal, currentArr);
-              } else if (isText) {
-                payload.customProperties[key] = parseCustomInputToPayloadText(newVal);
+            state.meta.customProps.forEach(cp=>{
+              const key=cp.key;
+              const oldVal=orig.custom[key]??"";
+              const newVal=row.custom[key]??"";
+              if(oldVal===newVal) return;
+
+              const currentArr=payload.customProperties[key];
+              const opts=state.meta.cpOptionsByKey[key];
+              const hasOptions=Array.isArray(opts)&&opts.length>0;
+
+              if(hasOptions){
+                payload.customProperties[key]=parseCustomInputToPayloadWithOptions(key, newVal, currentArr);
+              } else if(isScalarSingleKey(key)){
+                payload.customProperties[key]=parseCustomInputToPayloadScalar(newVal);
               } else {
-                payload.customProperties[key] = parseCustomInputToPayload(newVal, currentArr);
+                payload.customProperties[key]=parseCustomInputToPayload(newVal, currentArr);
               }
             });
-            const putRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, { method: "PUT", headers, body: JSON.stringify(payload) });
-            if (!putRes.ok) { const text = await putRes.text().catch(() => putRes.statusText); throw new Error(`PUT ${id} 失敗: ${text}`); }
-            ok++; diffRowForAudit(row); state.original.set(id, deepClone(row));
-          } catch (e) { ng++; details.push(`${id}: ${e.message}`); }
+
+            const putRes=await fetch(`${baseUrl}/licenses/licenses/${id}`, { method:"PUT", headers, body: JSON.stringify(payload) });
+            if(!putRes.ok){ const text=await putRes.text().catch(()=>putRes.statusText); throw new Error(`PUT ${id} 失敗: ${text}`); }
+
+            ok++; state.original.set(id, JSON.parse(JSON.stringify(row)));
+          }catch(e){
+            ng++; details.push(`${id}: ${e.message}`);
+          }
         }
-        if (ng === 0) setStatus(`保存完了: ${ok}件更新しました。`, "ok");
-        else if (ok > 0) setStatus(`一部成功: 成功${ok}件 / 失敗${ng}件\n${details.join("\n")}`, "warn");
-        else setStatus(`保存に失敗しました:\n${details.join("\n")}`, "err");
+
+        if(ng===0) setStatus(`保存完了: ${ok}件更新しました。`,"ok");
+        else if(ok>0) setStatus(`一部成功: 成功${ok}件 / 失敗${ng}件\n${details.join("\n")}`,"warn");
+        else setStatus(`保存に失敗しました:\n${details.join("\n")}`,"err");
+
         updateButtons();
       }
 
-      async function fetchRefdataValuesByCategoryId(baseUrl, tenant, token, categoryId) {
-        const url = `${baseUrl}/licenses/refdata?filters=id%3D%3D${encodeURIComponent(categoryId)}`;
-        const res = await fetch(url, { headers: { "x-okapi-tenant": tenant, "x-okapi-token": token } });
-        if (!res.ok) return []; const data = await res.json(); const entry = Array.isArray(data) ? data[0] : null; const values = entry?.values || [];
-        return values.map((v) => ({ value: v.value ?? v.label ?? String(v), label: v.label ?? v.value ?? String(v) }));
-      }
-
-      async function buildCpOptionsFromSamplePayload(baseUrl, tenant, token, payload) {
-        const cps = payload?.customProperties || {}; const entries = Object.entries(cps); const keyToCategoryId = {};
-        for (const [key, arr] of entries) { const first = Array.isArray(arr) && arr.length ? arr[0] : null; const categoryId = first?.type?.category?.id || first?.definition?.category?.id; if (categoryId) keyToCategoryId[key] = categoryId; }
-        const uniqueIds = [...new Set(Object.values(keyToCategoryId))]; const idToValues = {};
-        await Promise.all(uniqueIds.map(async (cid) => { idToValues[cid] = await fetchRefdataValuesByCategoryId(baseUrl, tenant, token, cid); }));
-        const cpOptionsByKey = {}; for (const [key, cid] of Object.entries(keyToCategoryId)) { cpOptionsByKey[key] = idToValues[cid] || []; }
-        return cpOptionsByKey;
-      }
-
-      async function loadAll() {
-        const baseUrl = el("baseUrl").value.trim(); const tenant = el("tenant").value.trim(); const username = el("username").value.trim(); const password = el("password").value;
-        try {
-          setStatus("認証中…", "info"); el("loadBtn").disabled = true;
+      async function loadAll(){
+        const baseUrl=el("baseUrl").value.trim();
+        const tenant=el("tenant").value.trim();
+        const username=el("username").value.trim();
+        const password=el("password").value;
+        try{
+          setStatus("認証中…","info");
+          el("loadBtn").disabled=true;
           state.token = await login(baseUrl, tenant, username, password);
-          state.loginUser = username; // ← ここで監査用ユーザー名として保存
+          state.loginUser = username; // 監査用に保持（今回はCSVなし）
 
-          setStatus("メタデータ取得中…", "info");
+          setStatus("メタデータ取得中…","info");
           state.meta.customProps = await fetchCustomProps(baseUrl, tenant, state.token);
-          state.meta.cpOptionsByKey = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.categoryValues || []]));
-          state.meta.cpMultiByKey = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, !!cp.multi]));
+          state.meta.cpOptionsByKey = Object.fromEntries(state.meta.customProps.map(cp=>[cp.key, cp.categoryValues || []]));
+          state.meta.cpMultiByKey   = Object.fromEntries(state.meta.customProps.map(cp=>[cp.key, !!cp.multi]));
+          state.meta.cpDataTypeByKey= Object.fromEntries(state.meta.customProps.map(cp=>[cp.key, cp.dataType || "text"]));
 
-          const ref = await fetchRefdata(baseUrl, tenant, state.token); state.meta.statusOptions = ref.status || []; state.meta.refdataMap = ref.map || {};
+          const ref = await fetchRefdata(baseUrl, tenant, state.token);
+          state.meta.statusOptions = ref.status || [];
+          state.meta.refdataMap    = ref.map || {};
 
-          setStatus("ライセンス取得中…", "info");
-          const rows = await fetchLicenses(baseUrl, tenant, state.token); state.rows = rows.map((r) => ({ base: r.base, custom: r.custom }));
-          state.original = new Map(state.rows.map((r) => [r.base.id, deepClone(r)]));
+          setStatus("ライセンス取得中…","info");
+          const rows = await fetchLicenses(baseUrl, tenant, state.token);
+          state.rows = rows.map(r=>({ base:r.base, custom:r.custom }));
+          state.original = new Map(state.rows.map(r=>[r.base.id, JSON.parse(JSON.stringify(r))]));
+
           buildColumns(); clearStatus(); render();
-        } catch (err) { console.error(err); setStatus(err.message || "読み込みに失敗しました", "err"); }
-        finally { el("loadBtn").disabled = false; }
+        }catch(err){
+          console.error(err);
+          setStatus(err.message || "読み込みに失敗しました","err");
+        } finally {
+          el("loadBtn").disabled=false;
+        }
       }
 
       // events
       el("loadBtn").addEventListener("click", loadAll);
       el("saveBtn").addEventListener("click", saveChanges);
       el("revertBtn").addEventListener("click", revertAll);
-      el("exportAuditBtn").addEventListener("click", exportAuditCSV);
-      el("q").addEventListener("input", (e) => { state.filterText = e.target.value; render(); });
-      el("onlyChanged").addEventListener("change", (e) => { state.onlyChanged = e.target.checked; render(); });
+      el("q").addEventListener("input", (e)=>{ state.filterText=e.target.value; render(); });
+      el("onlyChanged").addEventListener("change", (e)=>{ state.onlyChanged=e.target.checked; render(); });
     </script>
   </body>
 </html>
