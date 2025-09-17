@@ -721,7 +721,7 @@
       }
 
       function getColumnTypeLabel(key) {
-        if (key === "id" || key === "created") return "ReadOnly";
+        if (key === "id" || key === "created") return "編集不可";
         if (key === "name") return "文";
         if (key === "status")
           return state.meta.statusOptions?.length > 0 ? "単" : "文";
