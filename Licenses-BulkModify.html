@@ -248,7 +248,7 @@
   function isScalarSingleKey(key){ const dt=getDataTypeForKey(key); const opts=state.meta.cpOptionsByKey[key]; const cp=state.meta.customProps.find(c=>c.key===key); const hasOptions=Array.isArray(opts)&&opts.length>0; const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi); return ((dt==="text"||dt==="decimal"||dt==="integer"||dt==="date") && !hasOptions && !isMulti); }
   function normByKey(key,v){ const dt=getDataTypeForKey(key); if(dt==="integer"||dt==="decimal") return normNumericForCompare(v); if(dt==="date") return normDateForCompare(v); return isTextOnlyKey(key)?normTextForCompare(v):normFieldValue(v); }
 
-  function getColumnTypeLabel(key){ if(key==="id"||key==="created") return "ReadOnly"; if(key==="name") return "文"; if(key==="status") return (state.meta.statusOptions?.length>0)?"単":"文"; const dt=getDataTypeForKey(key); const opts=state.meta.cpOptionsByKey[key]; const cp=state.meta.customProps.find(c=>c.key===key); const hasOptions=Array.isArray(opts)&&opts.length>0; const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi); if(hasOptions) return isMulti?"複":"単"; if(dt==="integer") return "数(整数)"; if(dt==="decimal") return "数(少数)"; if(dt==="date") return "日"; return "文"; }
+  function getColumnTypeLabel(key){ if(key==="id"||key==="created") return "ReadOnly"; if(key==="name") return "文"; if(key==="status") return (state.meta.statusOptions?.length>0)?"単":"文"; const dt=getDataTypeForKey(key); const opts=state.meta.cpOptionsByKey[key]; const cp=state.meta.customProps.find(c=>c.key===key); const hasOptions=Array.isArray(opts)&&opts.length>0; const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi); if(hasOptions) return isMulti?"複":"単"; if(dt==="integer") return "整数"; if(dt==="decimal") return "小数)"; if(dt==="date") return "日"; return "文"; }
   function getColumnLabel(key){ if(key==="id") return "ID"; if(key==="created") return "作成日"; if(key==="name") return "名称"; if(key==="status") return "ステータス"; return key; }
 
   function mapLabelToValue(key,text){ const options=state.meta.cpOptionsByKey[key]; if(!options) return text; const hit=options.find(o=>o.label===text||o.value===text||o.id===text); return hit?hit.value:text; }
@@ -369,7 +369,7 @@ function parseCustomInputToPayloadWithOptionsRich(key, val, current){
   const cp = state.meta.customProps.find(c => c.key === key);
   const trimmed = (val || "").trim();
 
-  // トークン化（空文字なら空配列＝全選択解除）
+  // トークン化
   const tokens = trimmed
     ? trimmed.split(/;|；/).map(s => s.trim()).filter(Boolean)
     : [];
@@ -378,12 +378,26 @@ function parseCustomInputToPayloadWithOptionsRich(key, val, current){
     !!(state.meta.cpMultiByKey[key] || cp?.multi || tokens.length > 1);
 
   if (looksMulti) {
-    // マルチ：選択 0 件でも空配列を value にする
+    // 0件（= 全選択解除）のとき： value は []、かつ _delete:true を同一オブジェクトに付与
+    if (tokens.length === 0) {
+      if (Array.isArray(current) && current.length > 0) {
+        const base = { ...current[0] };      // 既存を尊重（id/internal/type を維持）
+        base.value = [];                     // 空配列に上書き
+        base._delete = true;                 // 削除フラグを同一レコードに付与
+        return [base];
+      }
+      // 新規（現在値なし）の場合は cp メタから type を補完
+      const created = buildMultiRefdataContainer(cp, null, []); // value: []
+      if (created && created[0]) created[0]._delete = true;
+      return created;
+    }
+
+    // 選択あり：refdata 配列を構築して通常どおり
     const arr = tokens.map(t => buildRefdataValueObject(cp, t)).filter(Boolean);
     return buildMultiRefdataContainer(cp, current, arr);
   }
 
-  // 単一：空なら削除（従来挙動のまま）
+  // 単一選択：空なら削除（従来どおり）
   if (!trimmed) return [{ _delete: true }];
 
   // 単一選択はスカラ値
