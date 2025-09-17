@@ -439,9 +439,11 @@ function parseCustomInputToPayloadWithOptionsRich(key, val, current){
           if(hasOptions){
             // Refdata: multi は value に refdataオブジェクト配列、single はスカラ値
             payload.customProperties[key] = parseCustomInputToPayloadWithOptionsRich(key, newVal, currentArr);
-          } else if(isScalarSingleKey(key)){
-            payload.customProperties[key]=parseCustomInputToPayloadScalar(newVal);
-          } else {
+         } else if (isScalarSingleKey(key)) {
+            // Date / Decimal / Integer / Text の単一値：空なら id/internal/type を保持して _delete:true
+            payload.customProperties[key] =
+              parseCustomInputToPayloadScalarSmart(key, newVal, currentArr);
+          }else {
             payload.customProperties[key]=parseCustomInputToPayload(newVal, currentArr);
           }
         });
@@ -486,6 +488,27 @@ function buildMultiRefdataContainer(cp, currentArr, refdataArray) {
     value: Array.isArray(refdataArray) ? refdataArray : [],
     type: typeObj
   }];
+}
+// 単一スカラー(Text/Integer/Decimal/Date)用：空なら既存の id/internal/type を保持して _delete:true
+function parseCustomInputToPayloadScalarSmart(key, val, currentArr) {
+  const trimmed = (val || "").trim();
+
+  // 空 = 削除
+  if (!trimmed) {
+    // 既存があれば、その容器(id/internal/type)を維持して _delete:true を付与
+    if (Array.isArray(currentArr) && currentArr.length > 0) {
+      const base = { ...currentArr[0] }; // shallow clone
+      base._delete = true;
+      // value を持っている場合は明示的に null に（backend が参照しても安全）
+      if ("value" in base) base.value = null;
+      return [base];
+    }
+    // 新規（容器がない）なら従来どおり最小形
+    return [{ _delete: true }];
+  }
+
+  // 値ありなら通常のスカラ値
+  return [{ _delete: false, value: trimmed }];
 }
 
 
