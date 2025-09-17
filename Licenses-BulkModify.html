@@ -43,6 +43,12 @@
       .form input, .form select { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
 
       .row { display: flex; align-items: center; gap: 8px; }
+      
+      .th-btn .label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .th-btn .pill{flex:0 0 auto}
+      .th-btn .arrow{flex:0 0 auto;opacity:.8}
+      .th-btn{display:flex;align-items:center;gap:8px;min-width:0}
+
       .btn {
         appearance: none; border: none; background: var(--brand); color: #fff;
         padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
@@ -150,6 +156,8 @@
     columns: [],
     filterText: "",
     onlyChanged: false,
+    sortKey: "name",      // 例: "name" や カスタムキー
+    sortDir: "asc",     // "asc" | "desc"
   };
 
   const defaultHeaders = ["id","created","name","status"];
@@ -162,6 +170,46 @@
     if(!res.ok) throw new Error("認証に失敗しました");
     return res.headers.get("x-okapi-token");
   }
+// ▼ どこかユーティリティ群の近くに追記
+function getRowValue(row, key){
+  if (defaultHeaders.includes(key)) return row.base[key] ?? "";
+  return row.custom[key] ?? "";
+}
+
+function compareByType(a, b, key){
+  const dt = getDataTypeForKey(key);     // "text" | "integer" | "decimal" | "date"
+  const av = getRowValue(a, key);
+  const bv = getRowValue(b, key);
+
+  if (dt === "integer" || dt === "decimal") {
+    const na = parseFloat(String(av).replace(/[, ]/g, "")); 
+    const nb = parseFloat(String(bv).replace(/[, ]/g, ""));
+    const aOk = Number.isFinite(na), bOk = Number.isFinite(nb);
+    if (aOk && bOk) return na - nb;
+    if (aOk) return -1; if (bOk) return 1;
+    // どちらも数値でない → 文字列比較へフォールバック
+  }
+
+  if (dt === "date") {
+    const da = (String(av).match(/^\d{4}-\d{2}-\d{2}/) || [null])[0];
+    const db = (String(bv).match(/^\d{4}-\d{2}-\d{2}/) || [null])[0];
+    if (da && db) return da.localeCompare(db);   // ISO日付は文字比較でOK
+    if (da) return -1; if (db) return 1;
+    // どちらも日付でない → 文字列比較へ
+  }
+
+  // テキスト（マルチは「; 」連結済みなのでそのまま）
+  const sa = String(av).toLocaleLowerCase();
+  const sb = String(bv).toLocaleLowerCase();
+  return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: "base" });
+}
+
+function sortRows(rows){
+  const { sortKey, sortDir } = state;
+  if (!sortKey) return rows;
+  const sorted = [...rows].sort((a,b) => compareByType(a,b,sortKey));
+  return sortDir === "desc" ? sorted.reverse() : sorted;
+}
 
   // ----- Meta fetch -----
   async function fetchCustomProps(baseUrl, tenant, token){
@@ -248,7 +296,7 @@
   function isScalarSingleKey(key){ const dt=getDataTypeForKey(key); const opts=state.meta.cpOptionsByKey[key]; const cp=state.meta.customProps.find(c=>c.key===key); const hasOptions=Array.isArray(opts)&&opts.length>0; const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi); return ((dt==="text"||dt==="decimal"||dt==="integer"||dt==="date") && !hasOptions && !isMulti); }
   function normByKey(key,v){ const dt=getDataTypeForKey(key); if(dt==="integer"||dt==="decimal") return normNumericForCompare(v); if(dt==="date") return normDateForCompare(v); return isTextOnlyKey(key)?normTextForCompare(v):normFieldValue(v); }
 
-  function getColumnTypeLabel(key){ if(key==="id"||key==="created") return "ReadOnly"; if(key==="name") return "文"; if(key==="status") return (state.meta.statusOptions?.length>0)?"単":"文"; const dt=getDataTypeForKey(key); const opts=state.meta.cpOptionsByKey[key]; const cp=state.meta.customProps.find(c=>c.key===key); const hasOptions=Array.isArray(opts)&&opts.length>0; const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi); if(hasOptions) return isMulti?"複":"単"; if(dt==="integer") return "整数"; if(dt==="decimal") return "小数)"; if(dt==="date") return "日"; return "文"; }
+  function getColumnTypeLabel(key){ if(key==="id"||key==="created") return "ReadOnly"; if(key==="name") return "文"; if(key==="status") return (state.meta.statusOptions?.length>0)?"単":"文"; const dt=getDataTypeForKey(key); const opts=state.meta.cpOptionsByKey[key]; const cp=state.meta.customProps.find(c=>c.key===key); const hasOptions=Array.isArray(opts)&&opts.length>0; const isMulti=!!(state.meta.cpMultiByKey[key]||cp?.multi); if(hasOptions) return isMulti?"複":"単"; if(dt==="integer") return "整数"; if(dt==="decimal") return "小数"; if(dt==="date") return "日"; return "文"; }
   function getColumnLabel(key){ if(key==="id") return "ID"; if(key==="created") return "作成日"; if(key==="name") return "名称"; if(key==="status") return "ステータス"; return key; }
 
   function mapLabelToValue(key,text){ const options=state.meta.cpOptionsByKey[key]; if(!options) return text; const hit=options.find(o=>o.label===text||o.value===text||o.id===text); return hit?hit.value:text; }
@@ -262,86 +310,275 @@
   function buildColgroup(){ const cg=el("colgroup"); cg.innerHTML=""; for(let i=0;i<state.columns.length;i++){ const col=document.createElement("col"); col.style.width="160px"; cg.appendChild(col);} }
   function makeResizer(th, index){ const resizer=document.createElement("div"); resizer.className="resizer"; th.style.position="relative"; th.appendChild(resizer); let startX=0,startW=0; const col=el("colgroup").children[index]; const onMove=(e)=>{ const dx=e.clientX-startX; const w=Math.max(80,startW+dx); col.style.width=w+"px"; document.body.classList.add("resizing");}; const onUp=()=>{ document.removeEventListener("mousemove",onMove); document.removeEventListener("mouseup",onUp); document.body.classList.remove("resizing");}; resizer.addEventListener("mousedown",(e)=>{ startX=e.clientX; startW=parseInt(col.style.width||"160",10); document.addEventListener("mousemove",onMove); document.addEventListener("mouseup",onUp);}); }
 
-  function render(){
-    const thead=el("thead"); const header1=document.createElement("tr");
-    const headers=state.columns.map(key=>({key,label:getColumnLabel(key),type:getColumnTypeLabel(key)}));
-    header1.innerHTML=headers.map(h=>`<th title="${h.label}"><div style="display:flex;align-items:center;gap:8px"><span>${h.label}</span><span class="pill">${h.type}</span></div></th>`).join("");
-    thead.innerHTML=""; thead.appendChild(header1);
-    buildColgroup(); Array.from(thead.querySelectorAll("th")).forEach((th,i)=>makeResizer(th,i));
-
-    const tbody=el("tbody"); tbody.innerHTML="";
-    const q=state.filterText.trim().toLowerCase();
-    const rows=state.rows.filter(r=>{ const changedOk=state.onlyChanged?rowHasChanges(r):true; if(!changedOk) return false; if(!q) return true; return ((r.base.name||"").toLowerCase().includes(q) || (r.base.status||"").toLowerCase().includes(q)); });
-
-    rows.forEach(({base,custom})=>{
-      const tr=document.createElement("tr");
-      const tdRO=(value)=>{ const td=document.createElement("td"); const div=document.createElement("div"); div.className="cell readonly"; div.textContent=value??""; td.appendChild(div); return td; };
-
-      const tdText=(key,value)=>{
-        const td=document.createElement("td"); const div=document.createElement("div"); div.className="cell";
-        const cp=state.meta.customProps.find(c=>c.key===key);
-        const optionsFromRefdata = cp && cp.isRefdata && cp.refKey && state.meta.refdataMap[cp.refKey] ? state.meta.refdataMap[cp.refKey] : null;
-        const fromLicense = state.meta.cpOptionsByKey[key] || null;
-        const options = Array.isArray(fromLicense)&&fromLicense.length>0 ? fromLicense : (Array.isArray(optionsFromRefdata)&&optionsFromRefdata.length>0 ? optionsFromRefdata : null);
-        const hasOptions = Array.isArray(options)&&options.length>0;
-        const currentVal = mapLabelToValue(key, value ?? "");
-        const looksMulti = state.meta.cpMultiByKey[key] || (cp && cp.multi) || (currentVal||"").includes(";");
-        const dt = getDataTypeForKey(key);
-
-        if(hasOptions && looksMulti){
-          const sel=document.createElement("select"); sel.className="editable"; sel.dataset.key=key; sel.dataset.id=base.id; sel.multiple=true; sel.size=Math.min(6, Math.max(3, options.length));
-          const curVals=currentVal.split(/[;；]/).map(s=>s.trim()).filter(Boolean).map(txt=>mapLabelToValue(key, txt));
-          options.forEach(o=>{ const opt=document.createElement("option"); opt.value=o.value; opt.textContent=o.value; if(curVals.includes(o.value)) opt.selected=true; sel.appendChild(opt); });
-          const curStr=curVals.join("; "); if(isCellChanged(base.id,key,curStr)) sel.classList.add("changed");
-          sel.addEventListener("change",(ev)=>{ onEditInline(ev); const joined=Array.from(sel.selectedOptions).map(o=>o.value).join("; "); if(isCellChanged(base.id,key,joined)) sel.classList.add("changed"); else sel.classList.remove("changed"); });
-          sel.addEventListener("mousedown",(e)=>{ const t=e.target; if(t && t.tagName==="OPTION"){ e.preventDefault(); t.selected=!t.selected; sel.focus(); sel.dispatchEvent(new Event("change",{bubbles:true})); }});
-          div.appendChild(sel); td.appendChild(div); return td;
-        }
-
-        if(hasOptions && !looksMulti){
-          const sel=document.createElement("select"); sel.className="editable"; sel.dataset.key=key; sel.dataset.id=base.id;
-          const optEmpty=document.createElement("option"); optEmpty.value=""; optEmpty.textContent=""; sel.appendChild(optEmpty);
-          options.forEach(o=>{ const opt=document.createElement("option"); opt.value=o.value; opt.textContent=o.value; sel.appendChild(opt); });
-          sel.value=currentVal; if(isCellChanged(base.id,key,sel.value)) sel.classList.add("changed"); sel.addEventListener("change", onEditInline);
-          div.appendChild(sel); td.appendChild(div); return td;
-        }
-
-        let field;
-        if(!hasOptions && !looksMulti && dt==="date"){ field=document.createElement("input"); field.type="date"; field.value=currentVal||""; }
-        else if(!hasOptions && !looksMulti && (dt==="integer"||dt==="decimal")){ field=document.createElement("input"); field.type="number"; if(dt==="integer") field.step="1"; if(dt==="decimal") field.step="any"; field.inputMode="decimal"; field.value=currentVal; }
-        else { const isText=isTextOnlyKey(key); const useTextarea=isText || /[\r\n]/.test(currentVal); field=useTextarea?document.createElement("textarea"):document.createElement("input"); if(!useTextarea) field.type="text"; field.value=currentVal; if(field.tagName==="TEXTAREA"){ field.style.minHeight="60px"; field.style.resize="vertical"; } }
-        field.className="editable"; field.dataset.key=key; field.dataset.id=base.id; field.placeholder="";
-        if(options && (!field.matches("textarea") && field.type==="text")){
-          const listId=`dl_${key.replace(/[^a-zA-Z0-9_-]/g,"_")}`; let dl=document.getElementById(listId);
-          if(!dl){ dl=document.createElement("datalist"); dl.id=listId; options.forEach(o=>{ const opt=document.createElement("option"); opt.value=o.value; dl.appendChild(opt); }); document.body.appendChild(dl); }
-          field.setAttribute("list", listId);
-        }
-        field.addEventListener("input", onEditInline); if(isCellChanged(base.id,key,field.value)) field.classList.add("changed");
-        div.appendChild(field); td.appendChild(div); return td;
-      };
-
-      const tdStatus=(value)=>{ const td=document.createElement("td"); const div=document.createElement("div"); div.className="cell";
-        if(state.meta.statusOptions && state.meta.statusOptions.length){
-          const sel=document.createElement("select"); sel.className="editable"; sel.dataset.key="status"; sel.dataset.id=base.id;
-          const optEmpty=document.createElement("option"); optEmpty.value=""; optEmpty.textContent=""; sel.appendChild(optEmpty);
-          state.meta.statusOptions.forEach(o=>{ const opt=document.createElement("option"); opt.value=o.label; opt.textContent=o.label; sel.appendChild(opt); });
-          sel.value=value??""; if(isCellChanged(base.id,"status",sel.value)) sel.classList.add("changed"); sel.addEventListener("change", onEditInline); div.appendChild(sel);
-        } else { return tdText("status", value); }
-        td.appendChild(div); return td; };
-
-      tr.appendChild(tdRO(base.id));
-      tr.appendChild(tdRO(base.created));
-      tr.appendChild(tdText("name", base.name));
-      tr.appendChild(tdStatus(base.status));
-      state.meta.customProps.forEach(cp=>{ tr.appendChild(tdText(cp.key, custom[cp.key] ?? "")); });
-      tbody.appendChild(tr);
-    });
-    updateButtons();
-  }
 
   function onEditInline(e){ const input=e.target; const { id, key }=input.dataset; let value; if(input.tagName==="SELECT" && input.multiple){ value=Array.from(input.selectedOptions).map(o=>o.value).join("; "); } else { value=input.value; } const row=state.rows.find(r=>r.base.id===id); if(!row) return; if(defaultHeaders.includes(key)) row.base[key]=value; else row.custom[key]=value; if(isCellChanged(id,key,value)) input.classList.add("changed"); else input.classList.remove("changed"); updateButtons(); }
 
   function revertAll(){ state.rows = state.rows.map(r=>{ const orig=JSON.parse(JSON.stringify(state.original.get(r.base.id))); return { base: orig.base, custom: orig.custom }; }); render(); }
+function render(){
+  const thead = el("thead");
+  const header1 = document.createElement("tr");
+
+  // ヘッダー（並び替えボタン付き）
+const headersHtml = state.columns.map((key) => {
+  const label = getColumnLabel(key);
+  const type  = getColumnTypeLabel(key);
+  const isSorted = state.sortKey === key;
+  const arrow = isSorted ? (state.sortDir === "asc" ? "▲" : "▼") : "♢";
+  return `
+    <th title="${label}">
+      <button class="th-btn" data-sortkey="${key}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:0">
+        <span class="label">${label}</span>
+        <span class="pill">${type}</span>
+        <span class="arrow" aria-hidden="true">${arrow}</span>
+      </button>
+    </th>`;
+}).join("");
+header1.innerHTML = headersHtml;
+
+
+  header1.innerHTML = headersHtml;
+
+  // ソートトグル
+  header1.querySelectorAll(".th-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.sortkey;
+      if (state.sortKey === key) {
+        state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+      } else {
+        state.sortKey = key;
+        state.sortDir = "asc";
+      }
+      render();
+    });
+  });
+
+  // thead 反映（ここで再代入しない）
+  thead.innerHTML = "";
+  thead.appendChild(header1);
+
+  // 列リサイズハンドル
+  buildColgroup();
+  Array.from(thead.querySelectorAll("th")).forEach((th, i) => makeResizer(th, i));
+
+  // --- 本体 ---
+  const tbody = el("tbody");
+  tbody.innerHTML = "";
+
+  const q = state.filterText.trim().toLowerCase();
+  const rows = state.rows.filter(r => {
+    const changedOk = state.onlyChanged ? rowHasChanges(r) : true;
+    if (!changedOk) return false;
+    if (!q) return true;
+    return (
+      (r.base.name || "").toLowerCase().includes(q) ||
+      (r.base.status || "").toLowerCase().includes(q)
+    );
+  });
+
+  const rowsSorted = sortRows(rows);
+
+  rowsSorted.forEach(({ base, custom }) => {
+    const tr = document.createElement("tr");
+
+    const tdRO = (value) => {
+      const td = document.createElement("td");
+      const div = document.createElement("div");
+      div.className = "cell readonly";
+      div.textContent = value ?? "";
+      td.appendChild(div);
+      return td;
+    };
+
+    const tdText = (key, value) => {
+      const td = document.createElement("td");
+      const div = document.createElement("div");
+      div.className = "cell";
+
+      const cp = state.meta.customProps.find(c => c.key === key);
+      const optionsFromRefdata =
+        cp && cp.isRefdata && cp.refKey && state.meta.refdataMap[cp.refKey]
+          ? state.meta.refdataMap[cp.refKey]
+          : null;
+      const fromLicense = state.meta.cpOptionsByKey[key] || null;
+      const options = Array.isArray(fromLicense) && fromLicense.length > 0
+        ? fromLicense
+        : (Array.isArray(optionsFromRefdata) && optionsFromRefdata.length > 0 ? optionsFromRefdata : null);
+      const hasOptions = Array.isArray(options) && options.length > 0;
+      const currentVal = mapLabelToValue(key, value ?? "");
+      const looksMulti =
+        state.meta.cpMultiByKey[key] ||
+        (cp && cp.multi) ||
+        (currentVal || "").includes(";");
+      const dt = getDataTypeForKey(key);
+
+      // MultiSelect
+      if (hasOptions && looksMulti) {
+        const sel = document.createElement("select");
+        sel.className = "editable";
+        sel.dataset.key = key;
+        sel.dataset.id = base.id;
+        sel.multiple = true;
+        sel.size = Math.min(6, Math.max(3, options.length));
+
+        const curVals = currentVal
+          .split(/[;；]/)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(txt => mapLabelToValue(key, txt));
+
+        options.forEach(o => {
+          const opt = document.createElement("option");
+          opt.value = o.value;
+          opt.textContent = o.value;
+          if (curVals.includes(o.value)) opt.selected = true;
+          sel.appendChild(opt);
+        });
+
+        const curStr = curVals.join("; ");
+        if (isCellChanged(base.id, key, curStr)) sel.classList.add("changed");
+
+        sel.addEventListener("change", (ev) => {
+          onEditInline(ev);
+          const joined = Array.from(sel.selectedOptions).map(o => o.value).join("; ");
+          if (isCellChanged(base.id, key, joined)) sel.classList.add("changed");
+          else sel.classList.remove("changed");
+        });
+
+        sel.addEventListener("mousedown", (e) => {
+          const t = e.target;
+          if (t && t.tagName === "OPTION") {
+            e.preventDefault();
+            t.selected = !t.selected;
+            sel.focus();
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        });
+
+        div.appendChild(sel);
+        td.appendChild(div);
+        return td;
+      }
+
+      // SingleSelect
+      if (hasOptions && !looksMulti) {
+        const sel = document.createElement("select");
+        sel.className = "editable";
+        sel.dataset.key = key;
+        sel.dataset.id = base.id;
+        const optEmpty = document.createElement("option");
+        optEmpty.value = "";
+        optEmpty.textContent = "";
+        sel.appendChild(optEmpty);
+        options.forEach(o => {
+          const opt = document.createElement("option");
+          opt.value = o.value;
+          opt.textContent = o.value;
+          sel.appendChild(opt);
+        });
+        sel.value = currentVal;
+        if (isCellChanged(base.id, key, sel.value)) sel.classList.add("changed");
+        sel.addEventListener("change", onEditInline);
+        div.appendChild(sel);
+        td.appendChild(div);
+        return td;
+      }
+
+      // Text / Date / Integer / Decimal
+      let field;
+      if (!hasOptions && !looksMulti && dt === "date") {
+        field = document.createElement("input");
+        field.type = "date";
+        field.value = currentVal || "";
+      } else if (!hasOptions && !looksMulti && (dt === "integer" || dt === "decimal")) {
+        field = document.createElement("input");
+        field.type = "number";
+        if (dt === "integer") field.step = "1";
+        if (dt === "decimal") field.step = "any";
+        field.inputMode = "decimal";
+        field.value = currentVal;
+      } else {
+        const isText = isTextOnlyKey(key);
+        const useTextarea = isText || /[\r\n]/.test(currentVal);
+        field = useTextarea ? document.createElement("textarea") : document.createElement("input");
+        if (!useTextarea) field.type = "text";
+        field.value = currentVal;
+        if (field.tagName === "TEXTAREA") {
+          field.style.minHeight = "60px";
+          field.style.resize = "vertical";
+        }
+      }
+
+      field.className = "editable";
+      field.dataset.key = key;
+      field.dataset.id = base.id;
+      field.placeholder = "";
+
+      if (options && (!field.matches("textarea") && field.type === "text")) {
+        const listId = `dl_${key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+        let dl = document.getElementById(listId);
+        if (!dl) {
+          dl = document.createElement("datalist");
+          dl.id = listId;
+          options.forEach(o => {
+            const opt = document.createElement("option");
+            opt.value = o.value;
+            dl.appendChild(opt);
+          });
+          document.body.appendChild(dl);
+        }
+        field.setAttribute("list", listId);
+      }
+
+      field.addEventListener("input", onEditInline);
+      if (isCellChanged(base.id, key, field.value)) field.classList.add("changed");
+
+      div.appendChild(field);
+      td.appendChild(div);
+      return td;
+    };
+
+    const tdStatus = (value) => {
+      const td = document.createElement("td");
+      const div = document.createElement("div");
+      div.className = "cell";
+      if (state.meta.statusOptions && state.meta.statusOptions.length) {
+        const sel = document.createElement("select");
+        sel.className = "editable";
+        sel.dataset.key = "status";
+        sel.dataset.id = base.id;
+        const optEmpty = document.createElement("option");
+        optEmpty.value = "";
+        optEmpty.textContent = "";
+        sel.appendChild(optEmpty);
+        state.meta.statusOptions.forEach(o => {
+          const opt = document.createElement("option");
+          opt.value = o.label;
+          opt.textContent = o.label;
+          sel.appendChild(opt);
+        });
+        sel.value = value ?? "";
+        if (isCellChanged(base.id, "status", sel.value)) sel.classList.add("changed");
+        sel.addEventListener("change", onEditInline);
+        div.appendChild(sel);
+      } else {
+        return tdText("status", value);
+      }
+      td.appendChild(div);
+      return td;
+    };
+
+    tr.appendChild(tdRO(base.id));
+    tr.appendChild(tdRO(base.created));
+    tr.appendChild(tdText("name", base.name));
+    tr.appendChild(tdStatus(base.status));
+    state.meta.customProps.forEach(cp => {
+      tr.appendChild(tdText(cp.key, custom[cp.key] ?? ""));
+    });
+    tbody.appendChild(tr);
+  });
+
+  updateButtons();
+}
 
   // ----- PUT payload builders -----
   // Build full refdata object with owner for a given cp and token text
