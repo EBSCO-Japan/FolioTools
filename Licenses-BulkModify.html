@@ -146,7 +146,7 @@
       table thead th {
         position: sticky;
         top: 0;
-        z-index: 2;  /* ヘッダーを本文より前面に出す */
+        z-index: 2; /* ヘッダーを本文より前面に出す */
         background: #fff; /* 背景を付けないと下の文字が透けて見える */
       }
       /* Name列の th と td を sticky にする */
@@ -168,15 +168,15 @@
       }
       .table-wrap {
         margin-top: 16px;
-        overflow: auto;                 /* 縦横スクロールを許可 */
-        height: calc(100vh - 320px);    /* 画面の高さに追随（好みで数値調整） */
+        overflow: auto; /* 縦横スクロールを許可 */
+        height: calc(100vh - 320px); /* 画面の高さに追随（好みで数値調整） */
         border-radius: 8px;
-        overscroll-behavior: contain;   /* 親へのスクロール連鎖を抑止 */
+        overscroll-behavior: contain; /* 親へのスクロール連鎖を抑止 */
         scrollbar-gutter: stable both-edges; /* スクロールバー出入りでのレイアウト揺れ防止 */
       }
       table {
         width: 100%;
-        min-width: 1200px;              /* 列が多いので最低幅を確保 → 横スクロール */
+        min-width: 1200px; /* 列が多いので最低幅を確保 → 横スクロール */
         border-collapse: separate;
         border-spacing: 0;
         table-layout: fixed;
@@ -724,35 +724,34 @@
         return hit ? hit.value : text;
       }
 
-function buildColumns(){
-  // 1) custprops を ctx→weight→ラベル の優先で安定ソート
-  const sorted = [...state.meta.customProps].sort((a,b)=>{
-    const ca = (a.ctx || "").toString();
-    const cb = (b.ctx || "").toString();
-    const byCtx = ca.localeCompare(cb);
-    if (byCtx !== 0) return byCtx;
-    const wa = Number(a.weight ?? 0);
-    const wb = Number(b.weight ?? 0);
-    if (wa !== wb) return wa - wb;
-    return (a.label || a.key || "").localeCompare(b.label || b.key || "");
-  });
+      function buildColumns() {
+        // 1) custprops を ctx→weight→ラベル の優先で安定ソート
+        const sorted = [...state.meta.customProps].sort((a, b) => {
+          const ca = (a.ctx || "").toString();
+          const cb = (b.ctx || "").toString();
+          const byCtx = ca.localeCompare(cb);
+          if (byCtx !== 0) return byCtx;
+          const wa = Number(a.weight ?? 0);
+          const wb = Number(b.weight ?? 0);
+          if (wa !== wb) return wa - wb;
+          return (a.label || a.key || "").localeCompare(b.label || b.key || "");
+        });
 
-  // 2) 並び順を作成
-  const customKeysOrdered = sorted.map(cp => cp.key);
+        // 2) 並び順を作成
+        const customKeysOrdered = sorted.map((cp) => cp.key);
 
-  // 3) 列キー確定
-  state.columns = [...defaultHeaders, ...customKeysOrdered];
+        // 3) 列キー確定
+        state.columns = [...defaultHeaders, ...customKeysOrdered];
 
-  // 4) 各キーのカテゴリ（ctx）を記憶（基本4列は "基本" 扱い）
-  state.ctxByKey = Object.fromEntries([
-    ["id", "基本"],
-    ["created", "基本"],
-    ["name", "基本"],
-    ["status", "基本"],
-    ...sorted.map(cp => [cp.key, cp.ctx || ""])
-  ]);
-}
-
+        // 4) 各キーのカテゴリ（ctx）を記憶（基本4列は "基本" 扱い）
+        state.ctxByKey = Object.fromEntries([
+          ["id", "基本"],
+          ["created", "基本"],
+          ["name", "基本"],
+          ["status", "基本"],
+          ...sorted.map((cp) => [cp.key, cp.ctx || ""]),
+        ]);
+      }
 
       function isCellChanged(id, key, value) {
         const orig = state.original.get(id);
@@ -846,19 +845,24 @@ function buildColumns(){
         });
         render();
       }
-function render(){
-  const thead = el("thead");
-  thead.innerHTML = "";
+      function render() {
+        const thead = el("thead");
+        thead.innerHTML = "";
 
-  // ---- thead：1行のみ（カテゴリ - 改行 - カラム名）----
-  const headerRow = document.createElement("tr");
-  const headersHtml = state.columns.map((key) => {
-    const label = getColumnLabel(key);               // カラム名
-    const type  = getColumnTypeLabel(key);           // ピル表示
-    const ctx   = state.ctxByKey?.[key] ?? "";       // カテゴリ
-    const isSorted = state.sortKey === key;
-    const arrow = isSorted ? (state.sortDir === "asc" ? "▲" : "▼") : "♢";
-    return `
+        // ---- thead：1行のみ（カテゴリ - 改行 - カラム名）----
+        const headerRow = document.createElement("tr");
+        const headersHtml = state.columns
+          .map((key) => {
+            const label = getColumnLabel(key); // カラム名
+            const type = getColumnTypeLabel(key); // ピル表示
+            const ctx = state.ctxByKey?.[key] ?? ""; // カテゴリ
+            const isSorted = state.sortKey === key;
+            const arrow = isSorted
+              ? state.sortDir === "asc"
+                ? "▲"
+                : "▼"
+              : "♢";
+            return `
       <th title="${label}">
         <button class="th-btn" data-sortkey="${key}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:0">
           <span class="label">
@@ -868,236 +872,259 @@ function render(){
           <span class="arrow" aria-hidden="true">${arrow}</span>
         </button>
       </th>`;
-  }).join("");
-  headerRow.innerHTML = headersHtml;
-  thead.appendChild(headerRow);
+          })
+          .join("");
+        headerRow.innerHTML = headersHtml;
+        thead.appendChild(headerRow);
 
-  // 列リサイズハンドル（従来どおり）
-  buildColgroup();
-  Array.from(headerRow.querySelectorAll("th")).forEach((th, i) => makeResizer(th, i));
+        // 列リサイズハンドル（従来どおり）
+        buildColgroup();
+        Array.from(headerRow.querySelectorAll("th")).forEach((th, i) =>
+          makeResizer(th, i)
+        );
 
-  // --- 本体（以下は従来どおり）---
-  const tbody = el("tbody");
-  tbody.innerHTML = "";
+        // --- 本体（以下は従来どおり）---
+        const tbody = el("tbody");
+        tbody.innerHTML = "";
 
-  const q = state.filterText.trim().toLowerCase();
-  const rows = state.rows.filter((r) => {
-    const changedOk = state.onlyChanged ? rowHasChanges(r) : true;
-    if (!changedOk) return false;
-    if (!q) return true;
-    return (
-      (r.base.name || "").toLowerCase().includes(q) ||
-      (r.base.status || "").toLowerCase().includes(q)
-    );
-  });
-
-  const rowsSorted = sortRows(rows);
-
-  rowsSorted.forEach(({ base, custom }) => {
-    const tr = document.createElement("tr");
-
-    const tdRO = (value) => {
-      const td = document.createElement("td");
-      const div = document.createElement("div");
-      div.className = "cell readonly";
-      div.textContent = value ?? "";
-      td.appendChild(div);
-      return td;
-    };
-
-    const tdText = (key, value) => {
-      const td = document.createElement("td");
-      const div = document.createElement("div");
-      div.className = "cell";
-
-      const cp = state.meta.customProps.find((c) => c.key === key);
-      const optionsFromRefdata =
-        cp && cp.isRefdata && cp.refKey && state.meta.refdataMap[cp.refKey]
-          ? state.meta.refdataMap[cp.refKey]
-          : null;
-      const fromLicense = state.meta.cpOptionsByKey[key] || null;
-      const options =
-        Array.isArray(fromLicense) && fromLicense.length > 0
-          ? fromLicense
-          : Array.isArray(optionsFromRefdata) && optionsFromRefdata.length > 0
-          ? optionsFromRefdata
-          : null;
-
-      const hasOptions = Array.isArray(options) && options.length > 0;
-      const currentVal = mapLabelToValue(key, value ?? "");
-      const looksMulti =
-        state.meta.cpMultiByKey[key] ||
-        (cp && cp.multi) ||
-        (currentVal || "").includes(";");
-      const dt = getDataTypeForKey(key);
-
-      // （以下、入力UI生成は元コードそのまま）
-      if (hasOptions && looksMulti) {
-        const sel = document.createElement("select");
-        sel.className = "editable";
-        sel.dataset.key = key;
-        sel.dataset.id = base.id;
-        sel.multiple = true;
-        sel.size = Math.min(6, Math.max(3, options.length));
-
-        const curVals = currentVal
-          .split(/[;；]/)
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .map((txt) => mapLabelToValue(key, txt));
-
-        options.forEach((o) => {
-          const opt = document.createElement("option");
-          opt.value = o.value;
-          opt.textContent = o.value;
-          if (curVals.includes(o.value)) opt.selected = true;
-          sel.appendChild(opt);
+        const q = state.filterText.trim().toLowerCase();
+        const rows = state.rows.filter((r) => {
+          const changedOk = state.onlyChanged ? rowHasChanges(r) : true;
+          if (!changedOk) return false;
+          if (!q) return true;
+          return (
+            (r.base.name || "").toLowerCase().includes(q) ||
+            (r.base.status || "").toLowerCase().includes(q)
+          );
         });
 
-        const curStr = curVals.join("; ");
-        if (isCellChanged(base.id, key, curStr)) sel.classList.add("changed");
+        const rowsSorted = sortRows(rows);
 
-        sel.addEventListener("change", (ev) => {
-          onEditInline(ev);
-          const joined = Array.from(sel.selectedOptions).map((o) => o.value).join("; ");
-          if (isCellChanged(base.id, key, joined)) sel.classList.add("changed");
-          else sel.classList.remove("changed");
-        });
+        rowsSorted.forEach(({ base, custom }) => {
+          const tr = document.createElement("tr");
 
-        sel.addEventListener("mousedown", (e) => {
-          const t = e.target;
-          if (t && t.tagName === "OPTION") {
-            e.preventDefault();
-            t.selected = !t.selected;
-            sel.focus();
-            sel.dispatchEvent(new Event("change", { bubbles: true }));
-          }
-        });
+          const tdRO = (value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell readonly";
+            div.textContent = value ?? "";
+            td.appendChild(div);
+            return td;
+          };
 
-        div.appendChild(sel);
-        td.appendChild(div);
-        return td;
-      }
+          const tdText = (key, value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell";
 
-      if (hasOptions && !looksMulti) {
-        const sel = document.createElement("select");
-        sel.className = "editable";
-        sel.dataset.key = key;
-        sel.dataset.id = base.id;
-        const optEmpty = document.createElement("option");
-        optEmpty.value = "";
-        optEmpty.textContent = "";
-        sel.appendChild(optEmpty);
-        options.forEach((o) => {
-          const opt = document.createElement("option");
-          opt.value = o.value;
-          opt.textContent = o.value;
-          sel.appendChild(opt);
-        });
-        sel.value = currentVal;
-        if (isCellChanged(base.id, key, sel.value)) sel.classList.add("changed");
-        sel.addEventListener("change", onEditInline);
-        div.appendChild(sel);
-        td.appendChild(div);
-        return td;
-      }
+            const cp = state.meta.customProps.find((c) => c.key === key);
+            const optionsFromRefdata =
+              cp &&
+              cp.isRefdata &&
+              cp.refKey &&
+              state.meta.refdataMap[cp.refKey]
+                ? state.meta.refdataMap[cp.refKey]
+                : null;
+            const fromLicense = state.meta.cpOptionsByKey[key] || null;
+            const options =
+              Array.isArray(fromLicense) && fromLicense.length > 0
+                ? fromLicense
+                : Array.isArray(optionsFromRefdata) &&
+                  optionsFromRefdata.length > 0
+                ? optionsFromRefdata
+                : null;
 
-      let field;
-      if (!hasOptions && !looksMulti && dt === "date") {
-        field = document.createElement("input");
-        field.type = "date";
-        field.value = currentVal || "";
-      } else if (!hasOptions && !looksMulti && (dt === "integer" || dt === "decimal")) {
-        field = document.createElement("input");
-        field.type = "number";
-        if (dt === "integer") field.step = "1";
-        if (dt === "decimal") field.step = "any";
-        field.inputMode = "decimal";
-        field.value = currentVal;
-      } else {
-        const isText = isTextOnlyKey(key);
-        const useTextarea = isText || /[\r\n]/.test(currentVal);
-        field = useTextarea ? document.createElement("textarea") : document.createElement("input");
-        if (!useTextarea) field.type = "text";
-        field.value = currentVal;
-        if (field.tagName === "TEXTAREA") {
-          field.style.minHeight = "60px";
-          field.style.resize = "vertical";
-        }
-      }
+            const hasOptions = Array.isArray(options) && options.length > 0;
+            const currentVal = mapLabelToValue(key, value ?? "");
+            const looksMulti =
+              state.meta.cpMultiByKey[key] ||
+              (cp && cp.multi) ||
+              (currentVal || "").includes(";");
+            const dt = getDataTypeForKey(key);
 
-      field.className = "editable";
-      field.dataset.key = key;
-      field.dataset.id = base.id;
-      field.placeholder = "";
+            // （以下、入力UI生成は元コードそのまま）
+            if (hasOptions && looksMulti) {
+              const sel = document.createElement("select");
+              sel.className = "editable";
+              sel.dataset.key = key;
+              sel.dataset.id = base.id;
+              sel.multiple = true;
+              sel.size = Math.min(6, Math.max(3, options.length));
 
-      if (options && !field.matches("textarea") && field.type === "text") {
-        const listId = `dl_${key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-        let dl = document.getElementById(listId);
-        if (!dl) {
-          dl = document.createElement("datalist");
-          dl.id = listId;
-          options.forEach((o) => {
-            const opt = document.createElement("option");
-            opt.value = o.value;
-            dl.appendChild(opt);
+              const curVals = currentVal
+                .split(/[;；]/)
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .map((txt) => mapLabelToValue(key, txt));
+
+              options.forEach((o) => {
+                const opt = document.createElement("option");
+                opt.value = o.value;
+                opt.textContent = o.value;
+                if (curVals.includes(o.value)) opt.selected = true;
+                sel.appendChild(opt);
+              });
+
+              const curStr = curVals.join("; ");
+              if (isCellChanged(base.id, key, curStr))
+                sel.classList.add("changed");
+
+              sel.addEventListener("change", (ev) => {
+                onEditInline(ev);
+                const joined = Array.from(sel.selectedOptions)
+                  .map((o) => o.value)
+                  .join("; ");
+                if (isCellChanged(base.id, key, joined))
+                  sel.classList.add("changed");
+                else sel.classList.remove("changed");
+              });
+
+              sel.addEventListener("mousedown", (e) => {
+                const t = e.target;
+                if (t && t.tagName === "OPTION") {
+                  e.preventDefault();
+                  t.selected = !t.selected;
+                  sel.focus();
+                  sel.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+              });
+
+              div.appendChild(sel);
+              td.appendChild(div);
+              return td;
+            }
+
+            if (hasOptions && !looksMulti) {
+              const sel = document.createElement("select");
+              sel.className = "editable";
+              sel.dataset.key = key;
+              sel.dataset.id = base.id;
+              const optEmpty = document.createElement("option");
+              optEmpty.value = "";
+              optEmpty.textContent = "";
+              sel.appendChild(optEmpty);
+              options.forEach((o) => {
+                const opt = document.createElement("option");
+                opt.value = o.value;
+                opt.textContent = o.value;
+                sel.appendChild(opt);
+              });
+              sel.value = currentVal;
+              if (isCellChanged(base.id, key, sel.value))
+                sel.classList.add("changed");
+              sel.addEventListener("change", onEditInline);
+              div.appendChild(sel);
+              td.appendChild(div);
+              return td;
+            }
+
+            let field;
+            if (!hasOptions && !looksMulti && dt === "date") {
+              field = document.createElement("input");
+              field.type = "date";
+              field.value = currentVal || "";
+            } else if (
+              !hasOptions &&
+              !looksMulti &&
+              (dt === "integer" || dt === "decimal")
+            ) {
+              field = document.createElement("input");
+              field.type = "number";
+              if (dt === "integer") field.step = "1";
+              if (dt === "decimal") field.step = "any";
+              field.inputMode = "decimal";
+              field.value = currentVal;
+            } else {
+              const isText = isTextOnlyKey(key);
+              const useTextarea = isText || /[\r\n]/.test(currentVal);
+              field = useTextarea
+                ? document.createElement("textarea")
+                : document.createElement("input");
+              if (!useTextarea) field.type = "text";
+              field.value = currentVal;
+              if (field.tagName === "TEXTAREA") {
+                field.style.minHeight = "60px";
+                field.style.resize = "vertical";
+              }
+            }
+
+            field.className = "editable";
+            field.dataset.key = key;
+            field.dataset.id = base.id;
+            field.placeholder = "";
+
+            if (
+              options &&
+              !field.matches("textarea") &&
+              field.type === "text"
+            ) {
+              const listId = `dl_${key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+              let dl = document.getElementById(listId);
+              if (!dl) {
+                dl = document.createElement("datalist");
+                dl.id = listId;
+                options.forEach((o) => {
+                  const opt = document.createElement("option");
+                  opt.value = o.value;
+                  dl.appendChild(opt);
+                });
+                document.body.appendChild(dl);
+              }
+              field.setAttribute("list", listId);
+            }
+
+            field.addEventListener("input", onEditInline);
+            if (isCellChanged(base.id, key, field.value))
+              field.classList.add("changed");
+
+            div.appendChild(field);
+            td.appendChild(div);
+            return td;
+          };
+
+          const tdStatus = (value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell";
+            if (state.meta.statusOptions && state.meta.statusOptions.length) {
+              const sel = document.createElement("select");
+              sel.className = "editable";
+              sel.dataset.key = "status";
+              sel.dataset.id = base.id;
+              const optEmpty = document.createElement("option");
+              optEmpty.value = "";
+              optEmpty.textContent = "";
+              sel.appendChild(optEmpty);
+              state.meta.statusOptions.forEach((o) => {
+                const opt = document.createElement("option");
+                opt.value = o.label;
+                opt.textContent = o.label;
+                sel.appendChild(opt);
+              });
+              sel.value = value ?? "";
+              if (isCellChanged(base.id, "status", sel.value))
+                sel.classList.add("changed");
+              sel.addEventListener("change", onEditInline);
+              div.appendChild(sel);
+            } else {
+              return tdText("status", value);
+            }
+            td.appendChild(div);
+            return td;
+          };
+
+          tr.appendChild(tdRO(base.id));
+          tr.appendChild(tdRO(base.created));
+          tr.appendChild(tdText("name", base.name));
+          tr.appendChild(tdStatus(base.status));
+          state.meta.customProps.forEach((cp) => {
+            tr.appendChild(tdText(cp.key, custom[cp.key] ?? ""));
           });
-          document.body.appendChild(dl);
-        }
-        field.setAttribute("list", listId);
-      }
-
-      field.addEventListener("input", onEditInline);
-      if (isCellChanged(base.id, key, field.value)) field.classList.add("changed");
-
-      div.appendChild(field);
-      td.appendChild(div);
-      return td;
-    };
-
-    const tdStatus = (value) => {
-      const td = document.createElement("td");
-      const div = document.createElement("div");
-      div.className = "cell";
-      if (state.meta.statusOptions && state.meta.statusOptions.length) {
-        const sel = document.createElement("select");
-        sel.className = "editable";
-        sel.dataset.key = "status";
-        sel.dataset.id = base.id;
-        const optEmpty = document.createElement("option");
-        optEmpty.value = "";
-        optEmpty.textContent = "";
-        sel.appendChild(optEmpty);
-        state.meta.statusOptions.forEach((o) => {
-          const opt = document.createElement("option");
-          opt.value = o.label;
-          opt.textContent = o.label;
-          sel.appendChild(opt);
+          tbody.appendChild(tr);
         });
-        sel.value = value ?? "";
-        if (isCellChanged(base.id, "status", sel.value)) sel.classList.add("changed");
-        sel.addEventListener("change", onEditInline);
-        div.appendChild(sel);
-      } else {
-        return tdText("status", value);
+
+        updateButtons();
       }
-      td.appendChild(div);
-      return td;
-    };
-
-    tr.appendChild(tdRO(base.id));
-    tr.appendChild(tdRO(base.created));
-    tr.appendChild(tdText("name", base.name));
-    tr.appendChild(tdStatus(base.status));
-    state.meta.customProps.forEach((cp) => {
-      tr.appendChild(tdText(cp.key, custom[cp.key] ?? ""));
-    });
-    tbody.appendChild(tr);
-  });
-
-  updateButtons();
-}
-
 
       // ----- PUT payload builders -----
       // Build full refdata object with owner for a given cp and token text
