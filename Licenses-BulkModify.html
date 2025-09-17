@@ -368,19 +368,25 @@
 function parseCustomInputToPayloadWithOptionsRich(key, val, current){
   const cp = state.meta.customProps.find(c => c.key === key);
   const trimmed = (val || "").trim();
-  if(!trimmed) return [{ _delete: true }];
 
-  const tokens = trimmed.split(/;|；/).map(s => s.trim()).filter(Boolean);
-  const looksMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi || tokens.length > 1);
+  // トークン化（空文字なら空配列＝全選択解除）
+  const tokens = trimmed
+    ? trimmed.split(/;|；/).map(s => s.trim()).filter(Boolean)
+    : [];
+
+  const looksMulti =
+    !!(state.meta.cpMultiByKey[key] || cp?.multi || tokens.length > 1);
 
   if (looksMulti) {
-    // refdata オブジェクト配列を作成
+    // マルチ：選択 0 件でも空配列を value にする
     const arr = tokens.map(t => buildRefdataValueObject(cp, t)).filter(Boolean);
-    // ★ id/internal/type を保持（current があれば流用）または cp から補完
     return buildMultiRefdataContainer(cp, current, arr);
   }
 
-  // 単一選択はスカラ（既存構造に合わせ、必要なら {value:...} 包装）
+  // 単一：空なら削除（従来挙動のまま）
+  if (!trimmed) return [{ _delete: true }];
+
+  // 単一選択はスカラ値
   const mapped = mapLabelToValue(key, tokens[0] || "");
   if (current && Array.isArray(current) && current[0] &&
       typeof current[0].value === "object" && current[0].value !== null &&
@@ -389,7 +395,6 @@ function parseCustomInputToPayloadWithOptionsRich(key, val, current){
   }
   return [{ _delete: false, value: mapped }];
 }
-
 
   function parseCustomInputToPayloadScalar(val){ const trimmed=(val||"").trim(); if(!trimmed) return [{ _delete:true }]; return [{ _delete:false, value: trimmed }]; }
 
@@ -437,37 +442,38 @@ function parseCustomInputToPayloadWithOptionsRich(key, val, current){
     else setStatus(`保存に失敗しました:\n${details.join("\n")}`,"err");
     updateButtons();
   }
-// Multi-Refdata のコンテナ（id/internal/type を保持/補完）を作る
+// Multi-Refdata のコンテナ（id/internal/type を維持 or 補完）を作る
 function buildMultiRefdataContainer(cp, currentArr, refdataArray) {
-  // すでに値がある場合は、その最初の要素をベースに上書き（id/internal/type を維持）
+  // 既存があれば id/internal/type を維持して value だけ差し替え
   if (Array.isArray(currentArr) && currentArr.length > 0) {
     const base = Object.assign({}, currentArr[0]); // shallow clone
-    base.value = refdataArray;
+    base.value = Array.isArray(refdataArray) ? refdataArray : [];
     return [base];
   }
-  // 新規の場合は cp メタから type を組み立てる（type.id は cp.typeId があれば付与）
+  // 新規作成（cpメタから type を補完）。value は空配列も許容
   const typeObj = {
-    id: cp.typeId || undefined,
+    id: cp?.typeId || undefined,
     retired: false,
-    name: cp.key,
+    name: cp?.key,
     primary: true,
     category: {
-      id: cp.categoryId || null,
-      desc: cp.categoryDesc || "",
-      internal: !!cp.categoryInternal,
-      values: (cp.categoryValues || []).map(v => ({
+      id: cp?.categoryId || null,
+      desc: cp?.categoryDesc || "",
+      internal: !!cp?.categoryInternal,
+      values: (cp?.categoryValues || []).map(v => ({
         id: v.id, value: v.value, label: v.label
       }))
     },
     defaultInternal: true,
-    label: cp.label || cp.key
+    label: cp?.label || cp?.key
   };
   return [{
     internal: true,
-    value: refdataArray,
+    value: Array.isArray(refdataArray) ? refdataArray : [],
     type: typeObj
   }];
 }
+
 
   async function loadAll(){
     const baseUrl=el("baseUrl").value.trim(); const tenant=el("tenant").value.trim(); const username=el("username").value.trim(); const password=el("password").value;
