@@ -373,7 +373,7 @@
         <button id="loadBtn" class="btn">ライセンス読込</button>
         <button id="saveBtn" class="btn ok" disabled>変更を保存</button>
         <button id="revertBtn" class="btn ghost" disabled>リセット</button>
-        <button id="exportBtn" class="btn secondary">Excelに保存</button> <span class="legend">表示されている表と値をダウンロードします</span>
+        <button id="exportBtn" class="btn secondary" disabled>Excelに保存</button> <span class="legend">表示されている表をダウンロードします</span>
         <div class="spacer"></div>
         <label
           class="row"
@@ -1187,6 +1187,12 @@
         });
 
         updateButtons();
+        
+        // 表に1行でも表示されていたら「Excelに保存」を活性化
+        const exportBtn = el("exportBtn");
+        if (exportBtn) {
+          exportBtn.disabled = rowsSorted.length === 0;
+        }
       }
 
       // ----- PUT payload builders -----
@@ -1453,6 +1459,7 @@
         try {
           setStatus("認証中…", "info");
           el("loadBtn").disabled = true;
+          el("exportBtn") && (el("exportBtn").disabled = true);
           state.token = await login(baseUrl, tenant, username, password);
           state.loginUser = username;
 
