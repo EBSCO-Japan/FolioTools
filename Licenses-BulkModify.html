@@ -1160,9 +1160,11 @@
           tr.appendChild(tdRO(base.created));
           tr.appendChild(tdText("name", base.name));
           tr.appendChild(tdStatus(base.status));
-          state.meta.customProps.forEach((cp) => {
-            tr.appendChild(tdText(cp.key, custom[cp.key] ?? ""));
-          });
+          // 並び替え後のヘッダー順（state.columns）に合わせて本文も描画
+            const customKeysInOrder = state.columns.filter(k => !defaultHeaders.includes(k));
+            customKeysInOrder.forEach((key) => {
+              tr.appendChild(tdText(key, custom[key] ?? ""));
+            });
           tbody.appendChild(tr);
         });
 
