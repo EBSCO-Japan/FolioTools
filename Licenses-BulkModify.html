@@ -1532,10 +1532,27 @@ function getVisibleSortedRowsForExport() {
   // 画面と同じ並び替え
   return sortRows(rows);
 }
+// Excel用ヘッダー（label優先）
+function getExportHeaderLabel(key) {
+  if (key === "id") return "ID";
+  if (key === "created") return "作成日";
+  if (key === "name") return "名称";
+  if (key === "status") return "ステータス";
+  const cp = state.meta.customProps.find((c) => c.key === key);
+  return cp?.label || key;
+}
+
+// Excel用のctx行（基本4列は空文字。必要なら '基本' にしてOK）
+function getExportCtx(key) {
+  if (defaultHeaders.includes(key)) return "";
+  const cp = state.meta.customProps.find((c) => c.key === key);
+  return cp?.ctx || "";
+}
 
 function buildAoaFromState() {
-  // ヘッダー列（画面の見出しと同じ語を使用）
-  const headers = state.columns.map((key) => getColumnLabel(key));
+  // 1行目に ctx、2行目にヘッダー（label）
+  const ctxRow = state.columns.map((key) => getExportCtx(key));
+  const headerRow = state.columns.map((key) => getExportHeaderLabel(key));
   const rowsSorted = getVisibleSortedRowsForExport();
 
   // 本文（画面表示と同じ文字列を出力）
@@ -1545,7 +1562,8 @@ function buildAoaFromState() {
     )
   );
 
-  return [headers, ...body];
+  // 先頭に ctx 行を追加した二重ヘッダーを返す
+  return [ctxRow, headerRow, ...body];
 }
 
 function downloadCSVFallback(aoa, filenameBase) {
