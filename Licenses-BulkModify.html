@@ -408,7 +408,7 @@
       <div class="toolbar" style="border-top: 1px dashed var(--border)">
         <div class="legend">
           <span class="tag">使い方</span>
-          <span>♢：ソート</span>
+          <span>♢：ソート | ヘッダーにホバーするとライセンス項目の説明が表示されます</span>
         </div>
       </div>
     </div>
@@ -565,6 +565,7 @@
                 ? "decimal"
                 : "text",
               label: p.label || p.name || "",
+              description: p.description || "",
               typeId: p.id || null,
             });
           });
@@ -742,6 +743,17 @@
         if (key === "status") return "ステータス";
         return key;
       }
+      function getColumnTitle(key) {
+        // 既定4列は従来どおり見出しラベルのみ
+        if (["id", "created", "name", "status"].includes(key)) {
+          return getColumnLabel(key);
+        }
+        // カスタム項目は label + description を title に
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const label = cp?.label || cp?.key || key;
+        const desc = (cp?.description || "").trim();
+        return desc ? `${label} — ${desc}` : label;
+      }
 
       function mapLabelToValue(key, text) {
         const options = state.meta.cpOptionsByKey[key];
@@ -882,6 +894,7 @@
         const headersHtml = state.columns
           .map((key) => {
             const label = getColumnLabel(key); // カラム名
+            const titleText = getColumnTitle(key); // ツールチップ（label + description）
             const type = getColumnTypeLabel(key); // ピル表示
             const isDefault = ["id", "created", "name", "status"].includes(key);
             const ctx = state.ctxByKey?.[key] ?? ""; // カテゴリ
@@ -892,7 +905,7 @@
                 : "▼"
               : "♢";
             return `
-      <th title="${label}" class="${isDefault ? "primary" : ""}">
+      <th title="${titleText}" class="${isDefault ? "primary" : ""}">
         <button class="th-btn" data-sortkey="${key}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:0">
           <span class="label">
           ${ctx ? `<span class="ctx-badge">${ctx}</span><br>` : ""}
