@@ -349,9 +349,7 @@
   </head>
   <body>
     <h1>FOLIO Licenses Inline Editor</h1>
-    <div class="sub">
-      ライセンスを表示→編集できます
-    </div>
+    <div class="sub">ライセンスを表示→編集できます</div>
 
     <div class="card">
       <div class="form">
@@ -373,14 +371,13 @@
       <div class="toolbar">
         <button id="loadBtn" class="btn">ライセンス読込</button>
         <button id="saveBtn" class="btn ok" disabled>変更を保存</button>
-        <button id="revertBtn" class="btn ghost" disabled>
-          リセット
-        </button>
+        <button id="revertBtn" class="btn ghost" disabled>リセット</button>
         <div class="spacer"></div>
         <label
           class="row"
           style="gap: 6px; font-size: 12px; color: var(--muted)"
-          ><input type="checkbox" id="onlyChanged" /> 黄色セル（変更）がある行に絞り込み</label
+          ><input type="checkbox" id="onlyChanged" />
+          黄色セル（変更）がある行に絞り込み</label
         >
         <input
           id="q"
@@ -408,7 +405,10 @@
       <div class="toolbar" style="border-top: 1px dashed var(--border)">
         <div class="legend">
           <span class="tag">使い方</span>
-          <span>♢：ソート | ヘッダーにホバーするとライセンス項目の説明が表示されます</span>
+          <span
+            >♢：ソート |
+            ヘッダーにホバーするとライセンス項目の説明が表示されます</span
+          >
         </div>
       </div>
     </div>
@@ -1174,10 +1174,12 @@
           tr.appendChild(tdText("name", base.name));
           tr.appendChild(tdStatus(base.status));
           // 並び替え後のヘッダー順（state.columns）に合わせて本文も描画
-            const customKeysInOrder = state.columns.filter(k => !defaultHeaders.includes(k));
-            customKeysInOrder.forEach((key) => {
-              tr.appendChild(tdText(key, custom[key] ?? ""));
-            });
+          const customKeysInOrder = state.columns.filter(
+            (k) => !defaultHeaders.includes(k)
+          );
+          customKeysInOrder.forEach((key) => {
+            tr.appendChild(tdText(key, custom[key] ?? ""));
+          });
           tbody.appendChild(tr);
         });
 
