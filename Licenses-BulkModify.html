@@ -443,7 +443,7 @@
         sortDir: "asc", // "asc" | "desc"
       };
 
-      const defaultHeaders = ["id", "created", "name", "status"];
+      const defaultHeaders = ["id", "created", "name", "status", "alternateName", "type"];
 
       function setStatus(msg, kind = "info") {
         const s = el("status");
@@ -627,6 +627,10 @@
               created: lic.dateCreated?.slice(0, 10) || "",
               name: lic.name,
               status: lic.status?.label || lic.status || "",
+              alternateName: Array.isArray(lic.alternateNames)
+              ? lic.alternateNames.map(a => a?.name).filter(Boolean).join("; ")
+              : "",
+              type: lic.type?.label || lic.type || "",
             };
             const custom = {};
             Object.entries(lic.customProperties || {}).forEach(
@@ -724,7 +728,7 @@
       }
 
       function getColumnTypeLabel(key) {
-        if (key === "id" || key === "created") return "編集不可";
+        if (["id", "created", "alternateName", "type"].includes(key)) return "編集不可";
         if (key === "name") return "文";
         if (key === "status")
           return state.meta.statusOptions?.length > 0 ? "単" : "文";
@@ -744,6 +748,8 @@
         if (key === "created") return "作成日";
         if (key === "name") return "名称";
         if (key === "status") return "ステータス";
+        if (key === "alternateName") return "AlternateName";
+        if (key === "type") return "Type";
         return key;
       }
       function getColumnTitle(key) {
@@ -751,6 +757,8 @@
         if (["id", "created", "name", "status"].includes(key)) {
           return getColumnLabel(key);
         }
+        if (key === "alternateName") return "AlternateName — alternateNames[].name を「; 」連結して表示";
+        if (key === "type") return "Type — license.type.label を表示";
         // カスタム項目は label + description を title に
         const cp = state.meta.customProps.find((c) => c.key === key);
         const label = cp?.label || cp?.key || key;
@@ -811,7 +819,7 @@
       function rowHasChanges(row) {
         const id = row.base.id;
         return state.columns.some((col) => {
-          if (col === "id" || col === "created") return false;
+          if (["id", "created", "alternateName", "type"].includes(col)) return false;
           const value = defaultHeaders.includes(col)
             ? row.base[col]
             : row.custom[col];
@@ -1176,6 +1184,12 @@
           tr.appendChild(tdRO(base.created));
           tr.appendChild(tdText("name", base.name));
           tr.appendChild(tdStatus(base.status));
+          const extraBaseKeys = state.columns.filter(
+            (k) => defaultHeaders.includes(k) && !["id","created","name","status"].includes(k)
+          );
+          extraBaseKeys.forEach((key) => {
+            tr.appendChild(tdRO(base[key]));
+          });
           // 並び替え後のヘッダー順（state.columns）に合わせて本文も描画
           const customKeysInOrder = state.columns.filter(
             (k) => !defaultHeaders.includes(k)
