@@ -1311,63 +1311,74 @@
         return [{ _delete: false, value: trimmed }];
       }
 
-      function parseCustomInputToPayloadWithOptionsRich(key, val, current) {
-        const cp = state.meta.customProps.find((c) => c.key === key);
-        const trimmed = (val || "").trim();
+    function parseCustomInputToPayloadWithOptionsRich(key, val, currentArr) {
+      const cp = state.meta.customProps.find((c) => c.key === key);
+      const trimmed = (val || "").trim();
 
-        // トークン化
-        const tokens = trimmed
-          ? trimmed
-              .split(/;|；/)
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [];
+      // トークン化
+      const tokens = trimmed
+        ? trimmed
+            .split(/;|；/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
 
-        const looksMulti = !!(
-          state.meta.cpMultiByKey[key] ||
-          cp?.multi ||
-          tokens.length > 1
-        );
+      const looksMulti = !!(
+        state.meta.cpMultiByKey[key] ||
+        cp?.multi ||
+        tokens.length > 1
+      );
 
-        if (looksMulti) {
-          // 0件（= 全選択解除）のとき： value は []、かつ _delete:true を同一オブジェクトに付与
-          if (tokens.length === 0) {
-            if (Array.isArray(current) && current.length > 0) {
-              const base = { ...current[0] }; // 既存を尊重（id/internal/type を維持）
-              base.value = []; // 空配列に上書き
-              base._delete = true; // 削除フラグを同一レコードに付与
-              return [base];
-            }
-            // 新規（現在値なし）の場合は cp メタから type を補完
-            const created = buildMultiRefdataContainer(cp, null, []); // value: []
-            if (created && created[0]) created[0]._delete = true;
-            return created;
+      if (looksMulti) {
+        // 0件（= 全選択解除）: 既存があればコンテナを維持して _delete:true
+        if (tokens.length === 0) {
+          if (Array.isArray(currentArr) && currentArr.length > 0) {
+            const base = { ...currentArr[0] };
+            base._delete = true;
+            // multi は配列コンテナなので明示的に空配列へ
+            if ("value" in base) base.value = [];
+            return [base];
           }
-
-          // 選択あり：refdata 配列を構築して通常どおり
-          const arr = tokens
-            .map((t) => buildRefdataValueObject(cp, t))
-            .filter(Boolean);
-          return buildMultiRefdataContainer(cp, current, arr);
+          // 新規（容器なし）の場合は空配列コンテナを生成しつつ _delete:true
+          const created = buildMultiRefdataContainer(cp, null, []);
+          if (created && created[0]) created[0]._delete = true;
+          return created;
         }
 
-        // 単一選択：空なら削除（従来どおり）
-        if (!trimmed) return [{ _delete: true }];
-
-        // 単一選択はスカラ値
-        const mapped = mapLabelToValue(key, tokens[0] || "");
-        if (
-          current &&
-          Array.isArray(current) &&
-          current[0] &&
-          typeof current[0].value === "object" &&
-          current[0].value !== null &&
-          "value" in current[0].value
-        ) {
-          return [{ _delete: false, value: { value: mapped } }];
-        }
-        return [{ _delete: false, value: mapped }];
+        // 選択あり：refdata 配列を構築
+        const arr = tokens
+          .map((t) => buildRefdataValueObject(cp, t))
+          .filter(Boolean);
+        return buildMultiRefdataContainer(cp, currentArr, arr);
       }
+
+      // ---- 単一選択（ここが今回の修正ポイント）----
+      // 空なら削除：既存があればコンテナを維持して _delete:true を付与
+      if (!trimmed) {
+        if (Array.isArray(currentArr) && currentArr.length > 0) {
+          const base = { ...currentArr[0] };
+          base._delete = true;
+          if ("value" in base) base.value = null; // 念のため無効化
+          return [base];
+        }
+        // 既存なしなら最小形でOK（サーバが許すなら）
+        return [{ _delete: true }];
+      }
+
+      // 値あり：スカラ保存（既存の形に合わせる）
+      const mapped = mapLabelToValue(key, tokens[0] || "");
+      if (
+        currentArr &&
+        Array.isArray(currentArr) &&
+        currentArr[0] &&
+        typeof currentArr[0].value === "object" &&
+        currentArr[0].value !== null &&
+        "value" in currentArr[0].value
+      ) {
+        return [{ _delete: false, value: { value: mapped } }];
+      }
+      return [{ _delete: false, value: mapped }];
+    }
 
       function parseCustomInputToPayloadScalar(val) {
         const trimmed = (val || "").trim();
