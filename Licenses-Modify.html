@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FOLIO Licenses Inline Editor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <!-- ▼ CSV解析用 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+      :root {
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --text: #222;
+        --muted: #6b7280;
+        --brand: #2563eb;
+        --brand-600: #1d4ed8;
+        --ok: #16a34a;
+        --warn: #f59e0b;
+        --err: #dc2626;
+        --border: #e5e7eb;
+        --changed: #fafa96;
+      }
+      * { box-sizing: border-box; }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 0; padding: 24px; color: var(--text); background: var(--bg);
+      }
+      h1 { font-size: 22px; margin: 0 0 8px; }
+      .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+
+      .card {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+      }
+
+      .form {
+        display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(140px, 1fr));
+        padding: 16px;
+      }
+      .form label {
+        font-size: 12px; color: var(--muted);
+        display: flex; flex-direction: column; gap: 6px;
+      }
+      .form input, .form select {
+        padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+      }
+
+      .row { display: flex; align-items: center; gap: 8px; }
+
+      .th-btn .label {
+        min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .th-btn .pill { flex: 0 0 auto; }
+      .th-btn .arrow { flex: 0 0 auto; opacity: .8; }
+      .th-btn { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+      .btn {
+        appearance: none; border: none; background: var(--brand); color: #fff;
+        padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
+      }
+      .btn:disabled { opacity: .5; cursor: not-allowed; }
+      .btn.secondary { background: #111827; }
+      .btn.ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+      .btn.warn { background: var(--warn); color: #111; }
+      .btn.ok { background: var(--ok); }
+
+      .toolbar {
+        display: flex; gap: 8px; align-items: center; padding: 12px 16px;
+        border-top: 1px solid var(--border); flex-wrap: wrap;
+      }
+      .toolbar .spacer { flex: 1; }
+
+      .ctx-badge {
+        display: inline-block; padding: 2px 6px; border-radius: 999px;
+        background: #eef2ff; border: 1px solid var(--border); color: var(--brand-600);
+        font-size: 11px; line-height: 1.2; max-width: 100%; vertical-align: middle;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .th-btn .label { white-space: normal; line-height: 1.25; }
+
+      .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); background: #fff; }
+
+      table thead th { position: sticky; top: 0; z-index: 2; background: #fff; }
+      table th:nth-child(3), table td:nth-child(3) {
+        position: sticky; left: 0; z-index: 1; background: #fff;
+      }
+      table thead th:nth-child(3) { z-index: 3; }
+
+      thead th:not(:last-child), tbody td:not(:last-child) { border-right: 1px solid var(--border); }
+      .table-wrap {
+        margin-top: 16px; overflow: auto; height: calc(100vh - 360px); border-radius: 8px;
+        overscroll-behavior: contain; scrollbar-gutter: stable both-edges;
+      }
+      table {
+        width: 100%; min-width: 1200px; border-collapse: separate; border-spacing: 0; table-layout: fixed;
+      }
+      colgroup col { width: 160px; }
+      thead th {
+        position: sticky; top: 0; background: #fcfcfd; z-index: 2; border-bottom: 1px solid var(--border);
+        font-size: 12px; color: #374151; text-align: left; padding: 10px 8px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      thead th.primary { background: #eef2ff; }
+      table thead th.primary:nth-child(3) { background: #eef2ff; }
+      tbody td { border-bottom: 1px solid var(--border); padding: 0; }
+      tbody tr:nth-child(odd) td { background: #fff; }
+      tbody tr:nth-child(even) td { background: #fafafa; }
+      .cell { padding: 6px 8px; min-width: 120px; }
+      .cell.readonly { color: var(--muted); font-size: 12px; }
+
+      .editable {
+        display: block; width: 100%; padding: 8px 10px; border: 1px solid transparent;
+        background: transparent; border-radius: 6px; font: inherit;
+      }
+      .editable:focus { outline: none; border-color: var(--brand); background: #fff; box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
+      .changed { background: var(--changed); }
+      .changed::after { content: "●"; color: var(--warn); margin-left: 6px; font-size: 10px; vertical-align: middle; }
+
+      .status {
+        margin-top: 12px; padding: 10px 12px; border-radius: 8px; display: none; white-space: pre-line;
+      }
+      .status.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; display: block; }
+      .status.ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; display: block; }
+      .status.warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; display: block; }
+      .status.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: block; }
+
+      .tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; font-size: 12px; background: #eef2ff; color: #3730a3; }
+      .legend { display: flex; gap: 12px; align-items: center; font-size: 12px; color: var(--muted); }
+
+      .footer { margin-top: 24px; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+
+      .resizer { position: absolute; right: 0; top: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; }
+      .resizing { cursor: col-resize; }
+    </style>
+  </head>
+  <body>
+    <h1>FOLIO Licenses Inline Editor</h1>
+    <div class="sub">ライセンスを表示→編集できます</div>
+
+    <div class="card">
+      <div class="form">
+        <label>Base URL<input id="baseUrl" type="text" value="https://folio-quesnelia-okapi.dev.folio.org" /></label>
+        <label>Tenant<input id="tenant" type="text" value="diku" /></label>
+        <label>Username<input id="username" type="text" value="diku_admin" /></label>
+        <label>Password<input id="password" type="password" value="admin" /></label>
+      </div>
+
+      <div class="toolbar">
+        <button id="loadBtn" class="btn">ライセンス読込</button>
+        <button id="saveBtn" class="btn ok" disabled>変更を保存</button>
+        <button id="revertBtn" class="btn ghost" disabled>リセット</button>
+        <button id="exportBtn" class="btn secondary" disabled>Excelに保存</button><span class="legend">表示されている表をダウンロード</span>
+        <button id="exportCsvBtn" class="btn secondary" disabled>CSVダウンロード</button>
+        <input id="csvFile" type="file" accept=".csv" style="max-width: 260px" />
+        <button id="importCsvBtn" class="btn">CSV反映</button>
+        <div class="spacer"></div>
+        <label class="row" style="gap: 6px; font-size: 12px; color: var(--muted)">
+          <input type="checkbox" id="onlyChanged" /> 黄色セル（変更）がある行に絞り込み
+        </label>
+        <input id="q" type="text" placeholder="名前/ステータスでフィルタ" style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; width: 240px;" />
+      </div>
+
+      <div id="status" class="status info" style="display: none"></div>
+
+      <div class="table-wrap">
+        <table id="grid">
+          <colgroup id="colgroup"></colgroup>
+          <thead id="thead"></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="toolbar" style="border-top: 1px dashed var(--border)">
+        <div class="legend">
+          <span class="tag">使い方</span>
+          <span>ヘッダーにホバーするとライセンス項目の説明が表示されます</span>
+          <span class="tag">凡例</span>♢：ソート
+          <span class="pill">文</span>：テキスト
+          <span class="pill">単</span>：単一選択
+          <span class="pill">複</span>：複数選択
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      © Inline Editor sample — supports scalar/object/array customProperties, diff-only PUT, status vocab, column resizing, CSV import/export
+    </div>
+
+    <script>
+      const el = (id) => document.getElementById(id);
+      const state = {
+        token: null,
+        loginUser: "",
+        meta: {
+          customProps: [], // {key,label,ctx,isRefdata,refKey,multi,categoryId,categoryDesc,categoryInternal,categoryValues:[{id,value,label}],dataType}
+          statusOptions: [],
+          refdataMap: {},
+          cpOptionsByKey: {},
+          cpMultiByKey: {},
+          cpDataTypeByKey: {},
+        },
+        rows: [], // { base:{}, custom:{} }
+        original: new Map(), // id -> row clone
+        columns: [],
+        filterText: "",
+        onlyChanged: false,
+        sortKey: "name",
+        sortDir: "asc",
+      };
+
+      const defaultHeaders = ["id","created","name","status","type","alternateName"];
+
+      function setStatus(msg, kind = "info") {
+        const s = el("status");
+        s.textContent = msg;
+        s.className = `status ${kind}`;
+        s.style.display = "block";
+      }
+      function clearStatus() {
+        const s = el("status");
+        s.style.display = "none";
+        s.textContent = "";
+      }
+
+      async function login(baseUrl, tenant, username, password) {
+        const res = await fetch(`${baseUrl}/authn/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-okapi-tenant": tenant },
+          body: JSON.stringify({ username, password }),
+        });
+        if (!res.ok) throw new Error("認証に失敗しました");
+        return res.headers.get("x-okapi-token");
+      }
+
+      function getRowValue(row, key) {
+        if (defaultHeaders.includes(key)) return row.base[key] ?? "";
+        return row.custom[key] ?? "";
+      }
+
+      function compareByType(a, b, key) {
+        const dt = getDataTypeForKey(key);
+        const av = getRowValue(a, key);
+        const bv = getRowValue(b, key);
+        if (dt === "integer" || dt === "decimal") {
+          const na = parseFloat(String(av).replace(/[, ]/g, ""));
+          const nb = parseFloat(String(bv).replace(/[, ]/g, ""));
+          const aOk = Number.isFinite(na), bOk = Number.isFinite(nb);
+          if (aOk && bOk) return na - nb;
+          if (aOk) return -1;
+          if (bOk) return 1;
+        }
+        if (dt === "date") {
+          const da = (String(av).match(/^\d{4}-\d{2}-\d{2}/) || [null])[0];
+          const db = (String(bv).match(/^\d{4}-\d{2}-\d{2}/) || [null])[0];
+          if (da && db) return da.localeCompare(db);
+          if (da) return -1;
+          if (db) return 1;
+        }
+        const sa = String(av).toLocaleLowerCase();
+        const sb = String(bv).toLocaleLowerCase();
+        return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: "base" });
+      }
+
+      function sortRows(rows) {
+        const { sortKey, sortDir } = state;
+        if (!sortKey) return rows;
+        const sorted = [...rows].sort((a, b) => compareByType(a, b, sortKey));
+        return sortDir === "desc" ? sorted.reverse() : sorted;
+      }
+
+      // ----- Meta fetch -----
+      async function fetchCustomProps(baseUrl, tenant, token) {
+        const list = [];
+        let page = 1, totalPages = 1;
+        const max = 100;
+        do {
+          const url = `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=${max}&stats=true&filters=retired%3D%3Dfalse&page=${page}`;
+          const res = await fetch(url, { headers: { "x-okapi-tenant": tenant, "x-okapi-token": token } });
+          if (!res.ok) break;
+          const data = await res.json();
+          totalPages = data.totalPages || 1;
+          (data.results || []).forEach((p) => {
+            if (!p || !p.name) return;
+            const typeStr = (p.type && (p.type.type || p.type) + "") || "";
+            const isRefdata = /refdata/i.test(typeStr);
+            const multi = !!(p.multivalued || p.multiValued || p.type?.multivalued || /multi/i.test(typeStr));
+            const cat = p.category || {};
+            const categoryValues = Array.isArray(cat.values)
+              ? cat.values.map((v) => ({
+                  id: v.id,
+                  value: v.value ?? v.label ?? String(v),
+                  label: v.label ?? v.value ?? String(v),
+                }))
+              : [];
+            list.push({
+              key: p.name,
+              ctx: p.ctx || "",
+              weight: Number(p.weight ?? 0),
+              isRefdata,
+              refKey: p.primary || p.category || p.refdataCategory || p.ctx || null,
+              multi,
+              categoryId: cat.id || null,
+              categoryDesc: cat.desc || "",
+              categoryInternal: !!cat.internal,
+              categoryValues,
+              dataType:
+                /date/i.test(typeStr) ? "date" :
+                /integer/i.test(typeStr) ? "integer" :
+                /decimal/i.test(typeStr) ? "decimal" : "text",
+              label: p.label || p.name || "",
+              description: p.description || "",
+              typeId: p.id || null,
+            });
+          });
+          page++;
+        } while (page <= totalPages);
+        return list;
+      }
+
+      async function fetchRefdata(baseUrl, tenant, token) {
+        try {
+          const res = await fetch(`${baseUrl}/licenses/refdata`, {
+            headers: { "x-okapi-tenant": tenant, "x-okapi-token": token },
+          });
+          if (!res.ok) return { status: [], map: {} };
+          const data = await res.json();
+          let status = [];
+          const map = {};
+          (data || []).forEach((entry) => {
+            const desc = (entry?.desc || "").trim();
+            const values = (entry.values || []).map((v) => ({
+              value: v.value ?? v.label ?? v,
+              label: v.label ?? v.value ?? String(v),
+            }));
+            if (desc) map[desc] = values;
+            if (/status/i.test(desc)) status.push(...values);
+          });
+          const seen = new Set();
+          status = status.filter((o) => {
+            const k = o.value || o.label;
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          });
+          return { status, map };
+        } catch {
+          return { status: [], map: {} };
+        }
+      }
+
+      async function fetchLicenses(baseUrl, tenant, token) {
+        const out = [];
+        let page = 1, perPage = 100, totalPages = 1;
+        do {
+          const res = await fetch(
+            `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
+            { headers: { "x-okapi-tenant": tenant, "x-okapi-token": token } }
+          );
+          if (!res.ok) break;
+          const data = await res.json();
+          totalPages = data.totalPages || 1;
+          (data.results || []).forEach((lic) => {
+            const base = {
+              id: lic.id,
+              created: lic.dateCreated?.slice(0, 10) || "",
+              name: lic.name,
+              status: lic.status?.label || lic.status || "",
+              alternateName: Array.isArray(lic.alternateNames)
+                ? lic.alternateNames.map((a) => a?.name).filter(Boolean).join("; ")
+                : "",
+              type: lic.type?.label || lic.type || "",
+            };
+            const custom = {};
+            Object.entries(lic.customProperties || {}).forEach(([key, items]) => {
+              if (!Array.isArray(items) || items.length === 0) return;
+              const v = items[0].value;
+              let display = "";
+              if (Array.isArray(v)) display = v.map((x) => x.value || String(x)).join("; ");
+              else if (v && typeof v === "object") display = v.value || "";
+              else display = v != null ? String(v) : "";
+              custom[key] = display;
+            });
+            out.push({ base, custom });
+          });
+          page++;
+        } while (page <= totalPages);
+        return out;
+      }
+
+      // ----- Normalizers -----
+      function _normalizeForCompare(s) {
+        let t = (s ?? "").toString();
+        if (t.normalize) t = t.normalize("NFC");
+        t = t.replace(/[\u200B-\u200D\uFEFF]/g, "");
+        t = t.replace(/\r\n?/g, "\n");
+        t = t.replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ");
+        return t;
+      }
+      function normFieldValue(v) {
+        const s = _normalizeForCompare(v).trim();
+        if (!s) return "";
+        const parts = s.split(/[;；]/).map((p) => p.trim()).filter(Boolean).map((p) => p.replace(/\s+/g, " "));
+        return parts.join("; ");
+      }
+      function normTextForCompare(v) {
+        return (v ?? "").toString()
+          .replace(/\r\n?/g, "\n")
+          .replace(/[\u200B-\u200D\uFEFF]/g, "")
+          .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ")
+          .trim()
+          .replace(/\s+/g, " ");
+      }
+      function normNumericForCompare(v) {
+        const s = (v ?? "").toString().trim();
+        if (!s) return "";
+        return s.replace(/[\s,]/g, "").replace(/[\u3000]/g, "");
+      }
+      function normDateForCompare(v) {
+        const s = (v ?? "").toString().trim();
+        const m = s.match(/(\d{4}-\d{2}-\d{2})/);
+        return m ? m[1] : s;
+      }
+
+      function getDataTypeForKey(key) {
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const mapped = state.meta.cpDataTypeByKey[key];
+        return mapped || cp?.dataType || "text";
+      }
+      function isTextOnlyKey(key) {
+        const dt = getDataTypeForKey(key);
+        const opts = state.meta.cpOptionsByKey[key];
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const hasOptions = Array.isArray(opts) && opts.length > 0;
+        const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
+        return dt === "text" && !hasOptions && !isMulti;
+      }
+      function isScalarSingleKey(key) {
+        const dt = getDataTypeForKey(key);
+        const opts = state.meta.cpOptionsByKey[key];
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const hasOptions = Array.isArray(opts) && opts.length > 0;
+        const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
+        return ((dt === "text" || dt === "decimal" || dt === "integer" || dt === "date") && !hasOptions && !isMulti);
+      }
+      function normByKey(key, v) {
+        const dt = getDataTypeForKey(key);
+        if (dt === "integer" || dt === "decimal") return normNumericForCompare(v);
+        if (dt === "date") return normDateForCompare(v);
+        return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
+      }
+
+      function getColumnTypeLabel(key) {
+        if (["id", "created", "alternateName"].includes(key)) return "編集不可";
+        if (key === "type") return "単";
+        if (key === "name") return "文";
+        if (key === "status") return state.meta.statusOptions?.length > 0 ? "単" : "文";
+        const dt = getDataTypeForKey(key);
+        const opts = state.meta.cpOptionsByKey[key];
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const hasOptions = Array.isArray(opts) && opts.length > 0;
+        const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
+        if (hasOptions) return isMulti ? "複" : "単";
+        if (dt === "integer") return "整数";
+        if (dt === "decimal") return "小数";
+        if (dt === "date") return "日";
+        return "文";
+      }
+      function getColumnLabel(key) {
+        if (key === "id") return "ID";
+        if (key === "created") return "作成日";
+        if (key === "name") return "名称";
+        if (key === "status") return "ステータス";
+        if (key === "alternateName") return "AlternateName";
+        if (key === "type") return "Type";
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        return cp?.label || key;
+      }
+      function getColumnTitle(key) {
+        if (["id", "created", "name", "status"].includes(key)) return getColumnLabel(key);
+        if (key === "alternateName") return "AlternateName — alternateNames[].name を「; 」連結して表示";
+        if (key === "type") return "Type — license.type.label を表示";
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const name = cp?.key || key;
+        const desc = (cp?.description || "").trim();
+        return desc ? `${name} — ${desc}` : name;
+      }
+
+      // ★ 基準版と同じ：custprops の values のみで value 解決
+      function mapLabelToValue(key, text) {
+        const options = state.meta.cpOptionsByKey[key];
+        if (!options) return text;
+        const hit = options.find((o) => o.label === text || o.value === text || o.id === text);
+        return hit ? hit.value : text;
+      }
+
+      function buildColumns() {
+        const sorted = [...state.meta.customProps].sort((a, b) => {
+          const byCtx = (a.ctx || "").localeCompare(b.ctx || "");
+          if (byCtx !== 0) return byCtx;
+          const wa = Number(a.weight ?? 0), wb = Number(b.weight ?? 0);
+          if (wa !== wb) return wa - wb;
+          return (a.label || a.key || "").localeCompare(b.label || b.key || "");
+        });
+        const customKeysOrdered = sorted.map((cp) => cp.key);
+        state.columns = [...defaultHeaders, ...customKeysOrdered];
+        state.ctxByKey = Object.fromEntries([
+          ["id",""],["created",""],["name",""],["status",""],
+          ...sorted.map((cp) => [cp.key, cp.ctx || ""]),
+          ["type",""],["alternateName",""],
+        ]);
+      }
+
+      function isCellChanged(id, key, value) {
+        const orig = state.original.get(id);
+        if (!orig) return false;
+        const cur = normByKey(key, value);
+        if (defaultHeaders.includes(key)) {
+          const was = normByKey(key, orig.base[key]);
+          return was !== cur;
+        } else {
+          const was = normByKey(key, orig.custom[key]);
+          return was !== cur;
+        }
+      }
+      function rowHasChanges(row) {
+        const id = row.base.id;
+        return state.columns.some((col) => {
+          if (["id","created","alternateName"].includes(col)) return false;
+          const value = defaultHeaders.includes(col) ? row.base[col] : row.custom[col];
+          return isCellChanged(id, col, value);
+        });
+      }
+      function updateButtons() {
+        const changed = state.rows.some(rowHasChanges);
+        el("saveBtn").disabled = !changed;
+        el("revertBtn").disabled = !changed;
+      }
+
+      function buildColgroup() {
+        const cg = el("colgroup");
+        cg.innerHTML = "";
+        for (let i = 0; i < state.columns.length; i++) {
+          const col = document.createElement("col");
+          col.style.width = "160px";
+          cg.appendChild(col);
+        }
+      }
+      function makeResizer(th, index) {
+        const resizer = document.createElement("div");
+        resizer.className = "resizer";
+        th.appendChild(resizer);
+        let startX = 0, startW = 0;
+        const col = el("colgroup").children[index];
+        const onMove = (e) => {
+          const dx = e.clientX - startX;
+          const w = Math.max(80, startW + dx);
+          col.style.width = w + "px";
+          document.body.classList.add("resizing");
+        };
+        const onUp = () => {
+          document.removeEventListener("mousemove", onMove);
+          document.removeEventListener("mouseup", onUp);
+          document.body.classList.remove("resizing");
+        };
+        resizer.addEventListener("mousedown", (e) => {
+          startX = e.clientX;
+          startW = parseInt(col.style.width || "160", 10);
+          document.addEventListener("mousemove", onMove);
+          document.addEventListener("mouseup", onUp);
+        });
+      }
+
+      function onEditInline(e) {
+        const input = e.target;
+        const { id, key } = input.dataset;
+        let value;
+        if (input.tagName === "SELECT" && input.multiple) {
+          value = Array.from(input.selectedOptions).map((o) => o.value).join("; ");
+        } else {
+          value = input.value;
+        }
+        const row = state.rows.find((r) => r.base.id === id);
+        if (!row) return;
+        if (defaultHeaders.includes(key)) row.base[key] = value;
+        else row.custom[key] = value;
+        if (isCellChanged(id, key, value)) input.classList.add("changed");
+        else input.classList.remove("changed");
+        updateButtons();
+      }
+
+      function revertAll() {
+        state.rows = state.rows.map((r) => {
+          const orig = JSON.parse(JSON.stringify(state.original.get(r.base.id)));
+          return { base: orig.base, custom: orig.custom };
+        });
+        render();
+      }
+
+      function render() {
+        const thead = el("thead");
+        thead.innerHTML = "";
+        const headerRow = document.createElement("tr");
+        const headersHtml = state.columns.map((key) => {
+          const label = getColumnLabel(key);
+          const titleText = getColumnTitle(key);
+          const type = getColumnTypeLabel(key);
+          const isDefault = ["id","created","name","status"].includes(key);
+          const ctx = state.ctxByKey?.[key] ?? "";
+          const isSorted = state.sortKey === key;
+          const arrow = isSorted ? (state.sortDir === "asc" ? "▲" : "▼") : "♢";
+          return `
+            <th title="${titleText}" class="${isDefault ? "primary" : ""}">
+              <button class="th-btn" data-sortkey="${key}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:0">
+                <span class="label">${ctx ? `<span class="ctx-badge">${ctx}</span><br>` : ""}${label}</span>
+                <span class="pill">${type}</span>
+                <span class="arrow" aria-hidden="true">${arrow}</span>
+              </button>
+            </th>`;
+        }).join("");
+        headerRow.innerHTML = headersHtml;
+        thead.appendChild(headerRow);
+
+        headerRow.querySelectorAll(".th-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const key = btn.dataset.sortkey;
+            if (state.sortKey === key) state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+            else { state.sortKey = key; state.sortDir = "asc"; }
+            render();
+          });
+        });
+
+        buildColgroup();
+        Array.from(headerRow.querySelectorAll("th")).forEach((th, i) => makeResizer(th, i));
+
+        const tbody = el("tbody");
+        tbody.innerHTML = "";
+
+        const q = state.filterText.trim().toLowerCase();
+        const rows = state.rows.filter((r) => {
+          const changedOk = state.onlyChanged ? rowHasChanges(r) : true;
+          if (!changedOk) return false;
+          if (!q) return true;
+          return ((r.base.name || "").toLowerCase().includes(q) || (r.base.status || "").toLowerCase().includes(q));
+        });
+
+        const rowsSorted = sortRows(rows);
+
+        rowsSorted.forEach(({ base, custom }) => {
+          const tr = document.createElement("tr");
+          const tdRO = (value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell readonly";
+            div.textContent = value ?? "";
+            td.appendChild(div);
+            return td;
+          };
+
+          const tdText = (key, value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell";
+
+            const cp = state.meta.customProps.find((c) => c.key === key);
+            const optionsFromRefdata =
+              cp && cp.isRefdata && cp.refKey && state.meta.refdataMap[cp.refKey]
+                ? state.meta.refdataMap[cp.refKey]
+                : null;
+            const fromLicense = state.meta.cpOptionsByKey[key] || null;
+
+            const options =
+              Array.isArray(fromLicense) && fromLicense.length > 0 ? fromLicense :
+              (Array.isArray(optionsFromRefdata) && optionsFromRefdata.length > 0 ? optionsFromRefdata : null);
+
+            const hasOptions = Array.isArray(options) && options.length > 0;
+            const currentVal = mapLabelToValue(key, value ?? "");
+            const looksMulti =
+              state.meta.cpMultiByKey[key] || (cp && cp.multi) || (currentVal || "").includes(";");
+            const dt = getDataTypeForKey(key);
+
+            if (hasOptions && looksMulti) {
+              const sel = document.createElement("select");
+              sel.className = "editable";
+              sel.dataset.key = key;
+              sel.dataset.id = base.id;
+              sel.multiple = true;
+              sel.size = Math.min(6, Math.max(3, options.length));
+              const curVals = currentVal.split(/[;；]/).map((s) => s.trim()).filter(Boolean).map((txt) => mapLabelToValue(key, txt));
+              options.forEach((o) => {
+                const opt = document.createElement("option");
+                opt.value = o.value;
+                opt.textContent = o.value;
+                if (curVals.includes(o.value)) opt.selected = true;
+                sel.appendChild(opt);
+              });
+              const curStr = curVals.join("; ");
+              if (isCellChanged(base.id, key, curStr)) sel.classList.add("changed");
+              sel.addEventListener("change", (ev) => {
+                onEditInline(ev);
+                const joined = Array.from(sel.selectedOptions).map((o) => o.value).join("; ");
+                if (isCellChanged(base.id, key, joined)) sel.classList.add("changed");
+                else sel.classList.remove("changed");
+              });
+              sel.addEventListener("mousedown", (e) => {
+                const t = e.target;
+                if (t && t.tagName === "OPTION") {
+                  e.preventDefault();
+                  t.selected = !t.selected;
+                  sel.focus();
+                  sel.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+              });
+              div.appendChild(sel);
+              td.appendChild(div);
+              return td;
+            }
+
+            if (hasOptions && !looksMulti) {
+              const sel = document.createElement("select");
+              sel.className = "editable";
+              sel.dataset.key = key;
+              sel.dataset.id = base.id;
+              const optEmpty = document.createElement("option");
+              optEmpty.value = ""; optEmpty.textContent = "";
+              sel.appendChild(optEmpty);
+              options.forEach((o) => {
+                const opt = document.createElement("option");
+                opt.value = o.value; opt.textContent = o.value;
+                sel.appendChild(opt);
+              });
+              sel.value = currentVal;
+              if (isCellChanged(base.id, key, sel.value)) sel.classList.add("changed");
+              sel.addEventListener("change", onEditInline);
+              div.appendChild(sel);
+              td.appendChild(div);
+              return td;
+            }
+
+            let field;
+            if (!hasOptions && !looksMulti && dt === "date") {
+              field = document.createElement("input"); field.type = "date"; field.value = currentVal || "";
+            } else if (!hasOptions && !looksMulti && (dt === "integer" || dt === "decimal")) {
+              field = document.createElement("input"); field.type = "number";
+              if (dt === "integer") field.step = "1"; if (dt === "decimal") field.step = "any";
+              field.inputMode = "decimal"; field.value = currentVal;
+            } else {
+              const isText = isTextOnlyKey(key);
+              const useTextarea = isText || /[\r\n]/.test(currentVal);
+              field = useTextarea ? document.createElement("textarea") : document.createElement("input");
+              if (!useTextarea) field.type = "text";
+              field.value = currentVal;
+              if (field.tagName === "TEXTAREA") { field.style.minHeight = "60px"; field.style.resize = "vertical"; }
+            }
+
+            field.className = "editable";
+            field.dataset.key = key;
+            field.dataset.id = base.id;
+            field.placeholder = "";
+
+            if (options && !field.matches("textarea") && field.type === "text") {
+              const listId = `dl_${key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+              let dl = document.getElementById(listId);
+              if (!dl) {
+                dl = document.createElement("datalist");
+                dl.id = listId;
+                options.forEach((o) => {
+                  const opt = document.createElement("option");
+                  opt.value = o.value;
+                  dl.appendChild(opt);
+                });
+                document.body.appendChild(dl);
+              }
+              field.setAttribute("list", listId);
+            }
+            field.addEventListener("input", onEditInline);
+            if (isCellChanged(base.id, key, field.value)) field.classList.add("changed");
+
+            div.appendChild(field);
+            td.appendChild(div);
+            return td;
+          };
+
+          const tdStatus = (value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell";
+            if (state.meta.statusOptions && state.meta.statusOptions.length) {
+              const sel = document.createElement("select");
+              sel.className = "editable";
+              sel.dataset.key = "status";
+              sel.dataset.id = base.id;
+              const optEmpty = document.createElement("option");
+              optEmpty.value = ""; optEmpty.textContent = "";
+              sel.appendChild(optEmpty);
+              state.meta.statusOptions.forEach((o) => {
+                const opt = document.createElement("option");
+                opt.value = o.label; opt.textContent = o.label;
+                sel.appendChild(opt);
+              });
+              sel.value = value ?? "";
+              if (isCellChanged(base.id, "status", sel.value)) sel.classList.add("changed");
+              sel.addEventListener("change", onEditInline);
+              div.appendChild(sel);
+            } else {
+              return tdText("status", value);
+            }
+            td.appendChild(div);
+            return td;
+          };
+
+          const tdType = (value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell";
+            const typeOptions = (state.meta.refdataMap && state.meta.refdataMap["License.Type"]) || [];
+            const sel = document.createElement("select");
+            sel.className = "editable";
+            sel.dataset.key = "type";
+            sel.dataset.id = base.id;
+            typeOptions.forEach((o) => {
+              const opt = document.createElement("option");
+              opt.value = o.label; opt.textContent = o.label;
+              sel.appendChild(opt);
+            });
+            sel.value = value ?? "";
+            if (isCellChanged(base.id, "type", sel.value)) sel.classList.add("changed");
+            sel.addEventListener("change", (ev) => {
+              onEditInline(ev);
+              if (!sel.value) sel.title = "Type は必須です"; else sel.title = "";
+            });
+            div.appendChild(sel);
+            td.appendChild(div);
+            return td;
+          };
+
+          tr.appendChild(tdRO(base.id));
+          tr.appendChild(tdRO(base.created));
+          tr.appendChild(tdText("name", base.name));
+          tr.appendChild(tdStatus(base.status));
+          tr.appendChild(tdType(base.type));
+
+          const extraBaseKeys = state.columns.filter((k) =>
+            defaultHeaders.includes(k) && !["id","created","name","status","type"].includes(k)
+          );
+          extraBaseKeys.forEach((key) => tr.appendChild(tdRO(base[key])));
+
+          const customKeysInOrder = state.columns.filter((k) => !defaultHeaders.includes(k));
+          customKeysInOrder.forEach((key) => tr.appendChild(tdText(key, custom[key] ?? "")));
+          tbody.appendChild(tr);
+        });
+
+        updateButtons();
+        el("exportBtn").disabled = rowsSorted.length === 0;
+        el("exportCsvBtn").disabled = rowsSorted.length === 0;
+      }
+
+      // ----- PUT payload builders（基準版と同じルール）-----
+      // refdata（custprops.values のみを参照）
+      function buildRefdataValueObject(cp, tokenText) {
+        if (!cp) return null;
+        const txt = (tokenText || "").trim();
+        if (!txt) return null;
+        const hit = (cp.categoryValues || []).find(
+          (v) => v.value === txt || v.label === txt || v.id === txt
+        );
+        if (!hit) return null;
+        return {
+          id: hit.id,
+          value: hit.value,
+          label: hit.label,
+          owner: {
+            id: cp.categoryId || cp.refKey || null,
+            desc: cp.categoryDesc || "",
+            internal: !!cp.categoryInternal,
+          },
+        };
+      }
+
+      function parseCustomInputToPayload(val, current) {
+        const trimmed = (val || "").trim();
+        if (!trimmed) return [{ _delete: true }];
+        const parts = trimmed.split(/;|；/).map((s) => s.trim()).filter(Boolean);
+        if (parts.length > 1) return [{ _delete: false, value: parts.map((v) => ({ value: v })) }];
+        if (
+          current && Array.isArray(current) && current[0] &&
+          typeof current[0].value === "object" && current[0].value !== null &&
+          "value" in current[0].value
+        ) return [{ _delete: false, value: { value: trimmed } }];
+        return [{ _delete: false, value: trimmed }];
+      }
+
+      function buildMultiRefdataContainer(cp, currentArr, refdataArray) {
+        if (Array.isArray(currentArr) && currentArr.length > 0) {
+          const base = Object.assign({}, currentArr[0]);
+          base.value = Array.isArray(refdataArray) ? refdataArray : [];
+          return [base];
+        }
+        const typeObj = {
+          id: cp?.typeId || undefined,
+          retired: false,
+          name: cp?.key,
+          primary: true,
+          category: {
+            id: cp?.categoryId || null,
+            desc: cp?.categoryDesc || "",
+            internal: !!cp?.categoryInternal,
+            values: (cp?.categoryValues || []).map((v) => ({ id: v.id, value: v.value, label: v.label })),
+          },
+          defaultInternal: true,
+          label: cp?.label || cp?.key,
+        };
+        return [{ internal: true, value: Array.isArray(refdataArray) ? refdataArray : [], type: typeObj }];
+      }
+
+      function parseCustomInputToPayloadWithOptionsRich(key, val, currentArr) {
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        const trimmed = (val || "").trim();
+        const tokens = trimmed ? trimmed.split(/;|；/).map((s) => s.trim()).filter(Boolean) : [];
+        const looksMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi || tokens.length > 1);
+
+        if (looksMulti) {
+          if (tokens.length === 0) {
+            if (Array.isArray(currentArr) && currentArr.length > 0) {
+              const base = { ...currentArr[0] };
+              base._delete = true;
+              if ("value" in base) base.value = [];
+              return [base];
+            }
+            const created = buildMultiRefdataContainer(cp, null, []);
+            if (created && created[0]) created[0]._delete = true;
+            return created;
+          }
+          const arr = tokens.map((t) => buildRefdataValueObject(cp, t)).filter(Boolean);
+          return buildMultiRefdataContainer(cp, currentArr, arr);
+        }
+
+        // 単一
+        if (!trimmed) {
+          if (Array.isArray(currentArr) && currentArr.length > 0) {
+            const base = { ...currentArr[0] };
+            base._delete = true;
+            if ("value" in base) base.value = "";
+            return [base];
+          }
+          return [{ _delete: true }];
+        }
+
+        const mapped = mapLabelToValue(key, tokens[0] || "");
+        if (
+          currentArr && Array.isArray(currentArr) && currentArr[0] &&
+          typeof currentArr[0].value === "object" && currentArr[0].value !== null &&
+          "value" in currentArr[0].value
+        ) return [{ _delete: false, value: { value: mapped } }];
+        return [{ _delete: false, value: mapped }];
+      }
+
+      function parseCustomInputToPayloadScalarSmart(key, val, currentArr) {
+        const trimmed = (val || "").trim();
+        if (!trimmed) {
+          if (Array.isArray(currentArr) && currentArr.length > 0) {
+            const base = { ...currentArr[0] };
+            base._delete = true;
+            if ("value" in base) base.value = "";
+            return [base];
+          }
+          return [{ _delete: true }];
+        }
+        return [{ _delete: false, value: trimmed }];
+      }
+
+      async function saveChanges() {
+        const baseUrl = el("baseUrl").value.trim();
+        const tenant = el("tenant").value.trim();
+        const headers = { "Content-Type": "application/json", "x-okapi-tenant": tenant, "x-okapi-token": state.token };
+
+        const changedRows = state.rows.filter(rowHasChanges);
+        const missingType = changedRows.filter((r) => !String(r.base.type || "").trim());
+        if (missingType.length > 0) {
+          setStatus(`Type が未選択の行があります（先頭ID: ${missingType[0].base.id}）。保存できません。`, "err");
+          return;
+        }
+        if (changedRows.length === 0) {
+          setStatus("保存対象の変更はありません。", "info");
+          return;
+        }
+
+        setStatus(`保存中… ${changedRows.length}件`, "info");
+        let ok = 0, ng = 0;
+        const details = [];
+
+        for (const row of changedRows) {
+          const id = row.base.id;
+          try {
+            const curRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, { headers });
+            if (!curRes.ok) throw new Error(`GET ${id} 失敗 (${curRes.status})`);
+            const payload = await curRes.json();
+            const orig = state.original.get(id);
+
+            if (row.base.name !== orig.base.name) payload.name = row.base.name;
+            if (row.base.status !== orig.base.status) payload.status = row.base.status;
+
+            if (row.base.type !== orig.base.type) {
+              const opts = (state.meta.refdataMap && state.meta.refdataMap["License.Type"]) || [];
+              const hit = opts.find((o) => o.label === row.base.type || o.value === row.base.type);
+              payload.type = hit ? hit.label : row.base.type;
+            }
+
+            payload.customProperties = payload.customProperties || {};
+
+            state.meta.customProps.forEach((cp) => {
+              const key = cp.key;
+              const oldVal = orig.custom[key] ?? "";
+              const newVal = row.custom[key] ?? "";
+              if (oldVal === newVal) return;
+
+              const currentArr = payload.customProperties[key];
+              const hasOptions =
+                Array.isArray(state.meta.cpOptionsByKey[key]) &&
+                state.meta.cpOptionsByKey[key].length > 0;
+
+              if (hasOptions) {
+                payload.customProperties[key] =
+                  parseCustomInputToPayloadWithOptionsRich(key, newVal, currentArr);
+              } else if (isScalarSingleKey(key)) {
+                payload.customProperties[key] =
+                  parseCustomInputToPayloadScalarSmart(key, newVal, currentArr);
+              } else {
+                payload.customProperties[key] =
+                  parseCustomInputToPayload(newVal, currentArr);
+              }
+            });
+
+            const putRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
+              method: "PUT",
+              headers,
+              body: JSON.stringify(payload),
+            });
+            if (!putRes.ok) {
+              const text = await putRes.text().catch(() => putRes.statusText);
+              throw new Error(`PUT ${id} 失敗: ${text}`);
+            }
+            ok++;
+            state.original.set(id, JSON.parse(JSON.stringify(row)));
+          } catch (e) {
+            ng++;
+            details.push(`${id}: ${e.message}`);
+          }
+        }
+
+        if (ng === 0) setStatus(`保存完了: ${ok}件更新しました。`, "ok");
+        else if (ok > 0) setStatus(`一部成功: 成功${ok}件 / 失敗${ng}件\n${details.join("\n")}`, "warn");
+        else setStatus(`保存に失敗しました:\n${details.join("\n")}`, "err");
+
+        updateButtons();
+      }
+
+      async function loadAll() {
+        const baseUrl = el("baseUrl").value.trim();
+        const tenant = el("tenant").value.trim();
+        const username = el("username").value.trim();
+        const password = el("password").value;
+        try {
+          setStatus("認証中…", "info");
+          el("loadBtn").disabled = true;
+          el("exportBtn") && (el("exportBtn").disabled = true);
+          el("exportCsvBtn") && (el("exportCsvBtn").disabled = true);
+          state.token = await login(baseUrl, tenant, username, password);
+
+          setStatus("メタデータ取得中…", "info");
+          state.meta.customProps = await fetchCustomProps(baseUrl, tenant, state.token);
+          state.meta.cpOptionsByKey = Object.fromEntries(
+            state.meta.customProps.map((cp) => [cp.key, cp.categoryValues || []])
+          );
+          state.meta.cpMultiByKey = Object.fromEntries(
+            state.meta.customProps.map((cp) => [cp.key, !!cp.multi])
+          );
+          state.meta.cpDataTypeByKey = Object.fromEntries(
+            state.meta.customProps.map((cp) => [cp.key, cp.dataType || "text"])
+          );
+
+          const ref = await fetchRefdata(baseUrl, tenant, state.token);
+          state.meta.statusOptions = ref.status || [];
+          state.meta.refdataMap = ref.map || {};
+
+          setStatus("ライセンス取得中…", "info");
+          const rows = await fetchLicenses(baseUrl, tenant, state.token);
+          state.rows = rows.map((r) => ({ base: r.base, custom: r.custom }));
+          state.original = new Map(state.rows.map((r) => [r.base.id, JSON.parse(JSON.stringify(r))]));
+
+          buildColumns();
+          clearStatus();
+          render();
+        } catch (err) {
+          console.error(err);
+          setStatus(err.message || "読み込みに失敗しました", "err");
+        } finally {
+          el("loadBtn").disabled = false;
+        }
+      }
+
+      // ---- Excel エクスポート（画面の並び・フィルタに準拠）----
+      function getVisibleSortedRowsForExport() {
+        const q = state.filterText.trim().toLowerCase();
+        const rows = state.rows.filter((r) => {
+          const changedOk = state.onlyChanged ? rowHasChanges(r) : true;
+          if (!changedOk) return false;
+          if (!q) return true;
+          return ((r.base.name || "").toLowerCase().includes(q) || (r.base.status || "").toLowerCase().includes(q));
+        });
+        return sortRows(rows);
+      }
+      function getExportHeaderLabel(key) {
+        if (key === "id") return "ID";
+        if (key === "created") return "作成日";
+        if (key === "name") return "名称";
+        if (key === "status") return "ステータス";
+        if (key === "type") return "Type";
+        if (key === "alternateName") return "AlternateName";
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        return cp?.label || key;
+      }
+      function getExportCtx(key) {
+        if (defaultHeaders.includes(key)) return "";
+        const cp = state.meta.customProps.find((c) => c.key === key);
+        return cp?.ctx || "";
+      }
+      function buildAoaFromState() {
+        const ctxRow = state.columns.map((key) => getExportCtx(key));
+        const headerRow = state.columns.map((key) => getExportHeaderLabel(key));
+        const rowsSorted = getVisibleSortedRowsForExport();
+        const body = rowsSorted.map((row) =>
+          state.columns.map((key) => (defaultHeaders.includes(key) ? row.base[key] : row.custom[key]) ?? "")
+        );
+        return [ctxRow, headerRow, ...body];
+      }
+      function downloadCSVFallback(aoa, filenameBase) {
+        const esc = (v) => {
+          const s = (v ?? "").toString();
+          return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        };
+        const csv = aoa.map((row) => row.map(esc).join(",")).join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${filenameBase}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+      function exportToExcel() {
+        try {
+          const aoa = buildAoaFromState();
+          const now = new Date();
+          const pad = (n) => String(n).padStart(2, "0");
+          const fname = `licenses_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+          if (typeof XLSX === "undefined" || !XLSX?.utils) {
+            setStatus("XLSXライブラリが見つかりませんでした。CSVで保存します。", "warn");
+            return downloadCSVFallback(aoa, fname);
+          }
+          const wb = XLSX.utils.book_new();
+          const ws = XLSX.utils.aoa_to_sheet(aoa);
+          ws["!cols"] = state.columns.map(() => ({ wch: 18 }));
+          XLSX.utils.book_append_sheet(wb, ws, "licenses");
+          XLSX.writeFile(wb, `${fname}.xlsx`);
+          setStatus("Excelファイルを作成しました。", "ok");
+        } catch (e) {
+          console.error(e);
+          setStatus(`Excel出力でエラー: ${e.message || e}`, "err");
+        }
+      }
+
+      // ---- CSV ダウンロード（GET の最新に準拠）----
+      function buildAoaFromRows(rows) {
+        const ctxRow = state.columns.map((key) => getExportCtx(key));
+        const headerRow = state.columns.map((key) => getExportHeaderLabel(key));
+        const body = rows.map(({ base, custom }) =>
+          state.columns.map((key) => (defaultHeaders.includes(key) ? base[key] : custom[key]) ?? "")
+        );
+        return [ctxRow, headerRow, ...body];
+      }
+      async function exportToCSV() {
+        try {
+          setStatus("CSV用データ取得中（GET）…", "info");
+          const baseUrl = el("baseUrl").value.trim();
+          const tenant = el("tenant").value.trim();
+          const username = el("username").value.trim();
+          const password = el("password").value;
+          if (!state.token) state.token = await login(baseUrl, tenant, username, password);
+          if (!state.meta.customProps?.length) {
+            state.meta.customProps = await fetchCustomProps(baseUrl, tenant, state.token);
+            state.meta.cpOptionsByKey = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.categoryValues || []]));
+            state.meta.cpMultiByKey = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, !!cp.multi]));
+            state.meta.cpDataTypeByKey = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.dataType || "text"]));
+            const ref = await fetchRefdata(baseUrl, tenant, state.token);
+            state.meta.statusOptions = ref.status || [];
+            state.meta.refdataMap = ref.map || {};
+            buildColumns();
+          }
+          const freshRows = await fetchLicenses(baseUrl, tenant, state.token);
+          if (!freshRows.length) { setStatus("ライセンスが見つかりませんでした。", "warn"); return; }
+          const aoa = buildAoaFromRows(freshRows);
+          const esc = (v) => { const s = (v ?? "").toString(); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+          const lines = aoa.map((row) => row.map(esc).join(","));
+          const csv = "\uFEFF" + lines.join("\n");
+          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          const now = new Date(); const pad = (n) => String(n).padStart(2, "0");
+          a.href = url;
+          a.download = `licenses_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
+          document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+          setStatus("CSVのダウンロードが完了しました（ERMの最新のライセンス情報を出力）", "ok");
+        } catch (e) {
+          console.error(e);
+          setStatus(e.message || "CSV出力でエラー", "err");
+        }
+      }
+
+      // ---- CSV 取り込み（グリッド反映→保存でPUT）----
+      function buildLabelToKeyMap() {
+        const m = new Map();
+        m.set("ID", "id"); m.set("作成日", "created"); m.set("名称", "name");
+        m.set("ステータス", "status"); m.set("Type", "type"); m.set("AlternateName", "alternateName");
+        state.meta.customProps.forEach((cp) => { m.set(cp.label || cp.key, cp.key); });
+        return m;
+      }
+      function importFromCSV() {
+        const file = el("csvFile").files[0];
+        if (!file) { setStatus("CSVファイルを選択してください", "err"); return; }
+        setStatus("CSV解析中…", "info");
+        Papa.parse(file, {
+          header: false, skipEmptyLines: true,
+          complete: (res) => {
+            try {
+              const rows = res.data;
+              if (!Array.isArray(rows) || rows.length < 2) {
+                setStatus("ヘッダー行が不足しています。1行目=ctx / 2行目=見出しのCSVを指定してください。", "err");
+                return;
+              }
+              const headerLabels = rows[1].map((h) => typeof h === "string" ? h.replace(/^\uFEFF/, "") : h);
+              const labelToKey = buildLabelToKeyMap();
+              const headers = headerLabels.map((lbl) => labelToKey.get(lbl) || lbl);
+
+              const idIdx = headers.findIndex((k) => k === "id");
+              if (idIdx < 0) { setStatus("ヘッダーに ID 列が見つかりません。", "err"); return; }
+
+              let applied = 0, skipped = 0;
+              for (let i = 2; i < rows.length; i++) {
+                const r = rows[i];
+                const id = (r[idIdx] ?? "").toString().trim();
+                if (!id) { skipped++; continue; }
+                const row = state.rows.find((x) => x.base.id === id);
+                if (!row) { skipped++; continue; }
+
+                headers.forEach((key, idx) => {
+                  if (!key || idx >= r.length) return;
+                  const val = (r[idx] ?? "").toString();
+                  if (defaultHeaders.includes(key)) {
+                    if (["id","created","alternateName"].includes(key)) return; // 読み取り専用
+                    row.base[key] = val;
+                  } else if (state.columns.includes(key)) {
+                    row.custom[key] = val;
+                  }
+                });
+                applied++;
+              }
+
+              render();
+              if (applied > 0) setStatus(`CSV取り込み完了：${applied} 行を反映しました。内容を確認して「変更を保存」を押してください。`, "ok");
+              else setStatus("取り込める行が見つかりませんでした。IDの一致を確認してください。", "warn");
+            } catch (e) {
+              console.error(e);
+              setStatus(e.message || "CSV取り込み中にエラー", "err");
+            }
+          },
+          error: (err) => { setStatus(`CSV解析エラー: ${err.message}`, "err"); },
+        });
+      }
+
+      // events
+      el("loadBtn").addEventListener("click", loadAll);
+      el("saveBtn").addEventListener("click", saveChanges);
+      el("revertBtn").addEventListener("click", revertAll);
+      el("exportBtn").addEventListener("click", exportToExcel);
+      el("exportCsvBtn").addEventListener("click", exportToCSV);
+      el("importCsvBtn").addEventListener("click", importFromCSV);
+      el("q").addEventListener("input", (e) => { state.filterText = e.target.value; render(); });
+      el("onlyChanged").addEventListener("change", (e) => { state.onlyChanged = e.target.checked; render(); });
+    </script>
+  </body>
+</html>
