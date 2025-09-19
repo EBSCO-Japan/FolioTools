@@ -472,13 +472,7 @@
           return buildMultiRefdataContainer(cp, currentArr, arr);
         }
         if (!trimmed) {
-          if (Array.isArray(currentArr) && currentArr.length > 0) {
-            const base = { ...currentArr[0] };
-            base._delete = true;
-            if ("value" in base) base.value = "";
-            return [base];
-          }
-          return [{ _delete: true }];
+          return preserveDeleteContainer(currentArr);
         }
         const mapped = mapLabelToValue(key, tokens[0] || "");
         if (
@@ -853,41 +847,30 @@
                             currentArr
                           );
                       }
-                    } else {
-                      // array/object/text fallback (preserve containers on delete)
+                    } else { // array/object/text fallback (preserve containers on delete)
                       const normalized = normFieldValue(val);
                       if (!currentArr) {
-                        payload.customProperties[key] = normalized
-                          ? [{ _delete: false, value: normalized }]
-                          : [{ _delete: true }];
-                      } else if (
-                        Array.isArray(currentArr) &&
-                        currentArr.length > 0
-                      ) {
+                        payload.customProperties[key] = normalized ? [{ _delete: false, value: normalized }] : [{ _delete: true }];
+                      } else if (Array.isArray(currentArr) && currentArr.length > 0) {
                         const first = { ...currentArr[0] };
                         if (!normalized) {
-                          payload.customProperties[key] =
-                            preserveDeleteContainer([first]);
+                          // ★ここを currentArr を直接渡す形に
+                          payload.customProperties[key] = preserveDeleteContainer(currentArr);
                         } else if (Array.isArray(first.value)) {
-                          const parts = normalized
-                            .split(/;\s*/)
-                            .filter(Boolean);
-                          first.value = parts.map((v) => ({ value: v }));
+                          const parts = normalized.split(/;\s*/).filter(Boolean);
+                          first.value = parts.map(v => ({ value: v }));
                           first._delete = false;
                           payload.customProperties[key] = [first];
-                        } else if (
-                          first.value &&
-                          typeof first.value === "object" &&
-                          "value" in first.value
-                        ) {
+                        } else if (first.value && typeof first.value === 'object' && 'value' in first.value) {
                           first.value.value = normalized;
                           first._delete = false;
                           payload.customProperties[key] = [first];
                         } else {
-                          payload.customProperties[key] = [
-                            { _delete: false, value: normalized },
-                          ];
+                          payload.customProperties[key] = [{ _delete: false, value: normalized }];
                         }
+                      // ★空配列([])の取りこぼしをカバー
+                      } else if (Array.isArray(currentArr)) {
+                        payload.customProperties[key] = preserveDeleteContainer(currentArr);
                       }
                     }
                   }
