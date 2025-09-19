@@ -1358,7 +1358,7 @@
         if (Array.isArray(currentArr) && currentArr.length > 0) {
           const base = { ...currentArr[0] };
           base._delete = true;
-          if ("value" in base) base.value = null; // 念のため無効化
+          if ("value" in base) base.value = ""; // 空文字
           return [base];
         }
         // 既存なしなら最小形でOK（サーバが許すなら）
@@ -1534,8 +1534,8 @@
           if (Array.isArray(currentArr) && currentArr.length > 0) {
             const base = { ...currentArr[0] }; // shallow clone
             base._delete = true;
-            // value を持っている場合は明示的に null に（backend が参照しても安全）
-            if ("value" in base) base.value = null;
+            // value を持っている場合は明示的に "" に（backend が参照しても安全）
+            if ("value" in base) base.value = "";
             return [base];
           }
           // 新規（容器がない）なら従来どおり最小形
