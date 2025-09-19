@@ -443,7 +443,7 @@
         sortDir: "asc", // "asc" | "desc"
       };
 
-      const defaultHeaders = ["id", "created", "name", "status", "alternateName", "type"];
+      const defaultHeaders = ["id", "created", "name", "status", "type", "alternateName"];
 
       function setStatus(msg, kind = "info") {
         const s = el("status");
@@ -728,7 +728,8 @@
       }
 
       function getColumnTypeLabel(key) {
-        if (["id", "created", "alternateName", "type"].includes(key)) return "編集不可";
+        if (["id", "created", "alternateName"].includes(key)) return "編集不可";
+        if (key === "type") return "単";
         if (key === "name") return "文";
         if (key === "status")
           return state.meta.statusOptions?.length > 0 ? "単" : "文";
@@ -819,7 +820,7 @@
       function rowHasChanges(row) {
         const id = row.base.id;
         return state.columns.some((col) => {
-          if (["id", "created", "alternateName", "type"].includes(col)) return false;
+          if (["id", "created", "alternateName"].includes(col)) return false;
           const value = defaultHeaders.includes(col)
             ? row.base[col]
             : row.custom[col];
@@ -1180,16 +1181,66 @@
             return td;
           };
 
+          const tdType = (value) => {
+            const td = document.createElement("td");
+            const div = document.createElement("div");
+            div.className = "cell";
+
+            // License.Type の選択肢（refdata から）
+            const typeOptions =
+              (state.meta.refdataMap && state.meta.refdataMap["License.Type"]) || [];
+
+            const sel = document.createElement("select");
+            sel.className = "editable";
+            sel.dataset.key = "type";
+            sel.dataset.id = base.id;          // ← forEach のスコープから base.id を使える
+
+            // 必須だが、既存データが空の場合もあり得るので空行は残すならこちらを有効化
+            // const optEmpty = document.createElement("option");
+            // optEmpty.value = "";
+            // optEmpty.textContent = "（選択必須）";
+            // sel.appendChild(optEmpty);
+
+            typeOptions.forEach((o) => {
+              const opt = document.createElement("option");
+              opt.value = o.label;            // 表示・内部とも label で運用（status と同じ流儀）
+              opt.textContent = o.label;
+              sel.appendChild(opt);
+            });
+
+            sel.value = value ?? "";
+
+            if (isCellChanged(base.id, "type", sel.value)) sel.classList.add("changed");
+
+            sel.addEventListener("change", (ev) => {
+              onEditInline(ev);               // state.rows に反映
+              if (!sel.value) {
+                sel.title = "Type は必須です";
+              } else {
+                sel.title = "";
+              }
+            });
+
+            div.appendChild(sel);
+            td.appendChild(div);
+            return td;
+          };
+
+
           tr.appendChild(tdRO(base.id));
           tr.appendChild(tdRO(base.created));
           tr.appendChild(tdText("name", base.name));
           tr.appendChild(tdStatus(base.status));
-          const extraBaseKeys = state.columns.filter(
-            (k) => defaultHeaders.includes(k) && !["id","created","name","status"].includes(k)
-          );
-          extraBaseKeys.forEach((key) => {
-            tr.appendChild(tdRO(base[key]));
-          });
+           // type は編集可（単一選択）
+           tr.appendChild(tdType(base.type));
+          
+           // 残りの基本列（ここでは alternateName のみ）を読み取り専用で表示
+           const extraBaseKeys = state.columns.filter(
+             (k) => defaultHeaders.includes(k) && !["id","created","name","status","type"].includes(k)
+           );
+           extraBaseKeys.forEach((key) => {
+             tr.appendChild(tdRO(base[key]));
+           });
           // 並び替え後のヘッダー順（state.columns）に合わせて本文も描画
           const customKeysInOrder = state.columns.filter(
             (k) => !defaultHeaders.includes(k)
@@ -1325,6 +1376,12 @@
           "x-okapi-token": state.token,
         };
         const changedRows = state.rows.filter(rowHasChanges);
+        // Type 必須（保存対象の行に未選択があれば中断）
+        const missingType = changedRows.filter(r => !String(r.base.type || "").trim());
+        if (missingType.length > 0) {
+          setStatus(`Type が未選択の行があります（先頭ID: ${missingType[0].base.id}）。保存できません。`, "err");
+          return;
+        }
         if (changedRows.length === 0) {
           setStatus("保存対象の変更はありません。", "info");
           return;
@@ -1344,8 +1401,13 @@
             const payload = await curRes.json();
             const orig = state.original.get(id);
             if (row.base.name !== orig.base.name) payload.name = row.base.name;
-            if (row.base.status !== orig.base.status)
-              payload.status = row.base.status;
+            if (row.base.status !== orig.base.status) payload.status = row.base.status;
+            // Type（単一選択）: label で保存（status と同じ運用）
+            if (row.base.type !== orig.base.type) {
+              const opts = (state.meta.refdataMap && state.meta.refdataMap["License.Type"]) || [];
+              const hit = opts.find(o => o.label === row.base.type || o.value === row.base.type);
+              payload.type = hit ? hit.label : row.base.type;
+            }
             payload.customProperties = payload.customProperties || {};
 
             state.meta.customProps.forEach((cp) => {
