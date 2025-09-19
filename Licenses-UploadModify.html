@@ -3,505 +3,386 @@
   <head>
     <meta charset="UTF-8" />
     <title>FOLIO Licenses CSV Manager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
+      :root {
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --text: #222;
+        --muted: #6b7280;
+        --brand: #2563eb;
+        --ok: #16a34a;
+        --warn: #f59e0b;
+        --err: #dc2626;
+        --border: #e5e7eb;
+      }
+      * { box-sizing: border-box; }
       body {
-        font-family: Arial, sans-serif;
-        max-width: 800px;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        margin: 0;
+        padding: 24px;
+        color: var(--text);
+        background: var(--bg);
+      }
+      h1 { font-size: 22px; margin: 0 0 8px; }
+      .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        max-width: 980px;
         margin: 0 auto;
-        padding: 20px;
-        background: #f5f5f5;
       }
-      .form-container {
-        margin: 20px 0;
-        padding: 20px;
-        border-radius: 8px;
-        background: white;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      label {
-        display: block;
-        margin: 10px 0;
-        font-size: 14px;
-      }
-      input[type="text"],
-      input[type="password"],
-      input[type="file"] {
-        padding: 10px;
-        width: 100%;
-        max-width: 400px;
-        box-sizing: border-box;
-        margin-top: 5px;
-      }
-      button {
-        padding: 10px 20px;
-        margin-top: 10px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      button:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-      }
-      button:hover:not(:disabled) {
-        background: #0056b3;
-      }
-      .success {
-        color: #155724;
-        background: #d4edda;
-        padding: 10px;
-        margin: 10px 0;
-        border-radius: 4px;
-      }
-      .error {
-        color: #721c24;
-        background: #f8d7da;
-        padding: 10px;
-        margin: 10px 0;
-        border-radius: 4px;
-      }
-      .info {
-        color: #004085;
-        background: #cce5ff;
-        padding: 10px;
-        margin: 10px 0;
-        border-radius: 4px;
-      }
+      .form { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(140px, 1fr)); padding: 16px; }
+      .form label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+      .form input { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+
+      .toolbar { display: flex; gap: 8px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+      .spacer { flex: 1; }
+      .btn { appearance: none; border: none; background: var(--brand); color: #fff; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+      .btn:disabled { opacity: .5; cursor: not-allowed; }
+      .btn.secondary { background: #111827; }
+
+      .status { margin: 12px 16px; padding: 10px 12px; border-radius: 8px; display: none; white-space: pre-line; }
+      .status.info { display:block; background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; }
+      .status.ok { display:block; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+      .status.warn { display:block; background:#fffbeb; color:#92400e; border:1px solid #fde68a; }
+      .status.err { display:block; background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+
+      table { width:100%; border-collapse: collapse; font-size: 13px; }
+      th, td { border: 1px solid var(--border); padding: 6px 8px; }
+      th { background:#fcfcfd; }
+      .muted { color: var(--muted); }
+      .small { font-size: 12px; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     </style>
   </head>
   <body>
-    <div class="form-container">
-      <h2>FOLIO Licenses CSV Manager</h2>
-      <label>
-        Base URL:
-        <input
-          type="text"
-          id="baseUrl"
-          value="https://folio-quesnelia-okapi.dev.folio.org"
-        />
-      </label>
-      <label>
-        Tenant:
-        <input type="text" id="tenant" value="diku" />
-      </label>
-      <label>
-        Username:
-        <input type="text" id="username" value="diku_admin" />
-      </label>
-      <label>
-        Password:
-        <input type="password" id="password" value="admin" />
-      </label>
-      <button id="fetchBtn">CSVダウンロード</button>
-      <label>
-        CSVアップロード:
-        <input type="file" id="csvFile" accept=".csv" />
-      </label>
-      <button id="uploadBtn">CSVアップロード実行</button>
-      <div id="message"></div>
-      <div id="uploadResults"></div>
+    <h1>FOLIO Licenses CSV Manager</h1>
+    <div class="sub">CSV をダウンロード／編集して再アップロード→ライセンスを一括更新します（PUT）。</div>
+
+    <div class="card">
+      <div class="form">
+        <label>Base URL<input id="baseUrl" type="text" value="https://folio-quesnelia-okapi.dev.folio.org" /></label>
+        <label>Tenant<input id="tenant" type="text" value="diku" /></label>
+        <label>Username<input id="username" type="text" value="diku_admin" /></label>
+        <label>Password<input id="password" type="password" value="admin" /></label>
+      </div>
+      <div class="toolbar">
+        <button id="downloadBtn" class="btn">CSVダウンロード</button>
+        <input id="csvFile" type="file" accept=".csv" />
+        <button id="uploadBtn" class="btn secondary">CSVアップロード実行</button>
+        <div class="spacer"></div>
+        <span class="small muted">CSVは 1行目=カテゴリ(ctx) / 2行目=見出し（label）/ 3行目以降=データ</span>
+      </div>
+      <div id="status" class="status info" style="display:none"></div>
+      <div id="results" style="padding: 0 16px 16px"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script>
-      document
-        .getElementById("fetchBtn")
-        .addEventListener("click", fetchAndDownload);
-      document
-        .getElementById("uploadBtn")
-        .addEventListener("click", uploadFromCSV);
+      const el = (id) => document.getElementById(id);
+      const defaultHeaders = ["id","created","name","status","type","alternateName"]; // download 用。upload では id,name,status,type のみ更新対象
+      const state = {
+        token: null,
+        meta: {
+          customProps: [], // {key,label,ctx,isRefdata,refKey,multi,categoryId,categoryDesc,categoryInternal,categoryValues:[{id,value,label}],dataType,typeId}
+          refdataMap: {},  // desc => [{value,label}]
+          statusOptions: []
+        }
+      };
 
-      async function fetchCustomProps(baseUrl, tenant, token) {
-        const customPropsMeta = [];
-        let page = 1;
-        let totalPages = 1;
-        const max = 100;
+      function setStatus(msg, kind = "info") { const s = el("status"); s.textContent = msg; s.className = `status ${kind}`; s.style.display = "block"; }
+      function clearStatus(){ const s = el("status"); s.textContent = ""; s.style.display = "none"; }
 
+      async function login(baseUrl, tenant, username, password) {
+        const res = await fetch(`${baseUrl}/authn/login`, { method: "POST", headers: {"Content-Type":"application/json", "x-okapi-tenant": tenant}, body: JSON.stringify({username,password})});
+        if (!res.ok) throw new Error("認証に失敗しました");
+        return res.headers.get("x-okapi-token");
+      }
+
+      // ===== Normalizers (inline-editor 準拠) =====
+      function _normalizeForCompare(s){ let t=(s??"").toString(); if(t.normalize) t=t.normalize("NFC"); t=t.replace(/[\u200B-\u200D\uFEFF]/g,""); t=t.replace(/\r\n?/g,"\n"); t=t.replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g," "); return t; }
+      function normFieldValue(v){ const s=_normalizeForCompare(v).trim(); if(!s) return ""; const parts=s.split(/[;；]/).map(p=>p.trim()).filter(Boolean).map(p=>p.replace(/\s+/g," ")); return parts.join("; "); }
+      function normTextForCompare(v){ return (v??"").toString().replace(/\r\n?/g,"\n").replace(/[\u200B-\u200D\uFEFF]/g,"").replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g," ").trim().replace(/\s+/g," "); }
+      function normNumericForCompare(v){ const s=(v??"").toString().trim(); if(!s) return ""; return s.replace(/[\s,]/g,"").replace(/[\u3000]/g,""); }
+      function normDateForCompare(v){ const s=(v??"").toString().trim(); const m=s.match(/(\d{4}-\d{2}-\d{2})/); return m?m[1]:s; }
+
+      // ===== Meta fetch =====
+      async function fetchCustomProps(baseUrl, tenant, token){
+        const list=[]; let page=1,totalPages=1; const max=100;
         do {
           const url = `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=${max}&stats=true&filters=retired%3D%3Dfalse&page=${page}`;
-          const res = await fetch(url, {
-            headers: {
-              "x-okapi-tenant": tenant,
-              "x-okapi-token": token,
-            },
-          });
-          if (!res.ok) break;
-          const data = await res.json();
-          totalPages = data.totalPages || 1;
-          (data.results || []).forEach((prop) => {
-            if (prop.name) {
-              customPropsMeta.push({
-                key: prop.name,
-                ctx: prop.ctx || "",
-              });
-            }
+          const res = await fetch(url,{ headers:{"x-okapi-tenant":tenant, "x-okapi-token":token}});
+          if(!res.ok) break; const data = await res.json(); totalPages = data.totalPages || 1;
+          (data.results||[]).forEach(p=>{
+            if(!p||!p.name) return;
+            const typeStr = (p.type && (p.type.type || p.type)+"") || "";
+            const isRefdata = /refdata/i.test(typeStr);
+            const multi = !!(p.multivalued || p.multiValued || p.type?.multivalued || /multi/i.test(typeStr));
+            const cat = p.category || {};
+            const categoryValues = Array.isArray(cat.values) ? cat.values.map(v=>({id:v.id, value:v.value ?? v.label ?? String(v), label:v.label ?? v.value ?? String(v)})) : [];
+            list.push({
+              key: p.name,
+              ctx: p.ctx || "",
+              weight: Number(p.weight ?? 0),
+              isRefdata,
+              refKey: p.primary || p.category || p.refdataCategory || p.ctx || null,
+              multi,
+              categoryId: cat.id || null,
+              categoryDesc: cat.desc || "",
+              categoryInternal: !!cat.internal,
+              categoryValues,
+              dataType: /date/i.test(typeStr) ? "date" : /integer/i.test(typeStr) ? "integer" : /decimal/i.test(typeStr) ? "decimal" : "text",
+              label: p.label || p.name || "",
+              description: p.description || "",
+              typeId: p.id || null,
+            });
           });
           page++;
-        } while (page <= totalPages);
-
-        return customPropsMeta;
+        } while(page<=totalPages);
+        return list;
+      }
+      async function fetchRefdata(baseUrl, tenant, token){
+        try {
+          const res = await fetch(`${baseUrl}/licenses/refdata`,{ headers:{"x-okapi-tenant":tenant, "x-okapi-token":token}});
+          if(!res.ok) return {status:[], map:{}};
+          const data = await res.json();
+          let status=[]; const map={};
+          (data||[]).forEach(entry=>{
+            const desc=(entry?.desc||"").trim();
+            const values=(entry.values||[]).map(v=>({value: v.value ?? v.label ?? v, label: v.label ?? v.value ?? String(v)}));
+            if(desc) map[desc]=values;
+            if(/status/i.test(desc)) status.push(...values);
+          });
+          const seen=new Set(); status = status.filter(o=>{ const k=o.value||o.label; if(seen.has(k)) return false; seen.add(k); return true; });
+          return {status, map};
+        } catch { return {status:[], map:{}}; }
       }
 
-      async function fetchAndDownload() {
-        const baseUrl = document.getElementById("baseUrl").value;
-        const tenant = document.getElementById("tenant").value;
-        const username = document.getElementById("username").value;
-        const password = document.getElementById("password").value;
-        const messageEl = document.getElementById("message");
-        const fetchBtn = document.getElementById("fetchBtn");
+      // ===== Helpers =====
+      function getDataTypeForKey(key){ const cp = state.meta.customProps.find(c=>c.key===key); return cp?.dataType || "text"; }
+      function isScalarSingleKey(key){ const cp = state.meta.customProps.find(c=>c.key===key); const hasOptions = (cp?.categoryValues||[]).length>0; const isMulti = !!cp?.multi; const dt = cp?.dataType || "text"; return (dt==="text"||dt==="integer"||dt==="decimal"||dt==="date") && !hasOptions && !isMulti; }
+      function mapLabelToValue(key,text){ const cp = state.meta.customProps.find(c=>c.key===key); const options = cp?.categoryValues || []; const hit = options.find(o=>o.label===text || o.value===text || o.id===text); return hit ? hit.value : text; }
 
-        messageEl.innerHTML = '<div class="info">取得中…</div>';
-        fetchBtn.disabled = true;
+      function buildRefdataValueObject(cp, tokenText){ if(!cp) return null; const txt=(tokenText||"").trim(); if(!txt) return null; const hit=(cp.categoryValues||[]).find(v=>v.value===txt||v.label===txt||v.id===txt); if(!hit) return null; return { id: hit.id, value: hit.value, label: hit.label, owner: { id: cp.categoryId||cp.refKey||null, desc: cp.categoryDesc||"", internal: !!cp.categoryInternal } }; }
+      function buildMultiRefdataContainer(cp, currentArr, refdataArray){ if(Array.isArray(currentArr)&&currentArr.length>0){ const base = Object.assign({}, currentArr[0]); base.value = Array.isArray(refdataArray)?refdataArray:[]; return [base]; }
+        const typeObj={ id: cp?.typeId||undefined, retired:false, name: cp?.key, primary:true, category:{ id:cp?.categoryId||null, desc:cp?.categoryDesc||"", internal:!!cp?.categoryInternal, values:(cp?.categoryValues||[]).map(v=>({id:v.id,value:v.value,label:v.label})) }, defaultInternal:true, label: cp?.label||cp?.key };
+        return [{ internal:true, value:Array.isArray(refdataArray)?refdataArray:[], type:typeObj }]; }
 
-        let token;
-        try {
-          const loginRes = await fetch(`${baseUrl}/authn/login`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-okapi-tenant": tenant,
-            },
-            body: JSON.stringify({ username, password }),
-          });
-          if (!loginRes.ok) throw new Error("認証失敗");
-          token = loginRes.headers.get("x-okapi-token");
-        } catch (err) {
-          messageEl.innerHTML = '<div class="error">認証に失敗しました</div>';
-          fetchBtn.disabled = false;
-          return;
+      function parseCustomInputToPayloadWithOptionsRich(key, val, currentArr){
+        const cp = state.meta.customProps.find(c=>c.key===key);
+        const trimmed = (val||"").trim();
+        const tokens = trimmed ? trimmed.split(/;|；/).map(s=>s.trim()).filter(Boolean) : [];
+        const looksMulti = !!(cp?.multi || tokens.length>1);
+        if(looksMulti){
+          if(tokens.length===0){
+            if(Array.isArray(currentArr)&&currentArr.length>0){ const base={...currentArr[0]}; base._delete=true; if("value" in base) base.value=[]; return [base]; }
+            const created = buildMultiRefdataContainer(cp,null,[]); if(created&&created[0]) created[0]._delete=true; return created;
+          }
+          const arr = tokens.map(t=>buildRefdataValueObject(cp, t)).filter(Boolean);
+          return buildMultiRefdataContainer(cp, currentArr, arr);
         }
+        if(!trimmed){ if(Array.isArray(currentArr)&&currentArr.length>0){ const base={...currentArr[0]}; base._delete=true; if("value" in base) base.value=""; return [base]; } return [{_delete:true}]; }
+        const mapped = mapLabelToValue(key, tokens[0]||"");
+        if(currentArr && Array.isArray(currentArr) && currentArr[0] && typeof currentArr[0].value === "object" && currentArr[0].value!==null && "value" in currentArr[0].value){ return [{_delete:false, value:{value:mapped}}]; }
+        return [{_delete:false, value:mapped}];
+      }
+      function parseCustomInputToPayloadScalarSmart(key, val, currentArr){ const trimmed=(val||"").trim(); if(!trimmed){ if(Array.isArray(currentArr)&&currentArr.length>0){ const base={...currentArr[0]}; base._delete=true; if("value" in base) base.value=""; return [base]; } return [{_delete:true}]; } return [{_delete:false, value:trimmed}]; }
+      function preserveDeleteContainer(currentArr){
+        if (Array.isArray(currentArr) && currentArr.length > 0) {
+          const first = { ...currentArr[0] };
+          first._delete = true;
+          if (Array.isArray(first.value)) first.value = [];
+          else if (first && typeof first.value === 'object' && first.value !== null && 'value' in first.value) first.value = '';
+          else if ('value' in first) first.value = '';
+          return [first];
+        }
+        return [{ _delete: true }];
+      }
 
-        try {
-          const customPropsMeta = await fetchCustomProps(baseUrl, tenant, token);
-          const customKeysOrdered = customPropsMeta.map((c) => c.key);
+      function buildColumnsForExport(){
+        // ctx→weight→label で安定ソート
+        const sorted=[...state.meta.customProps].sort((a,b)=>{ const byCtx=(a.ctx||"").localeCompare(b.ctx||""); if(byCtx!==0) return byCtx; const wa=Number(a.weight??0), wb=Number(b.weight??0); if(wa!==wb) return wa-wb; return (a.label||a.key||"").localeCompare(b.label||b.key||""); });
+        return [ ...defaultHeaders, ...sorted.map(cp=>cp.key) ];
+      }
+      function getExportHeaderLabel(key){ if(key==="id") return "ID"; if(key==="created") return "作成日"; if(key==="name") return "名称"; if(key==="status") return "ステータス"; if(key==="type") return "Type"; if(key==="alternateName") return "AlternateName"; const cp = state.meta.customProps.find(c=>c.key===key); return cp?.label || key; }
+      function getExportCtx(key){ if(defaultHeaders.includes(key)) return ""; const cp = state.meta.customProps.find(c=>c.key===key); return cp?.ctx || ""; }
 
-          const licenseRows = [];
-          let page = 1;
-          const perPage = 100;
-          let totalPages = 1;
+      // ===== Download CSV =====
+      async function downloadCSV(){
+        const baseUrl=el("baseUrl").value.trim(); const tenant=el("tenant").value.trim(); const username=el("username").value.trim(); const password=el("password").value; const btn=el("downloadBtn");
+        try{
+          setStatus("認証中…","info"); btn.disabled=true;
+          state.token = await login(baseUrl, tenant, username, password);
+          setStatus("メタデータ取得中…","info");
+          state.meta.customProps = await fetchCustomProps(baseUrl, tenant, state.token);
+          const {status, map} = await fetchRefdata(baseUrl, tenant, state.token);
+          state.meta.statusOptions = status; state.meta.refdataMap = map;
 
-          do {
-            const res = await fetch(
-              `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
-              {
-                headers: {
-                  "x-okapi-tenant": tenant,
-                  "x-okapi-token": token,
-                },
-              }
-            );
-            if (!res.ok) break;
-            const data = await res.json();
-            totalPages = data.totalPages || 1;
-            (data.results || []).forEach((lic) => {
-              const base = {
-                id: lic.id,
-                created: lic.dateCreated?.slice(0, 10) || "",
-                name: lic.name,
-                status: lic.status?.label || "",
-              };
-              const custom = {};
-              Object.entries(lic.customProperties || {}).forEach(
-                ([key, items]) => {
-                  if (!Array.isArray(items) || items.length === 0) return;
-                  const item = items[0];
-                  const v = item.value;
-                  let displayValue = "";
-                  if (Array.isArray(v)) {
-                    // 配列なら各要素の value をつなぐ
-                    displayValue = v
-                      .map((x) => x.value || String(x))
-                      .join("; ");
-                  } else if (v && typeof v === "object") {
-                    // オブジェクトなら value を使う
-                    displayValue = v.value || "";
-                  } else {
-                    displayValue = String(v);
-                  }
-                  custom[key] = displayValue;
-                }
-              );
-              licenseRows.push({ base, custom });
+          setStatus("ライセンス取得中…","info");
+          const rows=[]; let page=1, perPage=100, totalPages=1;
+          do{
+            const res = await fetch(`${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`, { headers:{"x-okapi-tenant":tenant, "x-okapi-token":state.token}});
+            if(!res.ok) break; const data=await res.json(); totalPages=data.totalPages||1;
+            (data.results||[]).forEach(lic=>{
+              const base={ id:lic.id, created: lic.dateCreated?.slice(0,10)||"", name: lic.name, status: lic.status?.label || lic.status || "", type: lic.type?.label || lic.type || "", alternateName: Array.isArray(lic.alternateNames)? lic.alternateNames.map(a=>a?.name).filter(Boolean).join("; ") : "" };
+              const custom={}; Object.entries(lic.customProperties||{}).forEach(([key,items])=>{ if(!Array.isArray(items)||items.length===0) return; const v=items[0].value; let display=""; if(Array.isArray(v)) display=v.map(x=>x.value||String(x)).join("; "); else if(v && typeof v === "object") display = v.value || ""; else display = v!=null? String(v):""; custom[key]=display; });
+              rows.push({base, custom});
             });
             page++;
-          } while (page <= totalPages);
+          } while(page<=totalPages);
 
-          if (!licenseRows.length) {
-            messageEl.innerHTML =
-              '<div class="error">ライセンスが見つかりませんでした。</div>';
-            fetchBtn.disabled = false;
-            return;
-          }
+          if(!rows.length){ setStatus("ライセンスが見つかりませんでした。","warn"); btn.disabled=false; return; }
 
-          const defaultHeaders = ["id", "created", "name", "status"];
-          const header1Parts = [];
-          defaultHeaders.forEach(() => {
-            header1Parts.push('""');
-          });
-          customPropsMeta.forEach(({ ctx }) => {
-            const escaped = `"${(ctx || "").replace(/"/g, '""')}"`;
-            header1Parts.push(escaped);
-          });
-          const header1 = header1Parts.join(",");
+          const columns = buildColumnsForExport();
+          const headerCtx = columns.map(k=>getExportCtx(k));
+          const headerLabel = columns.map(k=>getExportHeaderLabel(k));
 
-          const header2Parts = defaultHeaders.map(
-            (h) => `"${h.replace(/"/g, '""')}"`
-          );
-          customKeysOrdered.forEach((k) => {
-            header2Parts.push(`"${k.replace(/"/g, '""')}"`);
-          });
-          const header2 = header2Parts.join(",");
+          const body = rows.map(({base,custom}) => columns.map(k => (defaultHeaders.includes(k) ? (base[k] ?? "") : (custom[k] ?? ""))));
 
-          const dataRows = licenseRows.map(({ base, custom }) => {
-            const rowParts = [];
-            defaultHeaders.forEach((h) => {
-              let val = base[h] !== undefined ? base[h] : "";
-              if (/[",\n]/.test(val)) val = `"${val.replace(/"/g, '""')}"`;
-              rowParts.push(val);
-            });
-            customKeysOrdered.forEach((key) => {
-              let val = custom[key] || "";
-              if (/[",\n]/.test(val)) val = `"${val.replace(/"/g, '""')}"`;
-              rowParts.push(val);
-            });
-            return rowParts.join(",");
-          });
-
-          const body = [header1, header2, ...dataRows].join("\n");
-          const csvContent = "\uFEFF" + body;
-          const blob = new Blob([csvContent], {
-            type: "text/csv;charset=utf-8;",
-          });
+          // CSV 出力（UTF-8 BOM + 2段ヘッダー）
+          const esc = (v)=>{ const s=(v??"").toString(); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s; };
+          const lines = [ headerCtx.map(esc).join(','), headerLabel.map(esc).join(',') , ...body.map(row=>row.map(esc).join(',')) ];
+          const csv = "\uFEFF" + lines.join("\n");
+          const blob = new Blob([csv], {type: "text/csv;charset=utf-8;"});
           const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          const now = new Date();
-          const pad = (n) => String(n).padStart(2, "0");
-          const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(
-            now.getDate()
-          )}${pad(now.getHours())}${pad(now.getMinutes())}${pad(
-            now.getSeconds()
-          )}`;
-          a.href = url;
-          a.download = `licenses_${ts}.csv`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-
-          messageEl.innerHTML =
-            '<div class="success">CSVのダウンロードが完了しました！</div>';
-        } catch (err) {
-          console.error(err);
-          messageEl.innerHTML = '<div class="error">エラーが発生しました</div>';
-        } finally {
-          fetchBtn.disabled = false;
-        }
+          const a = document.createElement('a');
+          const now=new Date(); const pad=n=>String(n).padStart(2,'0');
+          a.href=url; a.download=`licenses_${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
+          document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+          setStatus("CSVのダウンロードが完了しました。","ok");
+        } catch(e){ console.error(e); setStatus(e.message||"エラーが発生しました","err"); }
+        finally{ btn.disabled=false; }
       }
 
-      async function uploadFromCSV() {
-        const fileInput = document.getElementById("csvFile");
-        const baseUrl = document.getElementById("baseUrl").value;
-        const tenant = document.getElementById("tenant").value;
-        const username = document.getElementById("username").value;
-        const password = document.getElementById("password").value;
-        const messageEl = document.getElementById("message");
-        const resultsEl = document.getElementById("uploadResults");
-        const uploadBtn = document.getElementById("uploadBtn");
+      // ===== Upload CSV -> PUT =====
+      async function uploadCSV(){
+        const file = el('csvFile').files[0]; if(!file){ setStatus('CSVファイルを選択してください','err'); return; }
+        const baseUrl=el("baseUrl").value.trim(); const tenant=el("tenant").value.trim(); const username=el("username").value.trim(); const password=el("password").value; const btn=el("uploadBtn"); const resultsEl=el("results"); resultsEl.innerHTML='';
+        try{
+          setStatus("認証中…","info"); btn.disabled=true;
+          state.token = await login(baseUrl, tenant, username, password);
+          setStatus("メタデータ取得中…","info");
+          state.meta.customProps = await fetchCustomProps(baseUrl, tenant, state.token);
+          const {status, map} = await fetchRefdata(baseUrl, tenant, state.token); state.meta.statusOptions=status; state.meta.refdataMap=map;
+        } catch(e){ setStatus("認証／メタ取得に失敗しました","err"); btn.disabled=false; return; }
 
-        if (!fileInput.files.length) {
-          messageEl.innerHTML =
-            '<div class="error">CSVファイルを選択してください</div>';
-          return;
-        }
-        uploadBtn.disabled = true;
-        messageEl.innerHTML = '<div class="info">アップロード中…</div>';
+        Papa.parse(file, { header:false, skipEmptyLines:true, complete: async (res)=>{
+          try{
+            const rows = res.data; if(!Array.isArray(rows) || rows.length<2){ setStatus('ヘッダー行が不足しています。2行目をヘッダーとして含むCSVをアップロードしてください。','err'); btn.disabled=false; return; }
+            // 1行目: ctx（使わないがずれ検出用） / 2行目: 見出し（label）
+            const headerLabels = rows[1].map(h=> typeof h==='string' ? h.replace(/^\uFEFF/, '') : h);
 
-        // Authenticate to get token
-        let token;
-        try {
-          const loginRes = await fetch(`${baseUrl}/authn/login`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-okapi-tenant": tenant,
-            },
-            body: JSON.stringify({ username, password }),
-          });
-          if (!loginRes.ok) throw new Error("認証失敗");
-          token = loginRes.headers.get("x-okapi-token");
-        } catch (err) {
-          messageEl.innerHTML = '<div class="error">認証に失敗しました</div>';
-          uploadBtn.disabled = false;
-          return;
-        }
+            // label -> key への逆引きマップを用意（既定列も含む）
+            const labelToKey = new Map();
+            const pushMap = (label, key)=>{ if(!label) return; labelToKey.set(label, key); };
+            pushMap('ID','id'); pushMap('作成日','created'); pushMap('名称','name'); pushMap('ステータス','status'); pushMap('Type','type'); pushMap('AlternateName','alternateName');
+            state.meta.customProps.forEach(cp=>{ pushMap(cp.label||cp.key, cp.key); });
 
-        const file = fileInput.files[0];
-        Papa.parse(file, {
-          header: false,
-          skipEmptyLines: true,
-          complete: async function (results) {
-            const rows = results.data;
-            if (!Array.isArray(rows) || rows.length < 2) {
-              messageEl.innerHTML =
-                '<div class="error">ヘッダー行が不足しています。2行目をヘッダーとして含むCSVをアップロードしてください。</div>';
-              uploadBtn.disabled = false;
-              return;
-            }
-
-            let rawHeaders = rows[1].map((h) =>
-              typeof h === "string" ? h.replace(/^\uFEFF/, "") : h
-            );
+            const headers = headerLabels.map(lbl=> labelToKey.get(lbl) || lbl );
 
             const dataObjects = [];
-            for (let i = 2; i < rows.length; i++) {
-              const rowArr = rows[i];
-              const obj = {};
-              rawHeaders.forEach((h, idx) => {
-                obj[h] = rowArr[idx] !== undefined ? String(rowArr[idx]) : "";
-              });
-              dataObjects.push(obj);
+            for(let i=2;i<rows.length;i++){
+              const r = rows[i]; const obj={}; headers.forEach((key,idx)=>{ obj[key] = r[idx] !== undefined ? String(r[idx]) : ""; }); dataObjects.push(obj);
             }
 
-            const tableRows = [];
-            for (const row of dataObjects) {
-              const id = row["id"];
-              if (!id) continue;
+            setStatus(`PUT 実行中… ${dataObjects.length}件`, 'info');
+            const results=[]; let ok=0, ng=0;
+            for(const row of dataObjects){
+              const id = (row['id']||'').trim(); if(!id) continue;
+              try{
+                const getRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, { headers:{"Content-Type":"application/json","x-okapi-tenant":tenant,"x-okapi-token":state.token} });
+                if(!getRes.ok) throw new Error(`GET失敗 (${getRes.status})`);
+                const payload = await getRes.json();
 
-              let payload;
-              try {
-                const getRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
-                  method: "GET",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "x-okapi-tenant": tenant,
-                    "x-okapi-token": token,
-                  },
-                });
-                if (!getRes.ok) throw new Error("GET失敗");
-                payload = await getRes.json();
-              } catch (err) {
-                tableRows.push({
-                  ID: id,
-                  status: "Error",
-                  detail: `GET失敗: ${err.message}`,
-                });
-                continue;
-              }
-
-              if (row["name"] !== undefined) payload.name = row["name"];
-              if (row["status"] !== undefined) payload.status = row["status"];
-
-              if (!payload.customProperties) payload.customProperties = {};
-
-              Object.entries(row).forEach(([col, rawVal]) => {
-                // skip base fields
-                if (["id", "name", "status", "created"].includes(col)) return;
-
-                // normalize key: allow "customProperties.X" or "X"
-                let key = col;
-                if (col.startsWith("customProperties.")) {
-                  key = col.replace("customProperties.", "");
+                // ===== base fields =====
+                if(row['name'] !== undefined) payload.name = row['name'];
+                if(row['status'] !== undefined) payload.status = row['status'];
+                if(row['type'] !== undefined){ // License.Type は refdata（label で保存）
+                  const typeOptions = (state.meta.refdataMap && state.meta.refdataMap['License.Type']) || [];
+                  const hit = typeOptions.find(o => o.label === row['type'] || o.value === row['type']);
+                  payload.type = hit ? hit.label : row['type'];
                 }
 
-                const val = (rawVal || "").trim();
+                payload.customProperties = payload.customProperties || {};
 
-                if (!(key in payload.customProperties)) {
-                  payload.customProperties[key] = val
-                    ? [{ _delete: false, value: val }]
-                    : [{ _delete: true }];
-                  return;
-                }
+                // ===== customProperties =====
+                for(const [col, rawVal] of Object.entries(row)){
+                  if(["id","name","status","created","type","alternateName"].includes(col)) continue; // base fields skip
+                  const key = col.startsWith('customProperties.') ? col.replace('customProperties.','') : col; // allow dotted
+                  const cp = state.meta.customProps.find(c=>c.key===key);
+                  const val = (rawVal||'').trim();
+                  const currentArr = payload.customProperties[key];
 
-                const arr = payload.customProperties[key];
-                if (!Array.isArray(arr) || arr.length === 0) {
-                  payload.customProperties[key] = val
-                    ? [{ _delete: false, value: val }]
-                    : [{ _delete: true }];
-                  return;
-                }
+                  if(cp && (cp.categoryValues||[]).length>0){
+                    // refdata (single/multi) with rich container preservation
+                    payload.customProperties[key] = parseCustomInputToPayloadWithOptionsRich(key, val, currentArr);
+                  } else if(cp && isScalarSingleKey(key)) {
+                     // scalar single (text/integer/decimal/date)
+                      let norm = val;
+                      const dt = getDataTypeForKey(key);
+                      if (dt === 'integer' || dt === 'decimal') norm = normNumericForCompare(val);
+                      else if (dt === 'date') norm = normDateForCompare(val);
+                      else norm = normTextForCompare(val);
 
-                if (Array.isArray(arr[0].value)) {
-                  if (val) {
-                    const vals = val
-                      .split(/;|；/)
-                      .map((v) => v.trim())
-                      .filter(Boolean);
-                    arr[0].value = vals.map((v) => ({ value: v }));
-                    arr[0]._delete = false;
+                      if (!norm) {
+                        payload.customProperties[key] = preserveDeleteContainer(currentArr);
+                      } else {
+                        payload.customProperties[key] = parseCustomInputToPayloadScalarSmart(key, norm, currentArr);
+                      }
                   } else {
-                    arr[0].value = [];
-                    arr[0]._delete = true;
-                  }
-                } else if (
-                  arr[0].value &&
-                  typeof arr[0].value === "object" &&
-                  "value" in arr[0].value
-                ) {
-                  if (val) {
-                    arr[0].value.value = val;
-                    arr[0]._delete = false;
-                  } else {
-                    arr[0]._delete = true;
-                  }
-                } else {
-                  if (val) {
-                    arr[0].value = val;
-                    arr[0]._delete = false;
-                  } else {
-                    arr[0]._delete = true;
+                  // array/object/text fallback (preserve containers on delete)
+                  const normalized = normFieldValue(val);
+                  if (!currentArr) {
+                    payload.customProperties[key] = normalized ? [{ _delete: false, value: normalized }] : [{ _delete: true }];
+                  } else if (Array.isArray(currentArr) && currentArr.length > 0) {
+                    const first = { ...currentArr[0] };
+                    if (!normalized) {
+                      payload.customProperties[key] = preserveDeleteContainer([first]);
+                    } else if (Array.isArray(first.value)) {
+                      const parts = normalized.split(/;\s*/).filter(Boolean);
+                      first.value = parts.map(v => ({ value: v }));
+                      first._delete = false;
+                      payload.customProperties[key] = [first];
+                    } else if (first.value && typeof first.value === 'object' && 'value' in first.value) {
+                      first.value.value = normalized;
+                      first._delete = false;
+                      payload.customProperties[key] = [first];
+                    } else {
+                      payload.customProperties[key] = [{ _delete: false, value: normalized }];
+                    }
                   }
                 }
-              });
+                }
 
-              // PUT request
-              try {
-                console.log(JSON.stringify(payload));
-                const res = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
-                  method: "PUT",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "x-okapi-tenant": tenant,
-                    "x-okapi-token": token,
-                  },
-                  body: JSON.stringify(payload),
-                });
-                let result = {};
-                try {
-                  result = await res.json();
-                } catch {}
-                tableRows.push({
-                  ID: id,
-                  status: res.ok ? "OK" : "Error",
-                  detail: res.ok ? JSON.stringify(result) : res.statusText,
-                });
-              } catch (err) {
-                tableRows.push({
-                  ID: id,
-                  status: "Error",
-                  detail: err.message,
-                });
-              }
+                // Type 必須で空なら失敗に（対象行のみ）
+                if(!String(payload.type||'').trim()){
+                  results.push({id, status:'Error', detail:'Type が空のため保存できません'}); ng++; continue;
+                }
+
+                const putRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, { method:'PUT', headers:{"Content-Type":"application/json","x-okapi-tenant":tenant,"x-okapi-token":state.token}, body: JSON.stringify(payload) });
+                if(!putRes.ok){ const text = await putRes.text().catch(()=>putRes.statusText); throw new Error(`PUT失敗: ${text}`); }
+                ok++; results.push({id, status:'OK', detail:''});
+              } catch(e){ ng++; results.push({id, status:'Error', detail: e.message}); }
             }
 
-            let html =
-              "<table><thead><tr><th>ID</th><th>結果</th><th>詳細</th></tr></thead><tbody>";
-            tableRows.forEach((r) => {
-              html += `<tr><td>${r.ID}</td><td>${r.status}</td><td>${r.detail}</td></tr>`;
-            });
-            html += "</tbody></table>";
-            resultsEl.innerHTML = html;
-            messageEl.innerHTML =
-              '<div class="success">アップロード完了！</div>';
-            uploadBtn.disabled = false;
-          },
-          error: function (err) {
-            messageEl.innerHTML = `<div class="error">CSV解析エラー: ${err.message}</div>`;
-            uploadBtn.disabled = false;
-          },
-        });
+            // render table
+            const rowsHtml = results.map(r=>`<tr><td class="mono">${r.id}</td><td>${r.status}</td><td class="small">${(r.detail||'').replace(/[<>]/g, c=>({"<":"&lt;", ">":"&gt;"}[c]))}</td></tr>`).join("");
+            el('results').innerHTML = `<table><thead><tr><th>ID</th><th>結果</th><th>詳細</th></tr></thead><tbody>${rowsHtml}</tbody></table>`;
+            if(ng===0) setStatus(`アップロード完了：成功 ${ok} 件`, 'ok');
+            else if(ok>0) setStatus(`一部成功：成功 ${ok} 件 / 失敗 ${ng} 件`, 'warn');
+            else setStatus(`すべて失敗：${ng} 件`, 'err');
+          } catch(e){ console.error(e); setStatus(e.message||'CSV処理中にエラー', 'err'); }
+          finally{ btn.disabled=false; }
+        }, error: (err)=>{ setStatus(`CSV解析エラー: ${err.message}`, 'err'); btn.disabled=false; }});
       }
+
+      // wire
+      el('downloadBtn').addEventListener('click', downloadCSV);
+      el('uploadBtn').addEventListener('click', uploadCSV);
     </script>
   </body>
 </html>
