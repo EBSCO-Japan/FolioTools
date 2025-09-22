@@ -19,136 +19,350 @@
         --border: #e5e7eb;
         --changed: #fafa96;
       }
-      * { box-sizing: border-box; }
-      body {
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        margin: 0; padding: 24px; color: var(--text); background: var(--bg);
+      * {
+        box-sizing: border-box;
       }
-      h1 { font-size: 22px; margin: 0 0 8px; }
-      .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
+          sans-serif;
+        margin: 0;
+        padding: 24px;
+        color: var(--text);
+        background: var(--bg);
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 8px;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
 
       .card {
-        background: var(--card); border: 1px solid var(--border);
-        border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       }
 
       .form {
-        display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(140px, 1fr));
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(4, minmax(140px, 1fr));
         padding: 16px;
       }
       .form label {
-        font-size: 12px; color: var(--muted);
-        display: flex; flex-direction: column; gap: 6px;
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
       }
-      .form input, .form select {
-        padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+      .form input,
+      .form select {
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
       }
       .visually-hidden {
         position: absolute !important;
-        width: 1px; height: 1px;
-        padding: 0; margin: -1px;
-        overflow: hidden; clip: rect(0, 0, 1px, 1px);
-        white-space: nowrap; border: 0;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 1px, 1px);
+        white-space: nowrap;
+        border: 0;
       }
-      .row { display: flex; align-items: center; gap: 8px; }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
 
       .th-btn .label {
-        min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
-      .th-btn .pill { flex: 0 0 auto; }
-      .th-btn .arrow { flex: 0 0 auto; opacity: .8; }
-      .th-btn { display: flex; align-items: center; gap: 8px; min-width: 0; }
+      .th-btn .pill {
+        flex: 0 0 auto;
+      }
+      .th-btn .arrow {
+        flex: 0 0 auto;
+        opacity: 0.8;
+      }
+      .th-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
 
-      #exportCsvBtn{margin-left: 50px}
+      #exportCsvBtn {
+        margin-left: 50px;
+      }
 
       .btn {
-        appearance: none; border: none; background: var(--brand); color: #fff;
-        padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
+        appearance: none;
+        border: none;
+        background: var(--brand);
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
       }
-      .btn:disabled { opacity: .5; cursor: not-allowed; }
-      .btn.secondary { background: #111827; }
-      .btn.ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
-      .btn.warn { background: var(--warn); color: #111; }
-      .btn.ok { background: var(--ok); }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn.secondary {
+        background: #111827;
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--brand);
+        border: 1px solid var(--brand);
+      }
+      .btn.warn {
+        background: var(--warn);
+        color: #111;
+      }
+      .btn.ok {
+        background: var(--ok);
+      }
 
       .toolbar {
-        display: flex; gap: 8px; align-items: center; padding: 12px 16px;
-        border-top: 1px solid var(--border); flex-wrap: wrap;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        flex-wrap: wrap;
       }
-      .toolbar .spacer { flex: 1; }
+      .toolbar .spacer {
+        flex: 1;
+      }
 
       .ctx-badge {
-        display: inline-block; padding: 2px 6px; border-radius: 999px;
-        background: #eef2ff; border: 1px solid var(--border); color: var(--brand-600);
-        font-size: 11px; line-height: 1.2; max-width: 100%; vertical-align: middle;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #eef2ff;
+        border: 1px solid var(--border);
+        color: var(--brand-600);
+        font-size: 11px;
+        line-height: 1.2;
+        max-width: 100%;
+        vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
-      .p-badge{
-        display:inline-block;
-        padding:2px 6px;
-        border-radius:999px;
-        background:#fff7ed;
-        border:1px solid var(--border);
-        color:#9a3412;
-        font-size:11px;
-        line-height:1.2;
-        vertical-align:middle;
+      .p-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: #fff7ed;
+        border: 1px solid var(--border);
+        color: #9a3412;
+        font-size: 11px;
+        line-height: 1.2;
+        vertical-align: middle;
       }
-      .th-btn .label { white-space: normal; line-height: 1.25; }
-
-      .pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); background: #fff; }
-
-      table thead th { position: sticky; top: 0; z-index: 2; background: #fff; }
-      table th:nth-child(3), table td:nth-child(3) {
-        position: sticky; left: 0; z-index: 1; background: #fff;
+      .th-btn .label {
+        white-space: normal;
+        line-height: 1.25;
       }
-      table thead th:nth-child(3) { z-index: 3; }
 
-      thead th:not(:last-child), tbody td:not(:last-child) { border-right: 1px solid var(--border); }
+      .pill {
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #fff;
+      }
+
+      table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #fff;
+      }
+      table th:nth-child(3),
+      table td:nth-child(3) {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: #fff;
+      }
+      table thead th:nth-child(3) {
+        z-index: 3;
+      }
+
+      thead th:not(:last-child),
+      tbody td:not(:last-child) {
+        border-right: 1px solid var(--border);
+      }
       .table-wrap {
-        margin-top: 16px; overflow: auto; height: calc(100vh - 360px); border-radius: 8px;
-        overscroll-behavior: contain; scrollbar-gutter: stable both-edges;
+        margin-top: 16px;
+        overflow: auto;
+        height: calc(100vh - 360px);
+        border-radius: 8px;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable both-edges;
       }
       table {
-        width: 100%; min-width: 1200px; border-collapse: separate; border-spacing: 0; table-layout: fixed;
+        width: 100%;
+        min-width: 1200px;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
       }
-      colgroup col { width: 160px; }
+      colgroup col {
+        width: 160px;
+      }
       thead th {
-        position: sticky; top: 0; background: #fcfcfd; z-index: 2; border-bottom: 1px solid var(--border);
-        font-size: 12px; color: #374151; text-align: left; padding: 10px 8px;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        position: sticky;
+        top: 0;
+        background: #fcfcfd;
+        z-index: 2;
+        border-bottom: 1px solid var(--border);
+        font-size: 12px;
+        color: #374151;
+        text-align: left;
+        padding: 10px 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      thead th.primary { background: #eef2ff; }
-      table thead th.primary:nth-child(3) { background: #eef2ff; }
-      tbody td { border-bottom: 1px solid var(--border); padding: 0; }
-      tbody tr:nth-child(odd) td { background: #fff; }
-      tbody tr:nth-child(even) td { background: #fafafa; }
-      .cell { padding: 6px 8px; min-width: 120px; }
-      .cell.readonly { color: var(--muted); font-size: 12px; }
+      thead th.primary {
+        background: #eef2ff;
+      }
+      table thead th.primary:nth-child(3) {
+        background: #eef2ff;
+      }
+      tbody td {
+        border-bottom: 1px solid var(--border);
+        padding: 0;
+      }
+      tbody tr:nth-child(odd) td {
+        background: #fff;
+      }
+      tbody tr:nth-child(even) td {
+        background: #fafafa;
+      }
+      .cell {
+        padding: 6px 8px;
+        min-width: 120px;
+      }
+      .cell.readonly {
+        color: var(--muted);
+        font-size: 12px;
+      }
 
       .editable {
-        display: block; width: 100%; padding: 8px 10px; border: 1px solid transparent;
-        background: transparent; border-radius: 6px; font: inherit;
+        display: block;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid transparent;
+        background: transparent;
+        border-radius: 6px;
+        font: inherit;
       }
-      .editable:focus { outline: none; border-color: var(--brand); background: #fff; box-shadow: 0 0 0 3px rgba(37, 99, 235, .15); }
-      .changed { background: var(--changed); }
-      .changed::after { content: "●"; color: var(--warn); margin-left: 6px; font-size: 10px; vertical-align: middle; }
+      .editable:focus {
+        outline: none;
+        border-color: var(--brand);
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      }
+      .changed {
+        background: var(--changed);
+      }
+      .changed::after {
+        content: "●";
+        color: var(--warn);
+        margin-left: 6px;
+        font-size: 10px;
+        vertical-align: middle;
+      }
 
       .status {
-        margin-top: 12px; padding: 10px 12px; border-radius: 8px; display: none; white-space: pre-line;
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        display: none;
+        white-space: pre-line;
       }
-      .status.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; display: block; }
-      .status.ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; display: block; }
-      .status.warn { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; display: block; }
-      .status.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; display: block; }
+      .status.info {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+        display: block;
+      }
+      .status.ok {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+        display: block;
+      }
+      .status.warn {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+        display: block;
+      }
+      .status.err {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        display: block;
+      }
 
-      .tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 999px; font-size: 12px; background: #eef2ff; color: #3730a3; }
-      .legend { display: flex; gap: 12px; align-items: center; font-size: 12px; color: var(--muted); }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        background: #eef2ff;
+        color: #3730a3;
+      }
+      .legend {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        font-size: 12px;
+        color: var(--muted);
+      }
 
-      .footer { margin-top: 24px; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+      .footer {
+        margin-top: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
 
-      .resizer { position: absolute; right: 0; top: 0; width: 6px; height: 100%; cursor: col-resize; user-select: none; }
-      .resizing { cursor: col-resize; }
+      .resizer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 6px;
+        height: 100%;
+        cursor: col-resize;
+        user-select: none;
+      }
+      .resizing {
+        cursor: col-resize;
+      }
     </style>
   </head>
   <body>
@@ -157,10 +371,19 @@
 
     <div class="card">
       <div class="form">
-        <label>Base URL<input id="baseUrl" type="text" value="https://folio-quesnelia-okapi.dev.folio.org" /></label>
+        <label
+          >Base URL<input
+            id="baseUrl"
+            type="text"
+            value="https://folio-quesnelia-okapi.dev.folio.org"
+        /></label>
         <label>Tenant<input id="tenant" type="text" value="diku" /></label>
-        <label>Username<input id="username" type="text" value="diku_admin" /></label>
-        <label>Password<input id="password" type="password" value="admin" /></label>
+        <label
+          >Username<input id="username" type="text" value="diku_admin"
+        /></label>
+        <label
+          >Password<input id="password" type="password" value="admin"
+        /></label>
       </div>
 
       <div class="toolbar">
@@ -168,16 +391,39 @@
         <button id="saveBtn" class="btn ok" disabled>変更を保存</button>
         <button id="revertBtn" class="btn ghost" disabled>リセット</button>
         <!-- <button id="exportBtn" class="btn secondary" disabled>表示内容をExcel保存</button> -->
-        <button id="exportCsvBtn" class="btn ghost">最新のExcelをダウンロード</button>
-        <input id="xlsxFile" type="file" accept=".xlsx,.xls" class="visually-hidden" />
-        <label for="xlsxFile" class="btn secondary" id="xlsxTriggerBtn">Excelをインポート</label>
-        <span id="xlsxChosen" class="sub" style="margin-left:6px;"></span>
+        <button id="exportCsvBtn" class="btn ghost">
+          最新のExcelをダウンロード
+        </button>
+        <input
+          id="xlsxFile"
+          type="file"
+          accept=".xlsx,.xls"
+          class="visually-hidden"
+        />
+        <label for="xlsxFile" class="btn secondary" id="xlsxTriggerBtn"
+          >Excelをインポート</label
+        >
+        <span id="xlsxChosen" class="sub" style="margin-left: 6px"></span>
         <!-- <button id="importCsvBtn" class="btn">CSV反映</button> -->
         <div class="spacer"></div>
-        <label class="row" style="gap: 6px; font-size: 12px; color: var(--muted)">
-          <input type="checkbox" id="onlyChanged" /> 黄色セル（変更）がある行に絞り込み
+        <label
+          class="row"
+          style="gap: 6px; font-size: 12px; color: var(--muted)"
+        >
+          <input type="checkbox" id="onlyChanged" />
+          黄色セル（変更）がある行に絞り込み
         </label>
-        <input id="q" type="text" placeholder="名前/ステータスでフィルタ" style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; width: 240px;" />
+        <input
+          id="q"
+          type="text"
+          placeholder="名前/ステータスでフィルタ"
+          style="
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 240px;
+          "
+        />
       </div>
 
       <div id="status" class="status info" style="display: none"></div>
@@ -192,8 +438,10 @@
 
       <div class="toolbar" style="border-top: 1px dashed var(--border)">
         <div class="legend">
-          <span class="tag">使い方</span>ヘッダーにホバーするとライセンス項目の説明が表示されます
-          <span class="tag">注意</span>アップロード時、日付はyyyy-mm-ddの形式で入力してください
+          <span class="tag">使い方</span
+          >ヘッダーにホバーするとライセンス項目の説明が表示されます
+          <span class="tag">注意</span
+          >アップロード時、日付はyyyy-mm-ddの形式で入力してください
           <span class="tag">凡例</span>♢：ソート
           <span class="pill">文</span>：テキスト
           <span class="pill">単</span>：単一選択
@@ -203,9 +451,7 @@
       </div>
     </div>
 
-    <div class="footer">
-      
-    </div>
+    <div class="footer"></div>
 
     <script>
       const el = (id) => document.getElementById(id);
@@ -229,7 +475,14 @@
         sortDir: "asc",
       };
 
-      const defaultHeaders = ["id","created","name","status","type","alternateName"];
+      const defaultHeaders = [
+        "id",
+        "created",
+        "name",
+        "status",
+        "type",
+        "alternateName",
+      ];
 
       function setStatus(msg, kind = "info") {
         const s = el("status");
@@ -246,7 +499,10 @@
       async function login(baseUrl, tenant, username, password) {
         const res = await fetch(`${baseUrl}/authn/login`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-okapi-tenant": tenant },
+          headers: {
+            "Content-Type": "application/json",
+            "x-okapi-tenant": tenant,
+          },
           body: JSON.stringify({ username, password }),
         });
         if (!res.ok) throw new Error("認証に失敗しました");
@@ -265,7 +521,8 @@
         if (dt === "integer" || dt === "decimal") {
           const na = parseFloat(String(av).replace(/[, ]/g, ""));
           const nb = parseFloat(String(bv).replace(/[, ]/g, ""));
-          const aOk = Number.isFinite(na), bOk = Number.isFinite(nb);
+          const aOk = Number.isFinite(na),
+            bOk = Number.isFinite(nb);
           if (aOk && bOk) return na - nb;
           if (aOk) return -1;
           if (bOk) return 1;
@@ -279,7 +536,10 @@
         }
         const sa = String(av).toLocaleLowerCase();
         const sb = String(bv).toLocaleLowerCase();
-        return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: "base" });
+        return sa.localeCompare(sb, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
       }
 
       function sortRows(rows) {
@@ -292,11 +552,14 @@
       // ----- Meta fetch -----
       async function fetchCustomProps(baseUrl, tenant, token) {
         const list = [];
-        let page = 1, totalPages = 1;
+        let page = 1,
+          totalPages = 1;
         const max = 100;
         do {
           const url = `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=${max}&stats=true&filters=retired%3D%3Dfalse&page=${page}`;
-          const res = await fetch(url, { headers: { "x-okapi-tenant": tenant, "x-okapi-token": token } });
+          const res = await fetch(url, {
+            headers: { "x-okapi-tenant": tenant, "x-okapi-token": token },
+          });
           if (!res.ok) break;
           const data = await res.json();
           totalPages = data.totalPages || 1;
@@ -304,7 +567,12 @@
             if (!p || !p.name) return;
             const typeStr = (p.type && (p.type.type || p.type) + "") || "";
             const isRefdata = /refdata/i.test(typeStr);
-            const multi = !!(p.multivalued || p.multiValued || p.type?.multivalued || /multi/i.test(typeStr));
+            const multi = !!(
+              p.multivalued ||
+              p.multiValued ||
+              p.type?.multivalued ||
+              /multi/i.test(typeStr)
+            );
             const cat = p.category || {};
             const categoryValues = Array.isArray(cat.values)
               ? cat.values.map((v) => ({
@@ -318,16 +586,20 @@
               ctx: p.ctx || "",
               weight: Number(p.weight ?? 0),
               isRefdata,
-              refKey: p.primary || p.category || p.refdataCategory || p.ctx || null,
+              refKey:
+                p.primary || p.category || p.refdataCategory || p.ctx || null,
               multi,
               categoryId: cat.id || null,
               categoryDesc: cat.desc || "",
               categoryInternal: !!cat.internal,
               categoryValues,
-              dataType:
-                /date/i.test(typeStr) ? "date" :
-                /integer/i.test(typeStr) ? "integer" :
-                /decimal/i.test(typeStr) ? "decimal" : "text",
+              dataType: /date/i.test(typeStr)
+                ? "date"
+                : /integer/i.test(typeStr)
+                ? "integer"
+                : /decimal/i.test(typeStr)
+                ? "decimal"
+                : "text",
               label: p.label || p.name || "",
               description: p.description || "",
               typeId: p.id || null,
@@ -372,7 +644,9 @@
 
       async function fetchLicenses(baseUrl, tenant, token) {
         const out = [];
-        let page = 1, perPage = 100, totalPages = 1;
+        let page = 1,
+          perPage = 100,
+          totalPages = 1;
         do {
           const res = await fetch(
             `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
@@ -388,20 +662,26 @@
               name: lic.name,
               status: lic.status?.label || lic.status || "",
               alternateName: Array.isArray(lic.alternateNames)
-                ? lic.alternateNames.map((a) => a?.name).filter(Boolean).join("; ")
+                ? lic.alternateNames
+                    .map((a) => a?.name)
+                    .filter(Boolean)
+                    .join("; ")
                 : "",
               type: lic.type?.label || lic.type || "",
             };
             const custom = {};
-            Object.entries(lic.customProperties || {}).forEach(([key, items]) => {
-              if (!Array.isArray(items) || items.length === 0) return;
-              const v = items[0].value;
-              let display = "";
-              if (Array.isArray(v)) display = v.map((x) => x.value || String(x)).join("; ");
-              else if (v && typeof v === "object") display = v.value || "";
-              else display = v != null ? String(v) : "";
-              custom[key] = display;
-            });
+            Object.entries(lic.customProperties || {}).forEach(
+              ([key, items]) => {
+                if (!Array.isArray(items) || items.length === 0) return;
+                const v = items[0].value;
+                let display = "";
+                if (Array.isArray(v))
+                  display = v.map((x) => x.value || String(x)).join("; ");
+                else if (v && typeof v === "object") display = v.value || "";
+                else display = v != null ? String(v) : "";
+                custom[key] = display;
+              }
+            );
             out.push({ base, custom });
           });
           page++;
@@ -421,11 +701,16 @@
       function normFieldValue(v) {
         const s = _normalizeForCompare(v).trim();
         if (!s) return "";
-        const parts = s.split(/[;；]/).map((p) => p.trim()).filter(Boolean).map((p) => p.replace(/\s+/g, " "));
+        const parts = s
+          .split(/[;；]/)
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .map((p) => p.replace(/\s+/g, " "));
         return parts.join("; ");
       }
       function normTextForCompare(v) {
-        return (v ?? "").toString()
+        return (v ?? "")
+          .toString()
           .replace(/\r\n?/g, "\n")
           .replace(/[\u200B-\u200D\uFEFF]/g, "")
           .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ")
@@ -462,11 +747,19 @@
         const cp = state.meta.customProps.find((c) => c.key === key);
         const hasOptions = Array.isArray(opts) && opts.length > 0;
         const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
-        return ((dt === "text" || dt === "decimal" || dt === "integer" || dt === "date") && !hasOptions && !isMulti);
+        return (
+          (dt === "text" ||
+            dt === "decimal" ||
+            dt === "integer" ||
+            dt === "date") &&
+          !hasOptions &&
+          !isMulti
+        );
       }
       function normByKey(key, v) {
         const dt = getDataTypeForKey(key);
-        if (dt === "integer" || dt === "decimal") return normNumericForCompare(v);
+        if (dt === "integer" || dt === "decimal")
+          return normNumericForCompare(v);
         if (dt === "date") return normDateForCompare(v);
         return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
       }
@@ -475,7 +768,8 @@
         if (["id", "created", "alternateName"].includes(key)) return "編集不可";
         if (key === "type") return "単";
         if (key === "name") return "文";
-        if (key === "status") return state.meta.statusOptions?.length > 0 ? "単" : "文";
+        if (key === "status")
+          return state.meta.statusOptions?.length > 0 ? "単" : "文";
         const dt = getDataTypeForKey(key);
         const opts = state.meta.cpOptionsByKey[key];
         const cp = state.meta.customProps.find((c) => c.key === key);
@@ -498,8 +792,10 @@
         return cp?.label || key;
       }
       function getColumnTitle(key) {
-        if (["id", "created", "name", "status"].includes(key)) return getColumnLabel(key);
-        if (key === "alternateName") return "AlternateName — alternateNames[].name を「; 」連結して表示";
+        if (["id", "created", "name", "status"].includes(key))
+          return getColumnLabel(key);
+        if (key === "alternateName")
+          return "AlternateName — alternateNames[].name を「; 」連結して表示";
         if (key === "type") return "Type — license.type.label を表示";
         const cp = state.meta.customProps.find((c) => c.key === key);
         const name = cp?.key || key;
@@ -511,7 +807,9 @@
       function mapLabelToValue(key, text) {
         const options = state.meta.cpOptionsByKey[key];
         if (!options) return text;
-        const hit = options.find((o) => o.label === text || o.value === text || o.id === text);
+        const hit = options.find(
+          (o) => o.label === text || o.value === text || o.id === text
+        );
         return hit ? hit.value : text;
       }
 
@@ -519,16 +817,21 @@
         const sorted = [...state.meta.customProps].sort((a, b) => {
           const byCtx = (a.ctx || "").localeCompare(b.ctx || "");
           if (byCtx !== 0) return byCtx;
-          const wa = Number(a.weight ?? 0), wb = Number(b.weight ?? 0);
+          const wa = Number(a.weight ?? 0),
+            wb = Number(b.weight ?? 0);
           if (wa !== wb) return wa - wb;
           return (a.label || a.key || "").localeCompare(b.label || b.key || "");
         });
         const customKeysOrdered = sorted.map((cp) => cp.key);
         state.columns = [...defaultHeaders, ...customKeysOrdered];
         state.ctxByKey = Object.fromEntries([
-          ["id",""],["created",""],["name",""],["status",""],
+          ["id", ""],
+          ["created", ""],
+          ["name", ""],
+          ["status", ""],
           ...sorted.map((cp) => [cp.key, cp.ctx || ""]),
-          ["type",""],["alternateName",""],
+          ["type", ""],
+          ["alternateName", ""],
         ]);
       }
 
@@ -547,8 +850,10 @@
       function rowHasChanges(row) {
         const id = row.base.id;
         return state.columns.some((col) => {
-          if (["id","created","alternateName"].includes(col)) return false;
-          const value = defaultHeaders.includes(col) ? row.base[col] : row.custom[col];
+          if (["id", "created", "alternateName"].includes(col)) return false;
+          const value = defaultHeaders.includes(col)
+            ? row.base[col]
+            : row.custom[col];
           return isCellChanged(id, col, value);
         });
       }
@@ -571,7 +876,8 @@
         const resizer = document.createElement("div");
         resizer.className = "resizer";
         th.appendChild(resizer);
-        let startX = 0, startW = 0;
+        let startX = 0,
+          startW = 0;
         const col = el("colgroup").children[index];
         const onMove = (e) => {
           const dx = e.clientX - startX;
@@ -597,7 +903,9 @@
         const { id, key } = input.dataset;
         let value;
         if (input.tagName === "SELECT" && input.multiple) {
-          value = Array.from(input.selectedOptions).map((o) => o.value).join("; ");
+          value = Array.from(input.selectedOptions)
+            .map((o) => o.value)
+            .join("; ");
         } else {
           value = input.value;
         }
@@ -612,7 +920,9 @@
 
       function revertAll() {
         state.rows = state.rows.map((r) => {
-          const orig = JSON.parse(JSON.stringify(state.original.get(r.base.id)));
+          const orig = JSON.parse(
+            JSON.stringify(state.original.get(r.base.id))
+          );
           return { base: orig.base, custom: orig.custom };
         });
         render();
@@ -622,22 +932,28 @@
         const thead = el("thead");
         thead.innerHTML = "";
         const headerRow = document.createElement("tr");
-        const headersHtml = state.columns.map((key) => {
+        const headersHtml = state.columns
+          .map((key) => {
             const label = getColumnLabel(key);
             const titleText = getColumnTitle(key);
             const type = getColumnTypeLabel(key);
-            const isDefault = ["id","created","name","status"].includes(key);
+            const isDefault = ["id", "created", "name", "status"].includes(key);
 
-            const cp  = state.meta.customProps.find(c => c.key === key);
+            const cp = state.meta.customProps.find((c) => c.key === key);
             const ctx = state.ctxByKey?.[key] ?? "";
 
             const badges = [];
             if (ctx) badges.push(`<span class="ctx-badge">${ctx}</span>`);
-            if (cp?.primary) badges.push(`<span class="p-badge" title="Primary">P</span>`);
+            if (cp?.primary)
+              badges.push(`<span class="p-badge" title="Primary">P</span>`);
             const badgeLine = badges.length ? `${badges.join(" ")}<br>` : "";
 
             const isSorted = state.sortKey === key;
-            const arrow = isSorted ? (state.sortDir === "asc" ? "▲" : "▼") : "♢";
+            const arrow = isSorted
+              ? state.sortDir === "asc"
+                ? "▲"
+                : "▼"
+              : "♢";
 
             return `
               <th title="${titleText}" class="${isDefault ? "primary" : ""}">
@@ -647,7 +963,8 @@
                   <span class="arrow" aria-hidden="true">${arrow}</span>
                 </button>
               </th>`;
-          }).join("");
+          })
+          .join("");
 
         headerRow.innerHTML = headersHtml;
         thead.appendChild(headerRow);
@@ -655,14 +972,20 @@
         headerRow.querySelectorAll(".th-btn").forEach((btn) => {
           btn.addEventListener("click", () => {
             const key = btn.dataset.sortkey;
-            if (state.sortKey === key) state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
-            else { state.sortKey = key; state.sortDir = "asc"; }
+            if (state.sortKey === key)
+              state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+            else {
+              state.sortKey = key;
+              state.sortDir = "asc";
+            }
             render();
           });
         });
 
         buildColgroup();
-        Array.from(headerRow.querySelectorAll("th")).forEach((th, i) => makeResizer(th, i));
+        Array.from(headerRow.querySelectorAll("th")).forEach((th, i) =>
+          makeResizer(th, i)
+        );
 
         const tbody = el("tbody");
         tbody.innerHTML = "";
@@ -672,7 +995,10 @@
           const changedOk = state.onlyChanged ? rowHasChanges(r) : true;
           if (!changedOk) return false;
           if (!q) return true;
-          return ((r.base.name || "").toLowerCase().includes(q) || (r.base.status || "").toLowerCase().includes(q));
+          return (
+            (r.base.name || "").toLowerCase().includes(q) ||
+            (r.base.status || "").toLowerCase().includes(q)
+          );
         });
 
         const rowsSorted = sortRows(rows);
@@ -695,19 +1021,28 @@
 
             const cp = state.meta.customProps.find((c) => c.key === key);
             const optionsFromRefdata =
-              cp && cp.isRefdata && cp.refKey && state.meta.refdataMap[cp.refKey]
+              cp &&
+              cp.isRefdata &&
+              cp.refKey &&
+              state.meta.refdataMap[cp.refKey]
                 ? state.meta.refdataMap[cp.refKey]
                 : null;
             const fromLicense = state.meta.cpOptionsByKey[key] || null;
 
             const options =
-              Array.isArray(fromLicense) && fromLicense.length > 0 ? fromLicense :
-              (Array.isArray(optionsFromRefdata) && optionsFromRefdata.length > 0 ? optionsFromRefdata : null);
+              Array.isArray(fromLicense) && fromLicense.length > 0
+                ? fromLicense
+                : Array.isArray(optionsFromRefdata) &&
+                  optionsFromRefdata.length > 0
+                ? optionsFromRefdata
+                : null;
 
             const hasOptions = Array.isArray(options) && options.length > 0;
             const currentVal = mapLabelToValue(key, value ?? "");
             const looksMulti =
-              state.meta.cpMultiByKey[key] || (cp && cp.multi) || (currentVal || "").includes(";");
+              state.meta.cpMultiByKey[key] ||
+              (cp && cp.multi) ||
+              (currentVal || "").includes(";");
             const dt = getDataTypeForKey(key);
 
             if (hasOptions && looksMulti) {
@@ -717,7 +1052,11 @@
               sel.dataset.id = base.id;
               sel.multiple = true;
               sel.size = Math.min(6, Math.max(3, options.length));
-              const curVals = currentVal.split(/[;；]/).map((s) => s.trim()).filter(Boolean).map((txt) => mapLabelToValue(key, txt));
+              const curVals = currentVal
+                .split(/[;；]/)
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .map((txt) => mapLabelToValue(key, txt));
               options.forEach((o) => {
                 const opt = document.createElement("option");
                 opt.value = o.value;
@@ -726,11 +1065,15 @@
                 sel.appendChild(opt);
               });
               const curStr = curVals.join("; ");
-              if (isCellChanged(base.id, key, curStr)) sel.classList.add("changed");
+              if (isCellChanged(base.id, key, curStr))
+                sel.classList.add("changed");
               sel.addEventListener("change", (ev) => {
                 onEditInline(ev);
-                const joined = Array.from(sel.selectedOptions).map((o) => o.value).join("; ");
-                if (isCellChanged(base.id, key, joined)) sel.classList.add("changed");
+                const joined = Array.from(sel.selectedOptions)
+                  .map((o) => o.value)
+                  .join("; ");
+                if (isCellChanged(base.id, key, joined))
+                  sel.classList.add("changed");
                 else sel.classList.remove("changed");
               });
               sel.addEventListener("mousedown", (e) => {
@@ -753,15 +1096,18 @@
               sel.dataset.key = key;
               sel.dataset.id = base.id;
               const optEmpty = document.createElement("option");
-              optEmpty.value = ""; optEmpty.textContent = "";
+              optEmpty.value = "";
+              optEmpty.textContent = "";
               sel.appendChild(optEmpty);
               options.forEach((o) => {
                 const opt = document.createElement("option");
-                opt.value = o.value; opt.textContent = o.value;
+                opt.value = o.value;
+                opt.textContent = o.value;
                 sel.appendChild(opt);
               });
               sel.value = currentVal;
-              if (isCellChanged(base.id, key, sel.value)) sel.classList.add("changed");
+              if (isCellChanged(base.id, key, sel.value))
+                sel.classList.add("changed");
               sel.addEventListener("change", onEditInline);
               div.appendChild(sel);
               td.appendChild(div);
@@ -770,18 +1116,32 @@
 
             let field;
             if (!hasOptions && !looksMulti && dt === "date") {
-              field = document.createElement("input"); field.type = "date"; field.value = currentVal || "";
-            } else if (!hasOptions && !looksMulti && (dt === "integer" || dt === "decimal")) {
-              field = document.createElement("input"); field.type = "number";
-              if (dt === "integer") field.step = "1"; if (dt === "decimal") field.step = "any";
-              field.inputMode = "decimal"; field.value = currentVal;
+              field = document.createElement("input");
+              field.type = "date";
+              field.value = currentVal || "";
+            } else if (
+              !hasOptions &&
+              !looksMulti &&
+              (dt === "integer" || dt === "decimal")
+            ) {
+              field = document.createElement("input");
+              field.type = "number";
+              if (dt === "integer") field.step = "1";
+              if (dt === "decimal") field.step = "any";
+              field.inputMode = "decimal";
+              field.value = currentVal;
             } else {
               const isText = isTextOnlyKey(key);
               const useTextarea = isText || /[\r\n]/.test(currentVal);
-              field = useTextarea ? document.createElement("textarea") : document.createElement("input");
+              field = useTextarea
+                ? document.createElement("textarea")
+                : document.createElement("input");
               if (!useTextarea) field.type = "text";
               field.value = currentVal;
-              if (field.tagName === "TEXTAREA") { field.style.minHeight = "60px"; field.style.resize = "vertical"; }
+              if (field.tagName === "TEXTAREA") {
+                field.style.minHeight = "60px";
+                field.style.resize = "vertical";
+              }
             }
 
             field.className = "editable";
@@ -789,7 +1149,11 @@
             field.dataset.id = base.id;
             field.placeholder = "";
 
-            if (options && !field.matches("textarea") && field.type === "text") {
+            if (
+              options &&
+              !field.matches("textarea") &&
+              field.type === "text"
+            ) {
               const listId = `dl_${key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
               let dl = document.getElementById(listId);
               if (!dl) {
@@ -805,7 +1169,8 @@
               field.setAttribute("list", listId);
             }
             field.addEventListener("input", onEditInline);
-            if (isCellChanged(base.id, key, field.value)) field.classList.add("changed");
+            if (isCellChanged(base.id, key, field.value))
+              field.classList.add("changed");
 
             div.appendChild(field);
             td.appendChild(div);
@@ -822,15 +1187,18 @@
               sel.dataset.key = "status";
               sel.dataset.id = base.id;
               const optEmpty = document.createElement("option");
-              optEmpty.value = ""; optEmpty.textContent = "";
+              optEmpty.value = "";
+              optEmpty.textContent = "";
               sel.appendChild(optEmpty);
               state.meta.statusOptions.forEach((o) => {
                 const opt = document.createElement("option");
-                opt.value = o.label; opt.textContent = o.label;
+                opt.value = o.label;
+                opt.textContent = o.label;
                 sel.appendChild(opt);
               });
               sel.value = value ?? "";
-              if (isCellChanged(base.id, "status", sel.value)) sel.classList.add("changed");
+              if (isCellChanged(base.id, "status", sel.value))
+                sel.classList.add("changed");
               sel.addEventListener("change", onEditInline);
               div.appendChild(sel);
             } else {
@@ -844,21 +1212,27 @@
             const td = document.createElement("td");
             const div = document.createElement("div");
             div.className = "cell";
-            const typeOptions = (state.meta.refdataMap && state.meta.refdataMap["License.Type"]) || [];
+            const typeOptions =
+              (state.meta.refdataMap &&
+                state.meta.refdataMap["License.Type"]) ||
+              [];
             const sel = document.createElement("select");
             sel.className = "editable";
             sel.dataset.key = "type";
             sel.dataset.id = base.id;
             typeOptions.forEach((o) => {
               const opt = document.createElement("option");
-              opt.value = o.label; opt.textContent = o.label;
+              opt.value = o.label;
+              opt.textContent = o.label;
               sel.appendChild(opt);
             });
             sel.value = value ?? "";
-            if (isCellChanged(base.id, "type", sel.value)) sel.classList.add("changed");
+            if (isCellChanged(base.id, "type", sel.value))
+              sel.classList.add("changed");
             sel.addEventListener("change", (ev) => {
               onEditInline(ev);
-              if (!sel.value) sel.title = "Type は必須です"; else sel.title = "";
+              if (!sel.value) sel.title = "Type は必須です";
+              else sel.title = "";
             });
             div.appendChild(sel);
             td.appendChild(div);
@@ -871,13 +1245,19 @@
           tr.appendChild(tdStatus(base.status));
           tr.appendChild(tdType(base.type));
 
-          const extraBaseKeys = state.columns.filter((k) =>
-            defaultHeaders.includes(k) && !["id","created","name","status","type"].includes(k)
+          const extraBaseKeys = state.columns.filter(
+            (k) =>
+              defaultHeaders.includes(k) &&
+              !["id", "created", "name", "status", "type"].includes(k)
           );
           extraBaseKeys.forEach((key) => tr.appendChild(tdRO(base[key])));
 
-          const customKeysInOrder = state.columns.filter((k) => !defaultHeaders.includes(k));
-          customKeysInOrder.forEach((key) => tr.appendChild(tdText(key, custom[key] ?? "")));
+          const customKeysInOrder = state.columns.filter(
+            (k) => !defaultHeaders.includes(k)
+          );
+          customKeysInOrder.forEach((key) =>
+            tr.appendChild(tdText(key, custom[key] ?? ""))
+          );
           tbody.appendChild(tr);
         });
 
@@ -913,13 +1293,21 @@
       function parseCustomInputToPayload(val, current) {
         const trimmed = (val || "").trim();
         if (!trimmed) return [{ _delete: true }];
-        const parts = trimmed.split(/;|；/).map((s) => s.trim()).filter(Boolean);
-        if (parts.length > 1) return [{ _delete: false, value: parts.map((v) => ({ value: v })) }];
+        const parts = trimmed
+          .split(/;|；/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (parts.length > 1)
+          return [{ _delete: false, value: parts.map((v) => ({ value: v })) }];
         if (
-          current && Array.isArray(current) && current[0] &&
-          typeof current[0].value === "object" && current[0].value !== null &&
+          current &&
+          Array.isArray(current) &&
+          current[0] &&
+          typeof current[0].value === "object" &&
+          current[0].value !== null &&
           "value" in current[0].value
-        ) return [{ _delete: false, value: { value: trimmed } }];
+        )
+          return [{ _delete: false, value: { value: trimmed } }];
         return [{ _delete: false, value: trimmed }];
       }
 
@@ -938,19 +1326,38 @@
             id: cp?.categoryId || null,
             desc: cp?.categoryDesc || "",
             internal: !!cp?.categoryInternal,
-            values: (cp?.categoryValues || []).map((v) => ({ id: v.id, value: v.value, label: v.label })),
+            values: (cp?.categoryValues || []).map((v) => ({
+              id: v.id,
+              value: v.value,
+              label: v.label,
+            })),
           },
           defaultInternal: true,
           label: cp?.label || cp?.key,
         };
-        return [{ internal: true, value: Array.isArray(refdataArray) ? refdataArray : [], type: typeObj }];
+        return [
+          {
+            internal: true,
+            value: Array.isArray(refdataArray) ? refdataArray : [],
+            type: typeObj,
+          },
+        ];
       }
 
       function parseCustomInputToPayloadWithOptionsRich(key, val, currentArr) {
         const cp = state.meta.customProps.find((c) => c.key === key);
         const trimmed = (val || "").trim();
-        const tokens = trimmed ? trimmed.split(/;|；/).map((s) => s.trim()).filter(Boolean) : [];
-        const looksMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi || tokens.length > 1);
+        const tokens = trimmed
+          ? trimmed
+              .split(/;|；/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [];
+        const looksMulti = !!(
+          state.meta.cpMultiByKey[key] ||
+          cp?.multi ||
+          tokens.length > 1
+        );
 
         if (looksMulti) {
           if (tokens.length === 0) {
@@ -964,7 +1371,9 @@
             if (created && created[0]) created[0]._delete = true;
             return created;
           }
-          const arr = tokens.map((t) => buildRefdataValueObject(cp, t)).filter(Boolean);
+          const arr = tokens
+            .map((t) => buildRefdataValueObject(cp, t))
+            .filter(Boolean);
           return buildMultiRefdataContainer(cp, currentArr, arr);
         }
 
@@ -981,10 +1390,14 @@
 
         const mapped = mapLabelToValue(key, tokens[0] || "");
         if (
-          currentArr && Array.isArray(currentArr) && currentArr[0] &&
-          typeof currentArr[0].value === "object" && currentArr[0].value !== null &&
+          currentArr &&
+          Array.isArray(currentArr) &&
+          currentArr[0] &&
+          typeof currentArr[0].value === "object" &&
+          currentArr[0].value !== null &&
           "value" in currentArr[0].value
-        ) return [{ _delete: false, value: { value: mapped } }];
+        )
+          return [{ _delete: false, value: { value: mapped } }];
         return [{ _delete: false, value: mapped }];
       }
 
@@ -1005,12 +1418,21 @@
       async function saveChanges() {
         const baseUrl = el("baseUrl").value.trim();
         const tenant = el("tenant").value.trim();
-        const headers = { "Content-Type": "application/json", "x-okapi-tenant": tenant, "x-okapi-token": state.token };
+        const headers = {
+          "Content-Type": "application/json",
+          "x-okapi-tenant": tenant,
+          "x-okapi-token": state.token,
+        };
 
         const changedRows = state.rows.filter(rowHasChanges);
-        const missingType = changedRows.filter((r) => !String(r.base.type || "").trim());
+        const missingType = changedRows.filter(
+          (r) => !String(r.base.type || "").trim()
+        );
         if (missingType.length > 0) {
-          setStatus(`Type が未選択の行があります（先頭ID: ${missingType[0].base.id}）。保存できません。`, "err");
+          setStatus(
+            `Type が未選択の行があります（先頭ID: ${missingType[0].base.id}）。保存できません。`,
+            "err"
+          );
           return;
         }
         if (changedRows.length === 0) {
@@ -1019,23 +1441,33 @@
         }
 
         setStatus(`保存中… ${changedRows.length}件`, "info");
-        let ok = 0, ng = 0;
+        let ok = 0,
+          ng = 0;
         const details = [];
 
         for (const row of changedRows) {
           const id = row.base.id;
           try {
-            const curRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, { headers });
-            if (!curRes.ok) throw new Error(`GET ${id} 失敗 (${curRes.status})`);
+            const curRes = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
+              headers,
+            });
+            if (!curRes.ok)
+              throw new Error(`GET ${id} 失敗 (${curRes.status})`);
             const payload = await curRes.json();
             const orig = state.original.get(id);
 
             if (row.base.name !== orig.base.name) payload.name = row.base.name;
-            if (row.base.status !== orig.base.status) payload.status = row.base.status;
+            if (row.base.status !== orig.base.status)
+              payload.status = row.base.status;
 
             if (row.base.type !== orig.base.type) {
-              const opts = (state.meta.refdataMap && state.meta.refdataMap["License.Type"]) || [];
-              const hit = opts.find((o) => o.label === row.base.type || o.value === row.base.type);
+              const opts =
+                (state.meta.refdataMap &&
+                  state.meta.refdataMap["License.Type"]) ||
+                [];
+              const hit = opts.find(
+                (o) => o.label === row.base.type || o.value === row.base.type
+              );
               payload.type = hit ? hit.label : row.base.type;
             }
 
@@ -1054,13 +1486,19 @@
 
               if (hasOptions) {
                 payload.customProperties[key] =
-                  parseCustomInputToPayloadWithOptionsRich(key, newVal, currentArr);
+                  parseCustomInputToPayloadWithOptionsRich(
+                    key,
+                    newVal,
+                    currentArr
+                  );
               } else if (isScalarSingleKey(key)) {
                 payload.customProperties[key] =
                   parseCustomInputToPayloadScalarSmart(key, newVal, currentArr);
               } else {
-                payload.customProperties[key] =
-                  parseCustomInputToPayload(newVal, currentArr);
+                payload.customProperties[key] = parseCustomInputToPayload(
+                  newVal,
+                  currentArr
+                );
               }
             });
 
@@ -1082,7 +1520,11 @@
         }
 
         if (ng === 0) setStatus(`保存完了: ${ok}件更新しました。`, "ok");
-        else if (ok > 0) setStatus(`一部成功: 成功${ok}件 / 失敗${ng}件\n${details.join("\n")}`, "warn");
+        else if (ok > 0)
+          setStatus(
+            `一部成功: 成功${ok}件 / 失敗${ng}件\n${details.join("\n")}`,
+            "warn"
+          );
         else setStatus(`保存に失敗しました:\n${details.join("\n")}`, "err");
 
         updateButtons();
@@ -1101,9 +1543,16 @@
           state.token = await login(baseUrl, tenant, username, password);
 
           setStatus("メタデータ取得中…", "info");
-          state.meta.customProps = await fetchCustomProps(baseUrl, tenant, state.token);
+          state.meta.customProps = await fetchCustomProps(
+            baseUrl,
+            tenant,
+            state.token
+          );
           state.meta.cpOptionsByKey = Object.fromEntries(
-            state.meta.customProps.map((cp) => [cp.key, cp.categoryValues || []])
+            state.meta.customProps.map((cp) => [
+              cp.key,
+              cp.categoryValues || [],
+            ])
           );
           state.meta.cpMultiByKey = Object.fromEntries(
             state.meta.customProps.map((cp) => [cp.key, !!cp.multi])
@@ -1119,7 +1568,9 @@
           setStatus("ライセンス取得中…", "info");
           const rows = await fetchLicenses(baseUrl, tenant, state.token);
           state.rows = rows.map((r) => ({ base: r.base, custom: r.custom }));
-          state.original = new Map(state.rows.map((r) => [r.base.id, JSON.parse(JSON.stringify(r))]));
+          state.original = new Map(
+            state.rows.map((r) => [r.base.id, JSON.parse(JSON.stringify(r))])
+          );
 
           buildColumns();
           clearStatus();
@@ -1139,7 +1590,10 @@
           const changedOk = state.onlyChanged ? rowHasChanges(r) : true;
           if (!changedOk) return false;
           if (!q) return true;
-          return ((r.base.name || "").toLowerCase().includes(q) || (r.base.status || "").toLowerCase().includes(q));
+          return (
+            (r.base.name || "").toLowerCase().includes(q) ||
+            (r.base.status || "").toLowerCase().includes(q)
+          );
         });
         return sortRows(rows);
       }
@@ -1165,7 +1619,9 @@
         const rowsSorted = getVisibleSortedRowsForExport();
         const body = rowsSorted.map((row) =>
           state.columns.map((key) => {
-            const raw = defaultHeaders.includes(key) ? row.base[key] : row.custom[key];
+            const raw = defaultHeaders.includes(key)
+              ? row.base[key]
+              : row.custom[key];
             return formatForExportByKey(key, raw);
           })
         );
@@ -1185,69 +1641,84 @@
         a.click();
         URL.revokeObjectURL(a.href);
       }
-async function exportToExcel() {
-  try {
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2, "0");
-    const fname = `licenses_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+      async function exportToExcel() {
+        try {
+          const now = new Date();
+          const pad = (n) => String(n).padStart(2, "0");
+          const fname = `licenses_${now.getFullYear()}-${pad(
+            now.getMonth() + 1
+          )}-${pad(now.getDate())}_${pad(now.getHours())}${pad(
+            now.getMinutes()
+          )}`;
 
-    let aoa;
+          let aoa;
 
-    if (state.rows.length > 0 && state.columns.length > 0) {
-      // 画面の並び・フィルタに準拠して出力
-      aoa = buildAoaFromState();
-    } else {
-      // 画面に表がない → 認証＆メタ→最新データ取得→出力
-      setStatus("最新データを取得してExcelを作成中…", "info");
-      await ensureMetaForExport();
+          if (state.rows.length > 0 && state.columns.length > 0) {
+            // 画面の並び・フィルタに準拠して出力
+            aoa = buildAoaFromState();
+          } else {
+            // 画面に表がない → 認証＆メタ→最新データ取得→出力
+            setStatus("最新データを取得してExcelを作成中…", "info");
+            await ensureMetaForExport();
 
-      const baseUrl = el("baseUrl").value.trim();
-      const tenant  = el("tenant").value.trim();
+            const baseUrl = el("baseUrl").value.trim();
+            const tenant = el("tenant").value.trim();
 
-      const latestRows = await fetchLicenses(baseUrl, tenant, state.token);
-      aoa = buildAoaFromRows(latestRows); // 列は buildColumns 済みの state.columns を使う
-    }
+            const latestRows = await fetchLicenses(
+              baseUrl,
+              tenant,
+              state.token
+            );
+            aoa = buildAoaFromRows(latestRows); // 列は buildColumns 済みの state.columns を使う
+          }
 
-    if (typeof XLSX === "undefined" || !XLSX?.utils) {
-      setStatus("XLSXライブラリが見つかりませんでした。CSVで保存します。", "warn");
-      return downloadCSVFallback(aoa, fname);
-    }
+          if (typeof XLSX === "undefined" || !XLSX?.utils) {
+            setStatus(
+              "XLSXライブラリが見つかりませんでした。CSVで保存します。",
+              "warn"
+            );
+            return downloadCSVFallback(aoa, fname);
+          }
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = state.columns.map(() => ({ wch: 18 }));
-    XLSX.utils.book_append_sheet(wb, ws, "licenses");
-    XLSX.writeFile(wb, `${fname}.xlsx`);
-    setStatus("Excelファイルを作成しました。", "ok");
-
-  } catch (e) {
-    console.error(e);
-    setStatus(`Excel出力でエラー: ${e.message || e}`, "err");
-  }
-}
-
+          const wb = XLSX.utils.book_new();
+          const ws = XLSX.utils.aoa_to_sheet(aoa);
+          ws["!cols"] = state.columns.map(() => ({ wch: 18 }));
+          XLSX.utils.book_append_sheet(wb, ws, "licenses");
+          XLSX.writeFile(wb, `${fname}.xlsx`);
+          setStatus("Excelファイルを作成しました。", "ok");
+        } catch (e) {
+          console.error(e);
+          setStatus(`Excel出力でエラー: ${e.message || e}`, "err");
+        }
+      }
 
       // ---- CSV ダウンロード（GET の最新に準拠）----
       function buildAoaFromRows(rows) {
-          const ctxRow = state.columns.map((key) => getExportCtx(key));
-          const headerRow = state.columns.map((key) => getExportHeaderLabel(key));
-          const body = rows.map(({ base, custom }) =>
-            state.columns.map((key) => {
-              const raw = defaultHeaders.includes(key) ? base[key] : custom[key];
-              return formatForExportByKey(key, raw);
-            })
-          );
-          return [ctxRow, headerRow, ...body];
-        }
+        const ctxRow = state.columns.map((key) => getExportCtx(key));
+        const headerRow = state.columns.map((key) => getExportHeaderLabel(key));
+        const body = rows.map(({ base, custom }) =>
+          state.columns.map((key) => {
+            const raw = defaultHeaders.includes(key) ? base[key] : custom[key];
+            return formatForExportByKey(key, raw);
+          })
+        );
+        return [ctxRow, headerRow, ...body];
+      }
 
-// ---- CSV 取り込み（グリッド反映→保存でPUT）----
-function buildLabelToKeyMap() {
-  const m = new Map();
-  m.set("ID", "id"); m.set("作成日", "created"); m.set("名称", "name");
-  m.set("ステータス", "status"); m.set("Type", "type"); m.set("AlternateName", "alternateName");
-  state.meta.customProps.forEach((cp) => { m.set(cp.label || cp.key, cp.key); });
-  return m;
-}
+      // ---- CSV 取り込み（グリッド反映→保存でPUT）----
+      function buildLabelToKeyMap() {
+        const m = new Map();
+        m.set("ID", "id");
+        m.set("作成日", "created");
+        m.set("名称", "name");
+        m.set("ステータス", "status");
+        m.set("Type", "type");
+        m.set("AlternateName", "alternateName");
+        state.meta.customProps.forEach((cp) => {
+          m.set(cp.label || cp.key, cp.key);
+        });
+        return m;
+      }
       // CSVの値をキーに応じて正規化（特に日付）
       function normalizeCsvByKey(key, raw) {
         let v = (raw ?? "").toString().trim();
@@ -1330,158 +1801,223 @@ function buildLabelToKeyMap() {
         return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
       }
 
-// ===== Excel取り込み（.xlsx/.xls） =====
-async function importFromExcel(file) {
-  try {
-    setStatus("Excel解析中…", "info");
-    const ab = await file.arrayBuffer();
-    // cellDatesは不要。raw:false & dateNFで文字列化（yyyy-mm-dd）
-    const wb = XLSX.read(ab, { type: "array" });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    if (!ws) throw new Error("先頭シートが見つかりません。");
+      // ===== Excel取り込み（.xlsx/.xls） =====
+      async function importFromExcel(file) {
+        try {
+          setStatus("Excel解析中…", "info");
+          const ab = await file.arrayBuffer();
+          // cellDatesは不要。raw:false & dateNFで文字列化（yyyy-mm-dd）
+          const wb = XLSX.read(ab, { type: "array" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          if (!ws) throw new Error("先頭シートが見つかりません。");
 
-    // header:1 -> 2次元配列。raw:false + dateNF で日付は文字列 "yyyy-mm-dd" に
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: "yyyy-mm-dd" });
+          // header:1 -> 2次元配列。raw:false + dateNF で日付は文字列 "yyyy-mm-dd" に
+          const rows = XLSX.utils.sheet_to_json(ws, {
+            header: 1,
+            raw: false,
+            dateNF: "yyyy-mm-dd",
+          });
 
-    if (!Array.isArray(rows) || rows.length < 1) {
-      setStatus("シートが空です。", "err");
-      return;
-    }
+          if (!Array.isArray(rows) || rows.length < 1) {
+            setStatus("シートが空です。", "err");
+            return;
+          }
 
-    // ● 見出し行の決定
-    // これまでのCSVは 1行目=ctx, 2行目=見出し だったが、
-    // Excelは「ctx行なし」を標準に。必要ならctx行があっても自動スキップ。
-    const labelToKey = buildLabelToKeyMap();
-    let headerRowIdx = 0;
+          // ● 見出し行の決定
+          // これまでのCSVは 1行目=ctx, 2行目=見出し だったが、
+          // Excelは「ctx行なし」を標準に。必要ならctx行があっても自動スキップ。
+          const labelToKey = buildLabelToKeyMap();
+          let headerRowIdx = 0;
 
-    // 先頭行が ctx っぽいならスキップ（全要素が '' or state.ctxByKeyのいずれか）
-    const looksCtx = (arr) => {
-      if (!arr || !arr.length) return false;
-      const ctxSet = new Set(Object.values(state.ctxByKey || {}));
-      return arr.every(v => (v ?? "") === "" || ctxSet.has((v ?? "").toString()));
-    };
-    if (looksCtx(rows[0]) && rows.length >= 2) headerRowIdx = 1;
+          // 先頭行が ctx っぽいならスキップ（全要素が '' or state.ctxByKeyのいずれか）
+          const looksCtx = (arr) => {
+            if (!arr || !arr.length) return false;
+            const ctxSet = new Set(Object.values(state.ctxByKey || {}));
+            return arr.every(
+              (v) => (v ?? "") === "" || ctxSet.has((v ?? "").toString())
+            );
+          };
+          if (looksCtx(rows[0]) && rows.length >= 2) headerRowIdx = 1;
 
-    const headerLabels = rows[headerRowIdx].map(h => (h ?? "").toString().replace(/^\uFEFF/, ""));
-    const headers = headerLabels.map(lbl => labelToKey.get(lbl) || lbl);
+          const headerLabels = rows[headerRowIdx].map((h) =>
+            (h ?? "").toString().replace(/^\uFEFF/, "")
+          );
+          const headers = headerLabels.map((lbl) => labelToKey.get(lbl) || lbl);
 
-    const idIdx = headers.findIndex(k => k === "id");
-    if (idIdx < 0) {
-      setStatus("ヘッダーに ID 列が見つかりません。", "err");
-      return;
-    }
+          const idIdx = headers.findIndex((k) => k === "id");
+          if (idIdx < 0) {
+            setStatus("ヘッダーに ID 列が見つかりません。", "err");
+            return;
+          }
 
-    let applied = 0, skipped = 0;
-    for (let i = headerRowIdx + 1; i < rows.length; i++) {
-      const r = rows[i] || [];
-      const id = (r[idIdx] ?? "").toString().trim();
-      if (!id) { skipped++; continue; }
-      const row = state.rows.find(x => x.base.id === id);
-      if (!row) { skipped++; continue; }
+          let applied = 0,
+            skipped = 0;
+          for (let i = headerRowIdx + 1; i < rows.length; i++) {
+            const r = rows[i] || [];
+            const id = (r[idIdx] ?? "").toString().trim();
+            if (!id) {
+              skipped++;
+              continue;
+            }
+            const row = state.rows.find((x) => x.base.id === id);
+            if (!row) {
+              skipped++;
+              continue;
+            }
 
-      headers.forEach((key, idx) => {
-        if (!key || idx >= r.length) return;
-        const raw = (r[idx] ?? "").toString();
+            headers.forEach((key, idx) => {
+              if (!key || idx >= r.length) return;
+              const raw = (r[idx] ?? "").toString();
 
-        if (defaultHeaders.includes(key)) {
-          // 読み取り専用はスキップ
-          if (key === "id" || key === "created" || key === "alternateName") return;
+              if (defaultHeaders.includes(key)) {
+                // 読み取り専用はスキップ
+                if (
+                  key === "id" ||
+                  key === "created" ||
+                  key === "alternateName"
+                )
+                  return;
 
-          if (key === "name") { row.base[key] = normTextForCompare(raw); return; }
-          if (key === "status" || key === "type") { row.base[key] = normFieldValue(raw); return; }
+                if (key === "name") {
+                  row.base[key] = normTextForCompare(raw);
+                  return;
+                }
+                if (key === "status" || key === "type") {
+                  row.base[key] = normFieldValue(raw);
+                  return;
+                }
+                return;
+              }
+
+              // カスタム項目：型をメタから取得して正規化（date→YYYY-MM-DD など）
+              if (state.columns.includes(key)) {
+                row.custom[key] = normalizeCsvByKey(key, raw);
+              }
+            });
+
+            applied++;
+          }
+
+          render();
+          if (applied > 0)
+            setStatus(
+              `Excel取り込み完了：${applied} 行を反映しました。内容を確認して「変更を保存」を押してください。`,
+              "ok"
+            );
+          else
+            setStatus(
+              "取り込める行が見つかりませんでした。IDの一致を確認してください。",
+              "warn"
+            );
+        } catch (e) {
+          console.error(e);
+          setStatus(e.message || "Excel取り込み中にエラー", "err");
+        }
+      }
+      // 画面に rows がない/メタ未取得の場合は先に読み込む
+      async function ensureLoadedForImport() {
+        if (state.rows.length > 0 && state.meta.customProps.length > 0) return; // 既にOK
+
+        const baseUrl = el("baseUrl").value.trim();
+        const tenant = el("tenant").value.trim();
+        const username = el("username").value.trim();
+        const password = el("password").value;
+
+        try {
+          setStatus("準備中…（認証と最新データの取得）", "info");
+          // 連打防止（任意）
+          el("loadBtn").disabled = true;
+          el("saveBtn").disabled = true;
+          el("revertBtn").disabled = true;
+          el("exportCsvBtn").disabled = true;
+          el("xlsxTriggerBtn").setAttribute("disabled", "disabled"); // <label>でも効くようCSSで見た目を合わせるなら後述
+
+          if (!state.token)
+            state.token = await login(baseUrl, tenant, username, password);
+
+          // メタ情報
+          if (!state.meta.customProps.length) {
+            state.meta.customProps = await fetchCustomProps(
+              baseUrl,
+              tenant,
+              state.token
+            );
+            state.meta.cpOptionsByKey = Object.fromEntries(
+              state.meta.customProps.map((cp) => [
+                cp.key,
+                cp.categoryValues || [],
+              ])
+            );
+            state.meta.cpMultiByKey = Object.fromEntries(
+              state.meta.customProps.map((cp) => [cp.key, !!cp.multi])
+            );
+            state.meta.cpDataTypeByKey = Object.fromEntries(
+              state.meta.customProps.map((cp) => [
+                cp.key,
+                cp.dataType || "text",
+              ])
+            );
+            const ref = await fetchRefdata(baseUrl, tenant, state.token);
+            state.meta.statusOptions = ref.status || [];
+            state.meta.refdataMap = ref.map || {};
+            buildColumns();
+          }
+
+          // ライセンス本体
+          if (state.rows.length === 0) {
+            const rows = await fetchLicenses(baseUrl, tenant, state.token);
+            state.rows = rows.map((r) => ({ base: r.base, custom: r.custom }));
+            state.original = new Map(
+              state.rows.map((r) => [r.base.id, JSON.parse(JSON.stringify(r))])
+            );
+            clearStatus();
+            render();
+          }
+        } finally {
+          // 解除
+          el("loadBtn").disabled = false;
+          el("saveBtn").disabled = !state.rows.some(rowHasChanges);
+          el("revertBtn").disabled = !state.rows.some(rowHasChanges);
+          el("exportCsvBtn").disabled = state.rows.length === 0;
+          el("xlsxTriggerBtn").removeAttribute("disabled");
+        }
+      }
+
+      // 画面を描画せず、エクスポート用にメタだけ用意
+      async function ensureMetaForExport() {
+        if (state.meta.customProps.length > 0 && state.columns.length > 0)
           return;
-        }
 
-        // カスタム項目：型をメタから取得して正規化（date→YYYY-MM-DD など）
-        if (state.columns.includes(key)) {
-          row.custom[key] = normalizeCsvByKey(key, raw);
-        }
-      });
+        const baseUrl = el("baseUrl").value.trim();
+        const tenant = el("tenant").value.trim();
+        const username = el("username").value.trim();
+        const password = el("password").value;
 
-      applied++;
-    }
+        if (!state.token)
+          state.token = await login(baseUrl, tenant, username, password);
 
-    render();
-    if (applied > 0) setStatus(`Excel取り込み完了：${applied} 行を反映しました。内容を確認して「変更を保存」を押してください。`, "ok");
-    else setStatus("取り込める行が見つかりませんでした。IDの一致を確認してください。", "warn");
-  } catch (e) {
-    console.error(e);
-    setStatus(e.message || "Excel取り込み中にエラー", "err");
-  }
-}
-// 画面に rows がない/メタ未取得の場合は先に読み込む
-async function ensureLoadedForImport() {
-  if (state.rows.length > 0 && state.meta.customProps.length > 0) return; // 既にOK
+        // メタ取得
+        state.meta.customProps = await fetchCustomProps(
+          baseUrl,
+          tenant,
+          state.token
+        );
+        state.meta.cpOptionsByKey = Object.fromEntries(
+          state.meta.customProps.map((cp) => [cp.key, cp.categoryValues || []])
+        );
+        state.meta.cpMultiByKey = Object.fromEntries(
+          state.meta.customProps.map((cp) => [cp.key, !!cp.multi])
+        );
+        state.meta.cpDataTypeByKey = Object.fromEntries(
+          state.meta.customProps.map((cp) => [cp.key, cp.dataType || "text"])
+        );
+        const ref = await fetchRefdata(baseUrl, tenant, state.token);
+        state.meta.statusOptions = ref.status || [];
+        state.meta.refdataMap = ref.map || {};
 
-  const baseUrl  = el("baseUrl").value.trim();
-  const tenant   = el("tenant").value.trim();
-  const username = el("username").value.trim();
-  const password = el("password").value;
-
-  try {
-    setStatus("準備中…（認証と最新データの取得）", "info");
-    // 連打防止（任意）
-    el("loadBtn").disabled = true;
-    el("saveBtn").disabled = true;
-    el("revertBtn").disabled = true;
-    el("exportCsvBtn").disabled = true;
-    el("xlsxTriggerBtn").setAttribute("disabled", "disabled"); // <label>でも効くようCSSで見た目を合わせるなら後述
-
-    if (!state.token) state.token = await login(baseUrl, tenant, username, password);
-
-    // メタ情報
-    if (!state.meta.customProps.length) {
-      state.meta.customProps = await fetchCustomProps(baseUrl, tenant, state.token);
-      state.meta.cpOptionsByKey = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.categoryValues || []]));
-      state.meta.cpMultiByKey   = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, !!cp.multi]));
-      state.meta.cpDataTypeByKey= Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.dataType || "text"]));
-      const ref = await fetchRefdata(baseUrl, tenant, state.token);
-      state.meta.statusOptions = ref.status || [];
-      state.meta.refdataMap = ref.map || {};
-      buildColumns();
-    }
-
-    // ライセンス本体
-    if (state.rows.length === 0) {
-      const rows = await fetchLicenses(baseUrl, tenant, state.token);
-      state.rows = rows.map((r) => ({ base: r.base, custom: r.custom }));
-      state.original = new Map(state.rows.map((r) => [r.base.id, JSON.parse(JSON.stringify(r))]));
-      clearStatus();
-      render();
-    }
-  } finally {
-    // 解除
-    el("loadBtn").disabled = false;
-    el("saveBtn").disabled = !state.rows.some(rowHasChanges);
-    el("revertBtn").disabled = !state.rows.some(rowHasChanges);
-    el("exportCsvBtn").disabled = (state.rows.length === 0);
-    el("xlsxTriggerBtn").removeAttribute("disabled");
-  }
-}
-
-// 画面を描画せず、エクスポート用にメタだけ用意
-async function ensureMetaForExport() {
-  if (state.meta.customProps.length > 0 && state.columns.length > 0) return;
-
-  const baseUrl  = el("baseUrl").value.trim();
-  const tenant   = el("tenant").value.trim();
-  const username = el("username").value.trim();
-  const password = el("password").value;
-
-  if (!state.token) state.token = await login(baseUrl, tenant, username, password);
-
-  // メタ取得
-  state.meta.customProps   = await fetchCustomProps(baseUrl, tenant, state.token);
-  state.meta.cpOptionsByKey= Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.categoryValues || []]));
-  state.meta.cpMultiByKey  = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, !!cp.multi]));
-  state.meta.cpDataTypeByKey=Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.dataType || "text"]));
-  const ref = await fetchRefdata(baseUrl, tenant, state.token);
-  state.meta.statusOptions = ref.status || [];
-  state.meta.refdataMap    = ref.map || {};
-
-  // 列構成だけ作る（描画はしない）
-  buildColumns();
-}
+        // 列構成だけ作る（描画はしない）
+        buildColumns();
+      }
 
       // events
       el("loadBtn").addEventListener("click", loadAll);
@@ -1489,17 +2025,23 @@ async function ensureMetaForExport() {
       el("revertBtn").addEventListener("click", revertAll);
       // el("exportBtn").addEventListener("click", exportToExcel);
       el("exportCsvBtn").addEventListener("click", async () => {
-          el("exportCsvBtn").disabled = true;
-          try {
-            await exportToExcel();
-          } finally {
-            el("exportCsvBtn").disabled = false;
-          }
-        });
+        el("exportCsvBtn").disabled = true;
+        try {
+          await exportToExcel();
+        } finally {
+          el("exportCsvBtn").disabled = false;
+        }
+      });
       // const importBtn = el("importCsvBtn");
       // if (importBtn) importBtn.addEventListener("click", importFromCSV);
-      el("q").addEventListener("input", (e) => { state.filterText = e.target.value; render(); });
-      el("onlyChanged").addEventListener("change", (e) => { state.onlyChanged = e.target.checked; render(); });
+      el("q").addEventListener("input", (e) => {
+        state.filterText = e.target.value;
+        render();
+      });
+      el("onlyChanged").addEventListener("change", (e) => {
+        state.onlyChanged = e.target.checked;
+        render();
+      });
       el("xlsxFile").addEventListener("change", async () => {
         const fi = el("xlsxFile");
         if (!fi.files || !fi.files[0]) return;
@@ -1517,11 +2059,12 @@ async function ensureMetaForExport() {
         } finally {
           // 同じファイル再選択でも発火するようにリセット
           const nameEl = el("xlsxChosen");
-          setTimeout(() => { fi.value = ""; if (nameEl) nameEl.textContent = ""; }, 0);
+          setTimeout(() => {
+            fi.value = "";
+            if (nameEl) nameEl.textContent = "";
+          }, 0);
         }
       });
-
-
     </script>
   </body>
 </html>
