@@ -5,8 +5,6 @@
     <title>FOLIO Licenses Inline Editor</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-    <!-- ▼ CSV解析用 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
       :root {
         --bg: #f6f7fb;
@@ -150,10 +148,10 @@
         <button id="loadBtn" class="btn">ライセンス読込</button>
         <button id="saveBtn" class="btn ok" disabled>変更を保存</button>
         <button id="revertBtn" class="btn ghost" disabled>リセット</button>
-        <button id="exportBtn" class="btn secondary" disabled>Excelに保存</button><span class="legend">表示されている表をダウンロード</span>
-        <button id="exportCsvBtn" class="btn secondary" disabled>CSVダウンロード</button>
-        <input id="csvFile" type="file" accept=".csv" style="max-width: 260px" />
-        <button id="importCsvBtn" class="btn">CSV反映</button>
+        <!-- <button id="exportBtn" class="btn secondary" disabled>表示内容をExcel保存</button> -->
+        <button id="exportCsvBtn" class="btn secondary" disabled>最新のExcelを保存</button>
+        <input id="xlsxFile" type="file" accept=".xlsx,.xls" style="max-width: 260px" />
+        <!-- <button id="importCsvBtn" class="btn">CSV反映</button> -->
         <div class="spacer"></div>
         <label class="row" style="gap: 6px; font-size: 12px; color: var(--muted)">
           <input type="checkbox" id="onlyChanged" /> 黄色セル（変更）がある行に絞り込み
@@ -173,8 +171,8 @@
 
       <div class="toolbar" style="border-top: 1px dashed var(--border)">
         <div class="legend">
-          <span class="tag">使い方</span>
-          <span>ヘッダーにホバーするとライセンス項目の説明が表示されます</span>
+          <span class="tag">使い方</span>ヘッダーにホバーするとライセンス項目の説明が表示されます
+          <span class="tag">注意</span>アップロード時、日付はyyyy-mm-ddの形式で入力してください
           <span class="tag">凡例</span>♢：ソート
           <span class="pill">文</span>：テキスト
           <span class="pill">単</span>：単一選択
@@ -851,8 +849,10 @@
         });
 
         updateButtons();
-        el("exportBtn").disabled = rowsSorted.length === 0;
-        el("exportCsvBtn").disabled = rowsSorted.length === 0;
+        const ex1 = el("exportBtn");
+        if (ex1) ex1.disabled = rowsSorted.length === 0;
+        const ex2 = el("exportCsvBtn");
+        if (ex2) ex2.disabled = rowsSorted.length === 0;
       }
 
       // ----- PUT payload builders（基準版と同じルール）-----
@@ -1125,15 +1125,20 @@
         const cp = state.meta.customProps.find((c) => c.key === key);
         return cp?.ctx || "";
       }
+
       function buildAoaFromState() {
         const ctxRow = state.columns.map((key) => getExportCtx(key));
         const headerRow = state.columns.map((key) => getExportHeaderLabel(key));
         const rowsSorted = getVisibleSortedRowsForExport();
         const body = rowsSorted.map((row) =>
-          state.columns.map((key) => (defaultHeaders.includes(key) ? row.base[key] : row.custom[key]) ?? "")
+          state.columns.map((key) => {
+            const raw = defaultHeaders.includes(key) ? row.base[key] : row.custom[key];
+            return formatForExportByKey(key, raw);
+          })
         );
         return [ctxRow, headerRow, ...body];
       }
+
       function downloadCSVFallback(aoa, filenameBase) {
         const esc = (v) => {
           const s = (v ?? "").toString();
@@ -1171,121 +1176,205 @@
 
       // ---- CSV ダウンロード（GET の最新に準拠）----
       function buildAoaFromRows(rows) {
-        const ctxRow = state.columns.map((key) => getExportCtx(key));
-        const headerRow = state.columns.map((key) => getExportHeaderLabel(key));
-        const body = rows.map(({ base, custom }) =>
-          state.columns.map((key) => (defaultHeaders.includes(key) ? base[key] : custom[key]) ?? "")
-        );
-        return [ctxRow, headerRow, ...body];
-      }
-      async function exportToCSV() {
-        try {
-          setStatus("CSV用データ取得中（GET）…", "info");
-          const baseUrl = el("baseUrl").value.trim();
-          const tenant = el("tenant").value.trim();
-          const username = el("username").value.trim();
-          const password = el("password").value;
-          if (!state.token) state.token = await login(baseUrl, tenant, username, password);
-          if (!state.meta.customProps?.length) {
-            state.meta.customProps = await fetchCustomProps(baseUrl, tenant, state.token);
-            state.meta.cpOptionsByKey = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.categoryValues || []]));
-            state.meta.cpMultiByKey = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, !!cp.multi]));
-            state.meta.cpDataTypeByKey = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.dataType || "text"]));
-            const ref = await fetchRefdata(baseUrl, tenant, state.token);
-            state.meta.statusOptions = ref.status || [];
-            state.meta.refdataMap = ref.map || {};
-            buildColumns();
-          }
-          const freshRows = await fetchLicenses(baseUrl, tenant, state.token);
-          if (!freshRows.length) { setStatus("ライセンスが見つかりませんでした。", "warn"); return; }
-          const aoa = buildAoaFromRows(freshRows);
-          const esc = (v) => { const s = (v ?? "").toString(); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-          const lines = aoa.map((row) => row.map(esc).join(","));
-          const csv = "\uFEFF" + lines.join("\n");
-          const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          const now = new Date(); const pad = (n) => String(n).padStart(2, "0");
-          a.href = url;
-          a.download = `licenses_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
-          document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-          setStatus("CSVのダウンロードが完了しました（ERMの最新のライセンス情報を出力）", "ok");
-        } catch (e) {
-          console.error(e);
-          setStatus(e.message || "CSV出力でエラー", "err");
+          const ctxRow = state.columns.map((key) => getExportCtx(key));
+          const headerRow = state.columns.map((key) => getExportHeaderLabel(key));
+          const body = rows.map(({ base, custom }) =>
+            state.columns.map((key) => {
+              const raw = defaultHeaders.includes(key) ? base[key] : custom[key];
+              return formatForExportByKey(key, raw);
+            })
+          );
+          return [ctxRow, headerRow, ...body];
         }
-      }
 
-      // ---- CSV 取り込み（グリッド反映→保存でPUT）----
-      function buildLabelToKeyMap() {
-        const m = new Map();
-        m.set("ID", "id"); m.set("作成日", "created"); m.set("名称", "name");
-        m.set("ステータス", "status"); m.set("Type", "type"); m.set("AlternateName", "alternateName");
-        state.meta.customProps.forEach((cp) => { m.set(cp.label || cp.key, cp.key); });
-        return m;
-      }
-      function importFromCSV() {
-        const file = el("csvFile").files[0];
-        if (!file) { setStatus("CSVファイルを選択してください", "err"); return; }
-        setStatus("CSV解析中…", "info");
-        Papa.parse(file, {
-          header: false, skipEmptyLines: true,
-          complete: (res) => {
-            try {
-              const rows = res.data;
-              if (!Array.isArray(rows) || rows.length < 2) {
-                setStatus("ヘッダー行が不足しています。1行目=ctx / 2行目=見出しのCSVを指定してください。", "err");
-                return;
-              }
-              const headerLabels = rows[1].map((h) => typeof h === "string" ? h.replace(/^\uFEFF/, "") : h);
-              const labelToKey = buildLabelToKeyMap();
-              const headers = headerLabels.map((lbl) => labelToKey.get(lbl) || lbl);
+// ---- CSV 取り込み（グリッド反映→保存でPUT）----
+function buildLabelToKeyMap() {
+  const m = new Map();
+  m.set("ID", "id"); m.set("作成日", "created"); m.set("名称", "name");
+  m.set("ステータス", "status"); m.set("Type", "type"); m.set("AlternateName", "alternateName");
+  state.meta.customProps.forEach((cp) => { m.set(cp.label || cp.key, cp.key); });
+  return m;
+}
+      // CSVの値をキーに応じて正規化（特に日付）
+      function normalizeCsvByKey(key, raw) {
+        let v = (raw ?? "").toString().trim();
+        if (!v) return "";
 
-              const idIdx = headers.findIndex((k) => k === "id");
-              if (idIdx < 0) { setStatus("ヘッダーに ID 列が見つかりません。", "err"); return; }
+        const dt = getDataTypeForKey(key);
 
-              let applied = 0, skipped = 0;
-              for (let i = 2; i < rows.length; i++) {
-                const r = rows[i];
-                const id = (r[idIdx] ?? "").toString().trim();
-                if (!id) { skipped++; continue; }
-                const row = state.rows.find((x) => x.base.id === id);
-                if (!row) { skipped++; continue; }
+        if (dt === "date") {
+          // 既に YYYY-MM-DD ならそのまま（時刻が付いていても前半10文字を採用）
+          const iso = v.match(/^(\d{4}-\d{2}-\d{2})/);
+          if (iso) return iso[1];
 
-                headers.forEach((key, idx) => {
-                  if (!key || idx >= r.length) return;
-                  const val = (r[idx] ?? "").toString();
-                  if (defaultHeaders.includes(key)) {
-                    if (["id","created","alternateName"].includes(key)) return; // 読み取り専用
-                    row.base[key] = val;
-                  } else if (state.columns.includes(key)) {
-                    row.custom[key] = val;
-                  }
-                });
-                applied++;
-              }
+          // 2025/9/2, 2025-9-2 → 2025-09-02
+          const ymd = v.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+          if (ymd) {
+            const y = ymd[1];
+            const m = String(ymd[2]).padStart(2, "0");
+            const d = String(ymd[3]).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+          }
 
-              render();
-              if (applied > 0) setStatus(`CSV取り込み完了：${applied} 行を反映しました。内容を確認して「変更を保存」を押してください。`, "ok");
-              else setStatus("取り込める行が見つかりませんでした。IDの一致を確認してください。", "warn");
-            } catch (e) {
-              console.error(e);
-              setStatus(e.message || "CSV取り込み中にエラー", "err");
+          // Excelシリアル（25569=1970-01-01 起算）
+          if (/^\d{5,6}$/.test(v)) {
+            const serial = Number(v);
+            if (Number.isFinite(serial)) {
+              const ms = (serial - 25569) * 86400000;
+              const date = new Date(ms); // UTC基準
+              const y = date.getUTCFullYear();
+              const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+              const d = String(date.getUTCDate()).padStart(2, "0");
+              return `${y}-${m}-${d}`;
             }
-          },
-          error: (err) => { setStatus(`CSV解析エラー: ${err.message}`, "err"); },
-        });
+          }
+
+          // 最後の保険：文字列中の YYYY-MM-DD を抽出
+          return normDateForCompare(v);
+        }
+
+        if (dt === "integer" || dt === "decimal") {
+          return normNumericForCompare(v);
+        }
+
+        // テキストや複数値（; 区切り）など
+        return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
       }
+
+      // 画面/CSVエクスポート用：キーに応じて値を整形（特に date を YYYY-MM-DD に統一）
+      function formatForExportByKey(key, value) {
+        const v = (value ?? "").toString();
+        const dt = getDataTypeForKey(key);
+
+        // 既定ヘッダーの created も YYYY-MM-DD に統一（sliceで来るが念のため）
+        if (key === "created") {
+          const m = v.match(/^(\d{4})[-\/](\d{2})[-\/](\d{2})/);
+          if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+          return normDateForCompare(v);
+        }
+
+        if (dt === "date") {
+          // "2025/09/22", "2025-9-2", "2025-09-22T00:00:00Z", Excelシリアル などを YYYY-MM-DD に
+          // （normalizeCsvByKey と同様の扱い。ただし出力用なので軽量に）
+          const iso = v.match(/^(\d{4}-\d{2}-\d{2})/);
+          if (iso) return iso[1];
+          const ymd = v.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+          if (ymd) {
+            const y = ymd[1];
+            const m = String(ymd[2]).padStart(2, "0");
+            const d = String(ymd[3]).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+          }
+          // 10桁以上の数字や ISO の断片は normDateForCompare に委譲
+          return normDateForCompare(v);
+        }
+
+        if (dt === "integer" || dt === "decimal") {
+          return normNumericForCompare(v);
+        }
+
+        // テキスト・複数値
+        return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
+      }
+
+// ===== Excel取り込み（.xlsx/.xls） =====
+async function importFromExcel(file) {
+  try {
+    setStatus("Excel解析中…", "info");
+    const ab = await file.arrayBuffer();
+    // cellDatesは不要。raw:false & dateNFで文字列化（yyyy-mm-dd）
+    const wb = XLSX.read(ab, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    if (!ws) throw new Error("先頭シートが見つかりません。");
+
+    // header:1 -> 2次元配列。raw:false + dateNF で日付は文字列 "yyyy-mm-dd" に
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: "yyyy-mm-dd" });
+
+    if (!Array.isArray(rows) || rows.length < 1) {
+      setStatus("シートが空です。", "err");
+      return;
+    }
+
+    // ● 見出し行の決定
+    // これまでのCSVは 1行目=ctx, 2行目=見出し だったが、
+    // Excelは「ctx行なし」を標準に。必要ならctx行があっても自動スキップ。
+    const labelToKey = buildLabelToKeyMap();
+    let headerRowIdx = 0;
+
+    // 先頭行が ctx っぽいならスキップ（全要素が '' or state.ctxByKeyのいずれか）
+    const looksCtx = (arr) => {
+      if (!arr || !arr.length) return false;
+      const ctxSet = new Set(Object.values(state.ctxByKey || {}));
+      return arr.every(v => (v ?? "") === "" || ctxSet.has((v ?? "").toString()));
+    };
+    if (looksCtx(rows[0]) && rows.length >= 2) headerRowIdx = 1;
+
+    const headerLabels = rows[headerRowIdx].map(h => (h ?? "").toString().replace(/^\uFEFF/, ""));
+    const headers = headerLabels.map(lbl => labelToKey.get(lbl) || lbl);
+
+    const idIdx = headers.findIndex(k => k === "id");
+    if (idIdx < 0) {
+      setStatus("ヘッダーに ID 列が見つかりません。", "err");
+      return;
+    }
+
+    let applied = 0, skipped = 0;
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
+      const r = rows[i] || [];
+      const id = (r[idIdx] ?? "").toString().trim();
+      if (!id) { skipped++; continue; }
+      const row = state.rows.find(x => x.base.id === id);
+      if (!row) { skipped++; continue; }
+
+      headers.forEach((key, idx) => {
+        if (!key || idx >= r.length) return;
+        const raw = (r[idx] ?? "").toString();
+
+        if (defaultHeaders.includes(key)) {
+          // 読み取り専用はスキップ
+          if (key === "id" || key === "created" || key === "alternateName") return;
+
+          if (key === "name") { row.base[key] = normTextForCompare(raw); return; }
+          if (key === "status" || key === "type") { row.base[key] = normFieldValue(raw); return; }
+          return;
+        }
+
+        // カスタム項目：型をメタから取得して正規化（date→YYYY-MM-DD など）
+        if (state.columns.includes(key)) {
+          row.custom[key] = normalizeCsvByKey(key, raw);
+        }
+      });
+
+      applied++;
+    }
+
+    render();
+    if (applied > 0) setStatus(`Excel取り込み完了：${applied} 行を反映しました。内容を確認して「変更を保存」を押してください。`, "ok");
+    else setStatus("取り込める行が見つかりませんでした。IDの一致を確認してください。", "warn");
+  } catch (e) {
+    console.error(e);
+    setStatus(e.message || "Excel取り込み中にエラー", "err");
+  }
+}
 
       // events
       el("loadBtn").addEventListener("click", loadAll);
       el("saveBtn").addEventListener("click", saveChanges);
       el("revertBtn").addEventListener("click", revertAll);
-      el("exportBtn").addEventListener("click", exportToExcel);
-      el("exportCsvBtn").addEventListener("click", exportToCSV);
-      el("importCsvBtn").addEventListener("click", importFromCSV);
+      // el("exportBtn").addEventListener("click", exportToExcel);
+      el("exportCsvBtn").addEventListener("click", exportToExcel);
+      // const importBtn = el("importCsvBtn");
+      // if (importBtn) importBtn.addEventListener("click", importFromCSV);
       el("q").addEventListener("input", (e) => { state.filterText = e.target.value; render(); });
       el("onlyChanged").addEventListener("change", (e) => { state.onlyChanged = e.target.checked; render(); });
+        // 既存の events の下に追記
+      el("xlsxFile").addEventListener("change", () => {
+        const fi = el("xlsxFile");
+        if (!fi.files || !fi.files[0]) return;
+        importFromExcel(fi.files[0]);
+        // 同じファイル再選択でも発火するようにリセット
+        setTimeout(() => { fi.value = ""; }, 0);
+      });
     </script>
   </body>
 </html>
