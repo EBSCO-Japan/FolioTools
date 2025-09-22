@@ -59,6 +59,8 @@
       .th-btn .arrow { flex: 0 0 auto; opacity: .8; }
       .th-btn { display: flex; align-items: center; gap: 8px; min-width: 0; }
 
+      #exportCsvBtn{margin-left: 50px}
+
       .btn {
         appearance: none; border: none; background: var(--brand); color: #fff;
         padding: 10px 14px; border-radius: 8px; cursor: pointer; font-weight: 600;
@@ -166,7 +168,7 @@
         <button id="saveBtn" class="btn ok" disabled>変更を保存</button>
         <button id="revertBtn" class="btn ghost" disabled>リセット</button>
         <!-- <button id="exportBtn" class="btn secondary" disabled>表示内容をExcel保存</button> -->
-        <button id="exportCsvBtn" class="btn secondary" disabled>最新のExcelをダウンロード</button>
+        <button id="exportCsvBtn" class="btn ghost">最新のExcelをダウンロード</button>
         <input id="xlsxFile" type="file" accept=".xlsx,.xls" class="visually-hidden" />
         <label for="xlsxFile" class="btn secondary" id="xlsxTriggerBtn">Excelをインポート</label>
         <span id="xlsxChosen" class="sub" style="margin-left:6px;"></span>
@@ -196,12 +198,13 @@
           <span class="pill">文</span>：テキスト
           <span class="pill">単</span>：単一選択
           <span class="pill">複</span>：複数選択
+          <span class="pill">P</span>：プライマリ
         </div>
       </div>
     </div>
 
     <div class="footer">
-      © Inline Editor sample — supports scalar/object/array customProperties, diff-only PUT, status vocab, column resizing, CSV import/export
+      
     </div>
 
     <script>
@@ -1182,27 +1185,47 @@
         a.click();
         URL.revokeObjectURL(a.href);
       }
-      function exportToExcel() {
-        try {
-          const aoa = buildAoaFromState();
-          const now = new Date();
-          const pad = (n) => String(n).padStart(2, "0");
-          const fname = `licenses_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
-          if (typeof XLSX === "undefined" || !XLSX?.utils) {
-            setStatus("XLSXライブラリが見つかりませんでした。CSVで保存します。", "warn");
-            return downloadCSVFallback(aoa, fname);
-          }
-          const wb = XLSX.utils.book_new();
-          const ws = XLSX.utils.aoa_to_sheet(aoa);
-          ws["!cols"] = state.columns.map(() => ({ wch: 18 }));
-          XLSX.utils.book_append_sheet(wb, ws, "licenses");
-          XLSX.writeFile(wb, `${fname}.xlsx`);
-          setStatus("Excelファイルを作成しました。", "ok");
-        } catch (e) {
-          console.error(e);
-          setStatus(`Excel出力でエラー: ${e.message || e}`, "err");
-        }
-      }
+async function exportToExcel() {
+  try {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const fname = `licenses_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+
+    let aoa;
+
+    if (state.rows.length > 0 && state.columns.length > 0) {
+      // 画面の並び・フィルタに準拠して出力
+      aoa = buildAoaFromState();
+    } else {
+      // 画面に表がない → 認証＆メタ→最新データ取得→出力
+      setStatus("最新データを取得してExcelを作成中…", "info");
+      await ensureMetaForExport();
+
+      const baseUrl = el("baseUrl").value.trim();
+      const tenant  = el("tenant").value.trim();
+
+      const latestRows = await fetchLicenses(baseUrl, tenant, state.token);
+      aoa = buildAoaFromRows(latestRows); // 列は buildColumns 済みの state.columns を使う
+    }
+
+    if (typeof XLSX === "undefined" || !XLSX?.utils) {
+      setStatus("XLSXライブラリが見つかりませんでした。CSVで保存します。", "warn");
+      return downloadCSVFallback(aoa, fname);
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = state.columns.map(() => ({ wch: 18 }));
+    XLSX.utils.book_append_sheet(wb, ws, "licenses");
+    XLSX.writeFile(wb, `${fname}.xlsx`);
+    setStatus("Excelファイルを作成しました。", "ok");
+
+  } catch (e) {
+    console.error(e);
+    setStatus(`Excel出力でエラー: ${e.message || e}`, "err");
+  }
+}
+
 
       // ---- CSV ダウンロード（GET の最新に準拠）----
       function buildAoaFromRows(rows) {
@@ -1386,30 +1409,118 @@ async function importFromExcel(file) {
     setStatus(e.message || "Excel取り込み中にエラー", "err");
   }
 }
+// 画面に rows がない/メタ未取得の場合は先に読み込む
+async function ensureLoadedForImport() {
+  if (state.rows.length > 0 && state.meta.customProps.length > 0) return; // 既にOK
+
+  const baseUrl  = el("baseUrl").value.trim();
+  const tenant   = el("tenant").value.trim();
+  const username = el("username").value.trim();
+  const password = el("password").value;
+
+  try {
+    setStatus("準備中…（認証と最新データの取得）", "info");
+    // 連打防止（任意）
+    el("loadBtn").disabled = true;
+    el("saveBtn").disabled = true;
+    el("revertBtn").disabled = true;
+    el("exportCsvBtn").disabled = true;
+    el("xlsxTriggerBtn").setAttribute("disabled", "disabled"); // <label>でも効くようCSSで見た目を合わせるなら後述
+
+    if (!state.token) state.token = await login(baseUrl, tenant, username, password);
+
+    // メタ情報
+    if (!state.meta.customProps.length) {
+      state.meta.customProps = await fetchCustomProps(baseUrl, tenant, state.token);
+      state.meta.cpOptionsByKey = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.categoryValues || []]));
+      state.meta.cpMultiByKey   = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, !!cp.multi]));
+      state.meta.cpDataTypeByKey= Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.dataType || "text"]));
+      const ref = await fetchRefdata(baseUrl, tenant, state.token);
+      state.meta.statusOptions = ref.status || [];
+      state.meta.refdataMap = ref.map || {};
+      buildColumns();
+    }
+
+    // ライセンス本体
+    if (state.rows.length === 0) {
+      const rows = await fetchLicenses(baseUrl, tenant, state.token);
+      state.rows = rows.map((r) => ({ base: r.base, custom: r.custom }));
+      state.original = new Map(state.rows.map((r) => [r.base.id, JSON.parse(JSON.stringify(r))]));
+      clearStatus();
+      render();
+    }
+  } finally {
+    // 解除
+    el("loadBtn").disabled = false;
+    el("saveBtn").disabled = !state.rows.some(rowHasChanges);
+    el("revertBtn").disabled = !state.rows.some(rowHasChanges);
+    el("exportCsvBtn").disabled = (state.rows.length === 0);
+    el("xlsxTriggerBtn").removeAttribute("disabled");
+  }
+}
+
+// 画面を描画せず、エクスポート用にメタだけ用意
+async function ensureMetaForExport() {
+  if (state.meta.customProps.length > 0 && state.columns.length > 0) return;
+
+  const baseUrl  = el("baseUrl").value.trim();
+  const tenant   = el("tenant").value.trim();
+  const username = el("username").value.trim();
+  const password = el("password").value;
+
+  if (!state.token) state.token = await login(baseUrl, tenant, username, password);
+
+  // メタ取得
+  state.meta.customProps   = await fetchCustomProps(baseUrl, tenant, state.token);
+  state.meta.cpOptionsByKey= Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.categoryValues || []]));
+  state.meta.cpMultiByKey  = Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, !!cp.multi]));
+  state.meta.cpDataTypeByKey=Object.fromEntries(state.meta.customProps.map((cp) => [cp.key, cp.dataType || "text"]));
+  const ref = await fetchRefdata(baseUrl, tenant, state.token);
+  state.meta.statusOptions = ref.status || [];
+  state.meta.refdataMap    = ref.map || {};
+
+  // 列構成だけ作る（描画はしない）
+  buildColumns();
+}
 
       // events
       el("loadBtn").addEventListener("click", loadAll);
       el("saveBtn").addEventListener("click", saveChanges);
       el("revertBtn").addEventListener("click", revertAll);
       // el("exportBtn").addEventListener("click", exportToExcel);
-      el("exportCsvBtn").addEventListener("click", exportToExcel);
+      el("exportCsvBtn").addEventListener("click", async () => {
+          el("exportCsvBtn").disabled = true;
+          try {
+            await exportToExcel();
+          } finally {
+            el("exportCsvBtn").disabled = false;
+          }
+        });
       // const importBtn = el("importCsvBtn");
       // if (importBtn) importBtn.addEventListener("click", importFromCSV);
       el("q").addEventListener("input", (e) => { state.filterText = e.target.value; render(); });
       el("onlyChanged").addEventListener("change", (e) => { state.onlyChanged = e.target.checked; render(); });
-      el("xlsxFile").addEventListener("change", () => {
+      el("xlsxFile").addEventListener("change", async () => {
         const fi = el("xlsxFile");
         if (!fi.files || !fi.files[0]) return;
 
-        // 任意：選択名を表示
-        const nameEl = el("xlsxChosen");
-        if (nameEl) nameEl.textContent = fi.files[0].name;
+        try {
+          // 先に読み込み（未読込なら自動で実行）
+          await ensureLoadedForImport();
 
-        importFromExcel(fi.files[0]);
+          // 任意：選択名を表示
+          const nameEl = el("xlsxChosen");
+          if (nameEl) nameEl.textContent = fi.files[0].name;
 
-        // 同じファイル再選択でも発火するようリセット
-        setTimeout(() => { fi.value = ""; if (nameEl) nameEl.textContent = ""; }, 0);
+          // 読み込み済みの original を基準に import → render 内で .changed が付き黄色化
+          await importFromExcel(fi.files[0]);
+        } finally {
+          // 同じファイル再選択でも発火するようにリセット
+          const nameEl = el("xlsxChosen");
+          setTimeout(() => { fi.value = ""; if (nameEl) nameEl.textContent = ""; }, 0);
+        }
       });
+
 
     </script>
   </body>
