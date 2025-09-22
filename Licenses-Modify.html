@@ -43,7 +43,13 @@
       .form input, .form select {
         padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
       }
-
+      .visually-hidden {
+        position: absolute !important;
+        width: 1px; height: 1px;
+        padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0, 0, 1px, 1px);
+        white-space: nowrap; border: 0;
+      }
       .row { display: flex; align-items: center; gap: 8px; }
 
       .th-btn .label {
@@ -74,6 +80,17 @@
         background: #eef2ff; border: 1px solid var(--border); color: var(--brand-600);
         font-size: 11px; line-height: 1.2; max-width: 100%; vertical-align: middle;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .p-badge{
+        display:inline-block;
+        padding:2px 6px;
+        border-radius:999px;
+        background:#fff7ed;
+        border:1px solid var(--border);
+        color:#9a3412;
+        font-size:11px;
+        line-height:1.2;
+        vertical-align:middle;
       }
       .th-btn .label { white-space: normal; line-height: 1.25; }
 
@@ -134,7 +151,7 @@
   </head>
   <body>
     <h1>FOLIO Licenses Inline Editor</h1>
-    <div class="sub">ライセンスを表示→編集できます</div>
+    <div class="sub">ライセンス編集</div>
 
     <div class="card">
       <div class="form">
@@ -149,8 +166,10 @@
         <button id="saveBtn" class="btn ok" disabled>変更を保存</button>
         <button id="revertBtn" class="btn ghost" disabled>リセット</button>
         <!-- <button id="exportBtn" class="btn secondary" disabled>表示内容をExcel保存</button> -->
-        <button id="exportCsvBtn" class="btn secondary" disabled>最新のExcelを保存</button>
-        <input id="xlsxFile" type="file" accept=".xlsx,.xls" style="max-width: 260px" />
+        <button id="exportCsvBtn" class="btn secondary" disabled>最新のExcelをダウンロード</button>
+        <input id="xlsxFile" type="file" accept=".xlsx,.xls" class="visually-hidden" />
+        <label for="xlsxFile" class="btn secondary" id="xlsxTriggerBtn">Excelをインポート</label>
+        <span id="xlsxChosen" class="sub" style="margin-left:6px;"></span>
         <!-- <button id="importCsvBtn" class="btn">CSV反映</button> -->
         <div class="spacer"></div>
         <label class="row" style="gap: 6px; font-size: 12px; color: var(--muted)">
@@ -309,6 +328,7 @@
               label: p.label || p.name || "",
               description: p.description || "",
               typeId: p.id || null,
+              primary: !!p.primary,
             });
           });
           page++;
@@ -600,22 +620,32 @@
         thead.innerHTML = "";
         const headerRow = document.createElement("tr");
         const headersHtml = state.columns.map((key) => {
-          const label = getColumnLabel(key);
-          const titleText = getColumnTitle(key);
-          const type = getColumnTypeLabel(key);
-          const isDefault = ["id","created","name","status"].includes(key);
-          const ctx = state.ctxByKey?.[key] ?? "";
-          const isSorted = state.sortKey === key;
-          const arrow = isSorted ? (state.sortDir === "asc" ? "▲" : "▼") : "♢";
-          return `
-            <th title="${titleText}" class="${isDefault ? "primary" : ""}">
-              <button class="th-btn" data-sortkey="${key}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:0">
-                <span class="label">${ctx ? `<span class="ctx-badge">${ctx}</span><br>` : ""}${label}</span>
-                <span class="pill">${type}</span>
-                <span class="arrow" aria-hidden="true">${arrow}</span>
-              </button>
-            </th>`;
-        }).join("");
+            const label = getColumnLabel(key);
+            const titleText = getColumnTitle(key);
+            const type = getColumnTypeLabel(key);
+            const isDefault = ["id","created","name","status"].includes(key);
+
+            const cp  = state.meta.customProps.find(c => c.key === key);
+            const ctx = state.ctxByKey?.[key] ?? "";
+
+            const badges = [];
+            if (ctx) badges.push(`<span class="ctx-badge">${ctx}</span>`);
+            if (cp?.primary) badges.push(`<span class="p-badge" title="Primary">P</span>`);
+            const badgeLine = badges.length ? `${badges.join(" ")}<br>` : "";
+
+            const isSorted = state.sortKey === key;
+            const arrow = isSorted ? (state.sortDir === "asc" ? "▲" : "▼") : "♢";
+
+            return `
+              <th title="${titleText}" class="${isDefault ? "primary" : ""}">
+                <button class="th-btn" data-sortkey="${key}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;min-width:0">
+                  <span class="label">${badgeLine}${label}</span>
+                  <span class="pill">${type}</span>
+                  <span class="arrow" aria-hidden="true">${arrow}</span>
+                </button>
+              </th>`;
+          }).join("");
+
         headerRow.innerHTML = headersHtml;
         thead.appendChild(headerRow);
 
@@ -1367,14 +1397,20 @@ async function importFromExcel(file) {
       // if (importBtn) importBtn.addEventListener("click", importFromCSV);
       el("q").addEventListener("input", (e) => { state.filterText = e.target.value; render(); });
       el("onlyChanged").addEventListener("change", (e) => { state.onlyChanged = e.target.checked; render(); });
-        // 既存の events の下に追記
       el("xlsxFile").addEventListener("change", () => {
         const fi = el("xlsxFile");
         if (!fi.files || !fi.files[0]) return;
+
+        // 任意：選択名を表示
+        const nameEl = el("xlsxChosen");
+        if (nameEl) nameEl.textContent = fi.files[0].name;
+
         importFromExcel(fi.files[0]);
-        // 同じファイル再選択でも発火するようにリセット
-        setTimeout(() => { fi.value = ""; }, 0);
+
+        // 同じファイル再選択でも発火するようリセット
+        setTimeout(() => { fi.value = ""; if (nameEl) nameEl.textContent = ""; }, 0);
       });
+
     </script>
   </body>
 </html>
