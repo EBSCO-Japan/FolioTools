@@ -482,6 +482,7 @@
         "status",
         "type",
         "alternateName",
+        "description", 
       ];
 
       function setStatus(msg, kind = "info") {
@@ -668,6 +669,7 @@
                     .join("; ")
                 : "",
               type: lic.type?.label || lic.type || "",
+              description: lic.description || "",
             };
             const custom = {};
             Object.entries(lic.customProperties || {}).forEach(
@@ -765,7 +767,7 @@
       }
 
       function getColumnTypeLabel(key) {
-        if (["id", "created", "alternateName"].includes(key)) return "編集不可";
+        if (["id", "created", "alternateName", "description"].includes(key)) return "編集不可";
         if (key === "type") return "単";
         if (key === "name") return "文";
         if (key === "status")
@@ -788,6 +790,7 @@
         if (key === "status") return "ステータス";
         if (key === "alternateName") return "AlternateName";
         if (key === "type") return "Type";
+        if (key === "description") return "Description"; 
         const cp = state.meta.customProps.find((c) => c.key === key);
         return cp?.label || key;
       }
@@ -797,6 +800,7 @@
         if (key === "alternateName")
           return "AlternateName — alternateNames[].name を「; 」連結して表示";
         if (key === "type") return "Type — license.type.label を表示";
+        if (key === "description") return "Description — License.description を表示（編集不可）"; 
         const cp = state.meta.customProps.find((c) => c.key === key);
         const name = cp?.key || key;
         const desc = (cp?.description || "").trim();
@@ -850,7 +854,7 @@
       function rowHasChanges(row) {
         const id = row.base.id;
         return state.columns.some((col) => {
-          if (["id", "created", "alternateName"].includes(col)) return false;
+          if (["id", "created", "alternateName", "description"].includes(col)) return false;
           const value = defaultHeaders.includes(col)
             ? row.base[col]
             : row.custom[col];
@@ -1604,6 +1608,7 @@
         if (key === "status") return "ステータス";
         if (key === "type") return "Type";
         if (key === "alternateName") return "AlternateName";
+        if (key === "description") return "Description";
         const cp = state.meta.customProps.find((c) => c.key === key);
         return cp?.label || key;
       }
@@ -1714,6 +1719,7 @@
         m.set("ステータス", "status");
         m.set("Type", "type");
         m.set("AlternateName", "alternateName");
+        m.set("Description", "description"); 
         state.meta.customProps.forEach((cp) => {
           m.set(cp.label || cp.key, cp.key);
         });
@@ -1874,7 +1880,8 @@
                 if (
                   key === "id" ||
                   key === "created" ||
-                  key === "alternateName"
+                  key === "alternateName"|| 
+                  key === "description"
                 )
                   return;
 
