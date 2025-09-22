@@ -758,14 +758,42 @@
           !isMulti
         );
       }
+      // 既存の関数群の近くに追加
+    function isMultiOptionKey(key) {
+      const cp = state.meta.customProps.find((c) => c.key === key);
+      const hasOptions = Array.isArray(state.meta.cpOptionsByKey[key]) && state.meta.cpOptionsByKey[key].length > 0;
+      const isMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi);
+      return hasOptions && isMulti;
+    }
+
+    // "yes; no" のような複数値を、順不同・値表記に統一して正規化
+    function canonicalizeMultiList(key, val) {
+      // まずは既存の区切り/空白正規化
+      const base = normFieldValue(val); // "; "区切り/空白整理のみ
+      if (!base) return "";
+
+      const tokens = base.split(/[;；]/).map(s => s.trim()).filter(Boolean);
+      // ラベル/値/ID ゆらぎを "value" に統一
+      const mapped = tokens.map(t => mapLabelToValue(key, t)).filter(Boolean);
+      // 重複除去
+      const uniq = Array.from(new Set(mapped));
+      // 安定比較のためソート（値の文字列昇順）
+      uniq.sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: "base", numeric: true }));
+      // 画面や比較で使う共通表現
+      return uniq.join("; ");
+    }
+
       function normByKey(key, v) {
-        const dt = getDataTypeForKey(key);
-        if (dt === "integer" || dt === "decimal")
-          return normNumericForCompare(v);
-        if (dt === "date") return normDateForCompare(v);
-        return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
+      // ★ 追加: 複数選択(オプション有り＆Multi)は順不同で正規化
+      if (isMultiOptionKey(key)) {
+        return canonicalizeMultiList(key, v);
       }
 
+      const dt = getDataTypeForKey(key);
+      if (dt === "integer" || dt === "decimal") return normNumericForCompare(v);
+      if (dt === "date") return normDateForCompare(v);
+      return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
+    }
       function getColumnTypeLabel(key) {
         if (["id", "created", "alternateName", "description"].includes(key)) return "編集不可";
         if (key === "type") return "単";
@@ -1726,50 +1754,46 @@
         return m;
       }
       // CSVの値をキーに応じて正規化（特に日付）
-      function normalizeCsvByKey(key, raw) {
-        let v = (raw ?? "").toString().trim();
-        if (!v) return "";
+function normalizeCsvByKey(key, raw) {
+  let v = (raw ?? "").toString().trim();
+  if (!v) return "";
 
-        const dt = getDataTypeForKey(key);
+  // ★ 追加: 複数選択(オプション有り＆Multi)は取り込み時にも正規化
+  if (isMultiOptionKey(key)) {
+    return canonicalizeMultiList(key, v);
+  }
 
-        if (dt === "date") {
-          // 既に YYYY-MM-DD ならそのまま（時刻が付いていても前半10文字を採用）
-          const iso = v.match(/^(\d{4}-\d{2}-\d{2})/);
-          if (iso) return iso[1];
-
-          // 2025/9/2, 2025-9-2 → 2025-09-02
-          const ymd = v.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-          if (ymd) {
-            const y = ymd[1];
-            const m = String(ymd[2]).padStart(2, "0");
-            const d = String(ymd[3]).padStart(2, "0");
-            return `${y}-${m}-${d}`;
-          }
-
-          // Excelシリアル（25569=1970-01-01 起算）
-          if (/^\d{5,6}$/.test(v)) {
-            const serial = Number(v);
-            if (Number.isFinite(serial)) {
-              const ms = (serial - 25569) * 86400000;
-              const date = new Date(ms); // UTC基準
-              const y = date.getUTCFullYear();
-              const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-              const d = String(date.getUTCDate()).padStart(2, "0");
-              return `${y}-${m}-${d}`;
-            }
-          }
-
-          // 最後の保険：文字列中の YYYY-MM-DD を抽出
-          return normDateForCompare(v);
-        }
-
-        if (dt === "integer" || dt === "decimal") {
-          return normNumericForCompare(v);
-        }
-
-        // テキストや複数値（; 区切り）など
-        return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
+  const dt = getDataTypeForKey(key);
+  if (dt === "date") {
+    const iso = v.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (iso) return iso[1];
+    const ymd = v.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    if (ymd) {
+      const y = ymd[1];
+      const m = String(ymd[2]).padStart(2, "0");
+      const d = String(ymd[3]).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    if (/^\d{5,6}$/.test(v)) {
+      const serial = Number(v);
+      if (Number.isFinite(serial)) {
+        const ms = (serial - 25569) * 86400000;
+        const date = new Date(ms);
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+        const d = String(date.getUTCDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
       }
+    }
+    return normDateForCompare(v);
+  }
+
+  if (dt === "integer" || dt === "decimal") {
+    return normNumericForCompare(v);
+  }
+
+  return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
+}
 
       // 画面/CSVエクスポート用：キーに応じて値を整形（特に date を YYYY-MM-DD に統一）
       function formatForExportByKey(key, value) {
@@ -1802,7 +1826,10 @@
         if (dt === "integer" || dt === "decimal") {
           return normNumericForCompare(v);
         }
-
+        // ★複数選択は出力時も安定化
+        if (isMultiOptionKey(key)) {
+          return canonicalizeMultiList(key, v);
+        }
         // テキスト・複数値
         return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
       }
