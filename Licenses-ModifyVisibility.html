@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FOLIO Licenses Term Visibility Tool</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+      :root {
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --text: #222;
+        --muted: #6b7280;
+        --brand: #2563eb;
+        --brand-600: #1d4ed8;
+        --ok: #16a34a;
+        --warn: #f59e0b;
+        --err: #dc2626;
+        --border: #e5e7eb;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
+          sans-serif;
+        margin: 0;
+        padding: 24px;
+        color: var(--text);
+        background: var(--bg);
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 8px;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+      .form {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(4, minmax(140px, 1fr));
+        padding: 16px;
+      }
+      .form label {
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form input,
+      .form select {
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+      .btn {
+        appearance: none;
+        border: none;
+        background: var(--brand);
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--brand);
+        border: 1px solid var(--brand);
+      }
+      .btn.ok {
+        background: var(--ok);
+      }
+      .btn.warn {
+        background: var(--warn);
+        color: #111;
+      }
+      .btn.err {
+        background: var(--err);
+      }
+      .status {
+        margin: 12px 16px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        display: none;
+        white-space: pre-line;
+      }
+      .status.info {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+        display: block;
+      }
+      .status.ok {
+        background: #ecfdf5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+        display: block;
+      }
+      .status.warn {
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+        display: block;
+      }
+      .status.err {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        display: block;
+      }
+
+      .section {
+        padding: 16px;
+        border-top: 1px dashed var(--border);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .list {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        overflow: auto;
+        max-height: 50vh;
+      }
+      .list table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .list th,
+      .list td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+      }
+      .list tr:hover {
+        background: #f9fafb;
+      }
+      .list th {
+        position: sticky;
+        top: 0;
+        background: #fafafa;
+        text-align: left;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .pill {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #fff;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .hl {
+        background: #fff7ed;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .license-row.selected {
+        background-color: #e0f3ff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>FOLIO Licenses: ライセンス検索 & ターム可視性一括変更</h1>
+    <div class="sub">
+      ①検索 → ②ライセンス選択 → ③タームの visibility を Internal / Public
+      に一括変更
+    </div>
+
+    <div class="card">
+      <div class="form">
+        <label
+          >Base URL<input
+            id="baseUrl"
+            type="text"
+            value="https://folio-quesnelia-okapi.dev.folio.org"
+        /></label>
+        <label>Tenant<input id="tenant" type="text" value="diku" /></label>
+        <label
+          >Username<input id="username" type="text" value="diku_admin"
+        /></label>
+        <label
+          >Password<input id="password" type="password" value="admin"
+        /></label>
+
+        <label
+          >名称(部分一致)<input
+            id="s_name"
+            type="text"
+            placeholder="例: Springer"
+        /></label>
+        <label
+          >ステータス<select id="s_status">
+            <option value="">(すべて)</option>
+          </select></label
+        >
+        <label
+          >Type<select id="s_type">
+            <option value="">(すべて)</option>
+          </select></label
+        >
+        <label
+          >更新日(yyyy-mm-dd 以降)<input id="s_updated_from" type="date"
+        /></label>
+      </div>
+      <div class="toolbar">
+        <button id="loginBtn" class="btn ghost">ログイン</button>
+        <button id="searchBtn" class="btn">ライセンス検索</button>
+        <span class="muted"
+          >結果をクリックするとターム一覧が右側に表示されます。</span
+        >
+        <div class="spacer"></div>
+        <label class="row muted"
+          ><input id="onlyActive" type="checkbox" />
+          ステータス=Activeに絞る</label
+        >
+        <input
+          id="q"
+          type="text"
+          placeholder="結果内フィルタ(名称/ステータス)"
+          style="
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 240px;
+          "
+        />
+      </div>
+
+      <div id="status" class="status info" style="display: none"></div>
+
+      <div class="section grid">
+        <div>
+          <div class="row" style="margin-bottom: 6px">
+            <span class="pill"
+              >検索結果: <span id="licenseCount">0</span> 件</span
+            >
+          </div>
+          <div class="list" id="licenseList"></div>
+        </div>
+        <div>
+          <div class="row" style="margin-bottom: 6px">
+            <span class="pill"
+              >選択中ライセンス: <span id="selectedLicenseName">—</span></span
+            >
+          </div>
+          <div class="list" id="termList"></div>
+          <div class="toolbar">
+            <div class="row" style="gap: 6px">
+              <label class="row muted" style="gap: 6px"
+                ><input id="checkAllTerms" type="checkbox" /> すべて選択</label
+              >
+              <select
+                id="bulkVisibility"
+                style="
+                  padding: 8px 10px;
+                  border: 1px solid var(--border);
+                  border-radius: 8px;
+                "
+              >
+                <option value="">visibility を選択</option>
+                <option value="internal">Internal</option>
+                <option value="public">Public</option>
+              </select>
+              <button id="applyVisibilityBtn" class="btn ok" disabled>
+                選択タームに一括適用
+              </button>
+            </div>
+            <div class="spacer"></div>
+            <button id="refreshTermsBtn" class="btn ghost" disabled>
+              ターム再読込
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" style="font-size: 12px; color: var(--muted)">
+        <div class="row" style="gap: 12px; flex-wrap: wrap">
+          <span class="pill">凡例</span>
+          <span
+            >visibility: <span class="pill">internal</span> /
+            <span class="pill">public</span></span
+          >
+          <span>ターム選択 → 一括適用で可視性を更新</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ====== 設定 ======
+      // ★必要に応じて API パス/クエリ/ペイロードを調整できるように統一設定を用意
+      const API = {
+        // 認証(OKAPI)
+        login: (baseUrl) => `${baseUrl}/authn/login`,
+        // ライセンス検索: ページング対応
+        // デフォルトは mod-licenses の /licenses/licenses を想定
+        searchLicenses: ({
+          baseUrl,
+          name,
+          status,
+          type,
+          updatedFrom,
+          page = 1,
+          perPage = 50,
+        }) => {
+          const params = new URLSearchParams();
+          params.set("page", String(page));
+          params.set("perPage", String(perPage));
+          if (name) params.set("name", name); // ←サーバ側の対応がない場合は term パラメータ等に変更
+          if (status) params.set("status", status);
+          if (type) params.set("type", type);
+          if (updatedFrom) params.set("dateUpdatedFrom", updatedFrom);
+          // 既存環境では ?stats=true & q/filters を使う場合があるため、必要に応じてここを書き換えてください
+          return `${baseUrl}/licenses/licenses?stats=true&${params.toString()}`;
+        },
+        // ライセンス単体取得（最新完全ペイロード）
+        getLicense: ({ baseUrl, id }) => `${baseUrl}/licenses/licenses/${id}`,
+        // ターム取得（ツール用）: ライセンス詳細 payload 内 or 専用エンドポイントを想定
+        // 既定では GET /licenses/licenses/{id} の結果から terms 相当を抽出します。
+        // もし専用 API がある場合は下記を置き換え:
+        // getTerms: ({ baseUrl, id }) => `${baseUrl}/licenses/licenses/${id}/terms`
+        // ターム更新（visibility変更）: 既定ではライセンス全体 PUT を採用
+        // サーバに PATCH/個別更新がある場合は applyTermVisibility を差し替えてください。
+      };
+
+      // ====== 状態 ======
+      const el = (id) => document.getElementById(id);
+      const state = {
+        token: null,
+        tenant: "diku",
+        page: 1,
+        perPage: 50,
+        licenses: [],
+        licensesTotalPages: 1,
+        filterText: "",
+        selectedLicense: null, // full license object
+        terms: [], // {id,key?,name,label?,value?,visibility}
+        selectedTermIds: new Set(),
+        refdata: {
+          status: [], // for search dropdown
+          type: [], // from refdata: License.Type
+        },
+      };
+
+      function setStatus(msg, kind = "info") {
+        const s = el("status");
+        s.textContent = msg;
+        s.className = `status ${kind}`;
+        s.style.display = "block";
+      }
+      function clearStatus() {
+        const s = el("status");
+        s.style.display = "none";
+        s.textContent = "";
+      }
+
+      async function login() {
+        const baseUrl = el("baseUrl").value.trim();
+        const tenant = el("tenant").value.trim();
+        const username = el("username").value.trim();
+        const password = el("password").value;
+        setStatus("認証中…", "info");
+        const res = await fetch(API.login(baseUrl), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-okapi-tenant": tenant,
+          },
+          body: JSON.stringify({ username, password }),
+        });
+        if (!res.ok) throw new Error("認証に失敗しました");
+        state.token = res.headers.get("x-okapi-token");
+        state.tenant = tenant;
+        setStatus("ログイン成功", "ok");
+      }
+
+      // 参考: 例の UI と同様に refdata を取得して検索用の Status/Type を埋める
+      async function fetchRefdata() {
+        const baseUrl = el("baseUrl").value.trim();
+        const headers = {
+          "x-okapi-tenant": state.tenant,
+          "x-okapi-token": state.token,
+        };
+        try {
+          const res = await fetch(`${baseUrl}/licenses/refdata`, { headers });
+          if (!res.ok) return;
+          const data = await res.json();
+          const byDesc = Object.fromEntries(
+            (data || []).map((entry) => [
+              entry.desc,
+              entry.values?.map((v) => ({
+                label: v.label ?? v.value,
+                value: v.value ?? v.label,
+              })) || [],
+            ])
+          );
+          state.refdata.status = byDesc["License.Status"] || [];
+          state.refdata.type = byDesc["License.Type"] || [];
+          // ドロップダウン反映
+          const s_status = el("s_status");
+          const s_type = el("s_type");
+          [s_status, s_type].forEach((sel) => {
+            while (sel.options.length > 1) sel.remove(1);
+          });
+          state.refdata.status.forEach((o) => {
+            const opt = document.createElement("option");
+            opt.value = o.label;
+            opt.textContent = o.label;
+            s_status.appendChild(opt);
+          });
+          state.refdata.type.forEach((o) => {
+            const opt = document.createElement("option");
+            opt.value = o.label;
+            opt.textContent = o.label;
+            s_type.appendChild(opt);
+          });
+        } catch (e) {
+          /* no-op */
+        }
+      }
+
+      async function searchLicenses(page = 1) {
+        if (!state.token) await login();
+        const baseUrl = el("baseUrl").value.trim();
+        const headers = {
+          "x-okapi-tenant": state.tenant,
+          "x-okapi-token": state.token,
+        };
+        const name = el("s_name").value.trim();
+        const status = el("onlyActive").checked
+          ? "Active"
+          : el("s_status").value;
+        const type = el("s_type").value;
+        const updatedFrom = el("s_updated_from").value;
+
+        setStatus("検索中…", "info");
+        const url = API.searchLicenses({
+          baseUrl,
+          name,
+          status,
+          type,
+          updatedFrom,
+          page,
+          perPage: state.perPage,
+        });
+        const res = await fetch(url, { headers });
+        if (!res.ok) {
+          setStatus(`検索失敗: ${res.status} ${res.statusText}`, "err");
+          return;
+        }
+        const data = await res.json();
+        state.licenses = data.results || [];
+        state.licensesTotalPages = data.totalPages || 1;
+        renderLicenseList();
+        setStatus(
+          `検索完了: ${state.licenses.length}件 (ページ ${page}/${state.licensesTotalPages})`,
+          "ok"
+        );
+      }
+
+      function renderLicenseList() {
+        const wrap = el("licenseList");
+        const rows = (state.licenses || [])
+          .map(
+            (lic) => `
+            <tr data-id="${lic.id}" class="license-row ${
+              state.selectedLicense && state.selectedLicense.id === lic.id
+                ? "selected"
+                : ""
+            }">
+            <td>${escapeHtml(lic.name || "")}</td>
+            <td>${escapeHtml(lic.status?.label || "")}</td>
+            <td>${escapeHtml(lic.type?.label || "")}</td>
+            <td>${escapeHtml(lic.startDate || "")}</td>
+            <td>${escapeHtml(lic.endDate || "")}</td>
+            </tr>`
+          )
+          .join("");
+        wrap.innerHTML = `
+            <table>
+            <thead><tr><th>Name</th><th>Status</th><th>Type</th><th>Start</th><th>End</th></tr></thead>
+            <tbody>${
+              rows ||
+              '<tr><td colspan="5" class="muted">ライセンスが見つかりません</td></tr>'
+            }</tbody>
+            </table>`;
+        wrap.querySelectorAll("tr.license-row").forEach((tr) => {
+          tr.addEventListener("click", () => {
+            const id = tr.dataset.id;
+            const lic = state.licenses.find((x) => x.id === id);
+            if (lic) {
+              state.selectedLicense = lic;
+              renderLicenseList();
+              onSelectLicense(id); // ← ID（文字列）を渡す
+            }
+          });
+        });
+      }
+      async function onSelectLicense(id) {
+        const baseUrl = el("baseUrl").value.trim();
+        const headers = {
+          "x-okapi-tenant": state.tenant,
+          "x-okapi-token": state.token,
+        };
+        setStatus("ライセンス取得中…", "info");
+        const res = await fetch(API.getLicense({ baseUrl, id }), { headers });
+        if (!res.ok) {
+          setStatus(`取得失敗: ${res.status} ${res.statusText}`, "err");
+          return;
+        }
+        const lic = await res.json();
+        state.selectedLicense = lic;
+        el("selectedLicenseName").textContent = lic.name || "—";
+        // ターム抽出: customProperties からタームを作る
+        const cp = lic.customProperties || {};
+        const terms = [];
+        Object.entries(cp).forEach(([key, arr]) => {
+          if (!Array.isArray(arr)) return;
+          arr.forEach((item, idx) => {
+            const termId = item.id ?? `${key}_${idx}`;
+            const name = (
+              item.type?.label ||
+              item.type?.name ||
+              key ||
+              ""
+            ).toString();
+            const label =
+              typeof item.value === "object" && item.value
+                ? item.value.label ??
+                  item.value.value ??
+                  JSON.stringify(item.value)
+                : item.value != null
+                ? String(item.value)
+                : "";
+            const internal = !!item.internal;
+            terms.push({
+              id: String(termId),
+              key,
+              name,
+              label,
+              internal,
+              visibility: internal ? "internal" : "public",
+            });
+          });
+        });
+        state.terms = terms;
+        state.selectedTermIds = new Set();
+        el("applyVisibilityBtn").disabled = true;
+        el("refreshTermsBtn").disabled = false;
+        renderTermList();
+        setStatus("タームを表示しました。", "ok");
+      }
+
+      // customProperties を使うため normalizeTerm は不要（ダミーを残す）
+      function normalizeTerm(t, idx) {
+        return t;
+      }
+
+      function renderTermList() {
+        const wrap = el("termList");
+        const rows = (state.terms || [])
+          .map(
+            (t) => `
+        <tr>
+        <td style="width:36px">
+            <input type="checkbox" data-id="${t.id}" ${
+              state.selectedTermIds.has(t.id) ? "checked" : ""
+            }>
+        </td>
+        <td>
+            ${escapeHtml(t.name)}
+            <div class="muted" style="font-size:11px">key: ${escapeHtml(
+              t.key
+            )}</div>
+        </td>
+        <td>${escapeHtml(String(t.label ?? ""))}</td>
+        <td><span class="pill ${t.visibility === "public" ? "hl" : ""}">${
+              t.visibility
+            }</span></td>
+        </tr>`
+          )
+          .join("");
+
+        wrap.innerHTML = `
+        <table>
+        <thead>
+            <tr>
+            <th style="width:36px"></th>
+            <th>Term</th>
+            <th>Label</th>
+            <th>visibility</th>
+            </tr>
+        </thead>
+        <tbody>${
+          rows ||
+          '<tr><td colspan="4" class="muted">タームが見つかりません</td></tr>'
+        }</tbody>
+        </table>`;
+
+        wrap.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+          cb.addEventListener("change", (e) => {
+            const id = e.target.dataset.id;
+            if (e.target.checked) state.selectedTermIds.add(id);
+            else state.selectedTermIds.delete(id);
+            el("applyVisibilityBtn").disabled =
+              state.selectedTermIds.size === 0 || !el("bulkVisibility").value;
+          });
+        });
+      }
+      el("checkAllTerms").addEventListener("change", (e) => {
+        if (!state.terms) return;
+        state.selectedTermIds = new Set(
+          e.target.checked ? state.terms.map((t) => t.id) : []
+        );
+        renderTermList();
+        el("applyVisibilityBtn").disabled =
+          state.selectedTermIds.size === 0 || !el("bulkVisibility").value;
+      });
+
+      el("bulkVisibility").addEventListener("change", () => {
+        el("applyVisibilityBtn").disabled =
+          state.selectedTermIds.size === 0 || !el("bulkVisibility").value;
+      });
+
+      el("applyVisibilityBtn").addEventListener("click", async () => {
+        const vis = el("bulkVisibility").value; // internal | external
+        if (!vis) return;
+        if (!state.selectedLicense) {
+          setStatus("ライセンスが選択されていません", "warn");
+          return;
+        }
+        if (state.selectedTermIds.size === 0) {
+          setStatus("タームが選択されていません", "warn");
+          return;
+        }
+        try {
+          await applyTermVisibilityBulk(vis);
+          setStatus(
+            `一括適用完了: ${state.selectedTermIds.size}件を ${vis} に更新`,
+            "ok"
+          );
+          // 画面側も即時反映
+          state.terms = state.terms.map((t) =>
+            state.selectedTermIds.has(t.id) ? { ...t, visibility: vis } : t
+          );
+          renderTermList();
+        } catch (e) {
+          setStatus(`更新失敗: ${e.message || e}`, "err");
+        }
+      });
+
+      // ====== 可視性一括更新（既定: ライセンス全体 PUT 戦略） ======
+      async function applyTermVisibilityBulk(visibility) {
+        const baseUrl = el("baseUrl").value.trim();
+        const headers = {
+          "Content-Type": "application/json",
+          "x-okapi-tenant": state.tenant,
+          "x-okapi-token": state.token,
+        };
+        // 最新のライセンス payload を取得
+        const getRes = await fetch(
+          API.getLicense({ baseUrl, id: state.selectedLicense.id }),
+          { headers }
+        );
+        if (!getRes.ok) throw new Error(`GET ${getRes.status}`);
+        const payload = await getRes.json();
+
+        const cp = payload.customProperties || {};
+        let changed = 0;
+        const targetIds = new Set(
+          Array.from(state.selectedTermIds).map(String)
+        );
+        Object.entries(cp).forEach(([key, arr]) => {
+          if (!Array.isArray(arr)) return;
+          arr.forEach((item, idx) => {
+            const termId = String(item.id ?? `${key}_${idx}`);
+            if (targetIds.has(termId)) {
+              // internal=true => Internal / internal=false => External
+              item.internal = visibility === "internal";
+              changed++;
+            }
+          });
+        });
+        if (changed === 0)
+          throw new Error("更新対象のタームが見つかりませんでした。");
+
+        const putRes = await fetch(
+          API.getLicense({ baseUrl, id: state.selectedLicense.id }),
+          {
+            method: "PUT",
+            headers,
+            body: JSON.stringify(payload),
+          }
+        );
+        if (!putRes.ok) {
+          const text = await putRes.text().catch(() => putRes.statusText);
+          throw new Error(`PUT 失敗: ${text}`);
+        }
+      }
+
+      // ====== ユーティリティ ======
+      function escapeHtml(s) {
+        return (s ?? "").toString().replace(
+          /[&<>"']/g,
+          (m) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            }[m])
+        );
+      }
+
+      // ====== イベント結線 ======
+      el("loginBtn").addEventListener("click", async () => {
+        try {
+          await login();
+          await fetchRefdata();
+        } catch (e) {
+          setStatus(e.message || "ログイン失敗", "err");
+        }
+      });
+      el("searchBtn").addEventListener("click", async () => {
+        try {
+          if (!state.token) {
+            await login();
+            await fetchRefdata();
+          }
+          await searchLicenses(1);
+        } catch (e) {
+          setStatus(e.message || "エラー", "err");
+        }
+      });
+      el("refreshTermsBtn").addEventListener("click", async () => {
+        if (state.selectedLicense) onSelectLicense(state.selectedLicense.id);
+      });
+      el("q").addEventListener("input", renderLicenseList);
+      el("onlyActive").addEventListener("change", renderLicenseList);
+
+      // 初期: 参照データだけ試行
+      (async () => {
+        try {
+          /* lazy */
+        } catch {}
+      })();
+    </script>
+  </body>
+</html>
