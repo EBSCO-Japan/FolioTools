@@ -807,6 +807,18 @@
         if (dt === "date") return normDateForCompare(v);
         return isTextOnlyKey(key) ? normTextForCompare(v) : normFieldValue(v);
       }
+
+      // 追加: 非英数字も含めて安全に比較するための正規化
+      function nfcTrim(s) {
+        return (s ?? "")
+          .toString()
+          .normalize ? (s + "").normalize("NFC").trim() : (s + "").trim();
+      }
+      function eqLoose(a, b) {
+        // 値・ラベル比較は Unicode NFC＋前後空白除去で行う
+        return nfcTrim(a) === nfcTrim(b);
+      }
+
       function getColumnTypeLabel(key) {
         if (["id", "created", "alternateName", "description"].includes(key))
           return "編集不可";
@@ -850,14 +862,27 @@
         return desc ? `${name} — ${desc}` : name;
       }
 
-      // ★ 基準版と同じ：custprops の values のみで value 解決
+      // ★ 値/ラベル/ID のいずれでも、非英数字を含めて安全に一致させる
       function mapLabelToValue(key, text) {
         const options = state.meta.cpOptionsByKey[key];
-        if (!options) return text;
-        const hit = options.find(
-          (o) => o.label === text || o.value === text || o.id === text
-        );
-        return hit ? hit.value : text;
+        if (!Array.isArray(options) || options.length === 0) return text;
+
+        const t = nfcTrim(text);
+
+        // 1) value 完全一致（推奨）
+        let hit = options.find(o => eqLoose(o.value, t));
+        if (hit) return hit.value;
+
+        // 2) label 完全一致
+        hit = options.find(o => eqLoose(o.label, t));
+        if (hit) return hit.value;
+
+        // 3) id 完全一致（文字列化して比較）
+        hit = options.find(o => eqLoose(o.id != null ? String(o.id) : "", t));
+        if (hit) return hit.value;
+
+        // 一致なし → 入力をそのまま返す（PUT 前に buildRefdataValueObject で再解決）
+        return text;
       }
 
       function buildColumns() {
@@ -1101,10 +1126,11 @@
               sel.multiple = true;
               sel.size = Math.min(6, Math.max(3, options.length));
               const curVals = currentVal
-                .split(/[;；]/)
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .map((txt) => mapLabelToValue(key, txt));
+              .split(/[;；]/)
+              .map(s => nfcTrim(s))
+              .filter(Boolean)
+              .map(txt => mapLabelToValue(key, txt)); // 値/ラベル/ID 何でも解決
+
               options.forEach((o) => {
                 const opt = document.createElement("option");
                 opt.value = o.value;
@@ -1153,7 +1179,17 @@
                 opt.textContent = o.value;
                 sel.appendChild(opt);
               });
-              sel.value = currentVal;
+              sel.value = mapLabelToValue(key, currentVal); // ← 正規化してから設定
+              // 念のため、value がどれにも一致しない（非英数字混入等）の場合は
+              // label と id でもマッチを試みる
+              if (!sel.value) {
+                const t = nfcTrim(currentVal);
+                const opts = options;
+                let hit = opts.find(o => eqLoose(o.label, t));
+                if (!hit) hit = opts.find(o => eqLoose(o.id != null ? String(o.id) : "", t));
+                if (hit) sel.value = hit.value;
+              }
+
               if (isCellChanged(base.id, key, sel.value))
                 sel.classList.add("changed");
               sel.addEventListener("change", onEditInline);
@@ -1320,23 +1356,48 @@
       // refdata（custprops.values のみを参照）
       function buildRefdataValueObject(cp, tokenText) {
         if (!cp) return null;
-        const txt = (tokenText || "").trim();
+        const txt = nfcTrim(tokenText || "");
         if (!txt) return null;
-        const hit = (cp.categoryValues || []).find(
-          (v) => v.value === txt || v.label === txt || v.id === txt
-        );
-        if (!hit) return null;
-        return {
-          id: hit.id,
-          value: hit.value,
-          label: hit.label,
+
+        const byValue = (cp.categoryValues || []).find(v => eqLoose(v.value, txt));
+        if (byValue) return {
+          id: byValue.id,
+          value: byValue.value,
+          label: byValue.label,
           owner: {
             id: cp.categoryId || cp.refKey || null,
             desc: cp.categoryDesc || "",
             internal: !!cp.categoryInternal,
           },
         };
+
+        const byLabel = (cp.categoryValues || []).find(v => eqLoose(v.label, txt));
+        if (byLabel) return {
+          id: byLabel.id,
+          value: byLabel.value,
+          label: byLabel.label,
+          owner: {
+            id: cp.categoryId || cp.refKey || null,
+            desc: cp.categoryDesc || "",
+            internal: !!cp.categoryInternal,
+          },
+        };
+
+        const byId = (cp.categoryValues || []).find(v => eqLoose(v.id != null ? String(v.id) : "", txt));
+        if (byId) return {
+          id: byId.id,
+          value: byId.value,
+          label: byId.label,
+          owner: {
+            id: cp.categoryId || cp.refKey || null,
+            desc: cp.categoryDesc || "",
+            internal: !!cp.categoryInternal,
+          },
+        };
+
+        return null; // 解決できない場合は null（上位で無視）
       }
+
 
       function parseCustomInputToPayload(val, current) {
         const trimmed = (val || "").trim();
