@@ -1457,63 +1457,70 @@
         ];
       }
 
-      function parseCustomInputToPayloadWithOptionsRich(key, val, currentArr) {
-        const cp = state.meta.customProps.find((c) => c.key === key);
-        const trimmed = (val || "").trim();
-        const tokens = trimmed
-          ? trimmed
-              .split(/;|；/)
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [];
-        const looksMulti = !!(
-          state.meta.cpMultiByKey[key] ||
-          cp?.multi ||
-          tokens.length > 1
-        );
+    function parseCustomInputToPayloadWithOptionsRich(key, val, currentArr) {
+      const cp = state.meta.customProps.find((c) => c.key === key);
+      const trimmed = (val || "").trim();
+      const tokens = trimmed
+        ? trimmed.split(/;|；/).map((s) => s.trim()).filter(Boolean)
+        : [];
+      const looksMulti = !!(state.meta.cpMultiByKey[key] || cp?.multi || tokens.length > 1);
 
-        if (looksMulti) {
-          if (tokens.length === 0) {
-            if (Array.isArray(currentArr) && currentArr.length > 0) {
-              const base = { ...currentArr[0] };
-              base._delete = true;
-              if ("value" in base) base.value = [];
-              return [base];
-            }
-            const created = buildMultiRefdataContainer(cp, null, []);
-            if (created && created[0]) created[0]._delete = true;
-            return created;
-          }
-          const arr = tokens
-            .map((t) => buildRefdataValueObject(cp, t))
-            .filter(Boolean);
-          return buildMultiRefdataContainer(cp, currentArr, arr);
-        }
-
-        // 単一
-        if (!trimmed) {
+      // --- 複数選択（現状のロジックを維持） ---
+      if (looksMulti) {
+        if (tokens.length === 0) {
           if (Array.isArray(currentArr) && currentArr.length > 0) {
             const base = { ...currentArr[0] };
             base._delete = true;
-            if ("value" in base) base.value = "";
+            if ("value" in base) base.value = [];
             return [base];
           }
-          return [{ _delete: true }];
         }
-
-        const mapped = mapLabelToValue(key, tokens[0] || "");
-        if (
-          currentArr &&
-          Array.isArray(currentArr) &&
-          currentArr[0] &&
-          typeof currentArr[0].value === "object" &&
-          currentArr[0].value !== null &&
-          "value" in currentArr[0].value
-        )
-          return [{ _delete: false, value: { value: mapped } }];
-        return [{ _delete: false, value: mapped }];
+        const arr = tokens.map((t) => buildRefdataValueObject(cp, t)).filter(Boolean);
+        return buildMultiRefdataContainer(cp, currentArr, arr);
       }
 
+      // --- 単一選択（ここを修正：既存要素があればそれを流用して value だけ差し替え） ---
+      if (!trimmed) {
+        // 空 → 削除
+        if (Array.isArray(currentArr) && currentArr.length > 0) {
+          const base = { ...currentArr[0] };
+          base._delete = true;
+          if ("value" in base) base.value = "";
+          return [base];
+        }
+        return [{ _delete: true }];
+      }
+
+      // 値を refdata オブジェクトに解決
+      const token = tokens[0] || "";
+      const vobj = buildRefdataValueObject(cp, token);
+
+      if (Array.isArray(currentArr) && currentArr.length > 0) {
+        const base = { ...currentArr[0] };
+        base._delete = false;
+        if (vobj) {
+          // 既存構造を維持しつつ value を置き換え
+          base.value = vobj;
+          return [base];
+        }
+        // フォールバック：既存構造（オブジェクト/プリミティブ）に合わせて設定
+        const mapped = mapLabelToValue(key, token);
+        if (base.value && typeof base.value === "object" && base.value !== null && "value" in base.value) {
+          base.value = { value: mapped };
+        } else {
+          base.value = mapped;
+        }
+        return [base];
+      }
+
+      // 既存がない新規作成時
+      if (vobj) return [{ _delete: false, value: vobj }];
+
+      // フォールバック（既存の軽量形に揃える）
+      const mapped = mapLabelToValue(key, token);
+      return [{ _delete: false, value: { value: mapped } }];
+    }
+    
     function parseCustomInputToPayloadScalarSmart(key, val, currentArr) {
       const trimmed = (val || "").trim();
 
