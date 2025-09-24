@@ -327,24 +327,45 @@
         login: (baseUrl) => `${baseUrl}/authn/login`,
         // ライセンス検索: ページング対応
         // デフォルトは mod-licenses の /licenses/licenses を想定
+        // ライセンス検索: 名前検索時は match/term を使う
         searchLicenses: ({
-          baseUrl,
-          name,
-          status,
-          type,
-          updatedFrom,
-          page = 1,
-          perPage = 50,
+        baseUrl,
+        name,
+        status,
+        type,
+        updatedFrom,
+        page = 1,
+        perPage = 100,
         }) => {
-          const params = new URLSearchParams();
-          params.set("page", String(page));
-          params.set("perPage", String(perPage));
-          if (name) params.set("name", name); // ←サーバ側の対応がない場合は term パラメータ等に変更
-          if (status) params.set("status", status);
-          if (type) params.set("type", type);
-          if (updatedFrom) params.set("dateUpdatedFrom", updatedFrom);
-          // 既存環境では ?stats=true & q/filters を使う場合があるため、必要に応じてここを書き換えてください
-          return `${baseUrl}/licenses/licenses?stats=true&${params.toString()}`;
+        // ① name が指定されている場合は、match=name & match=alternateNames.name & term=... を使う
+        if (name && name.trim()) {
+            // 基本の並びは name;asc、stats=true を付与
+            const qs = [
+            "match=name",
+            "match=alternateNames.name",
+            `term=${encodeURIComponent(name.trim())}`,
+            "sort=name%3Basc",
+            "stats=true",
+            `page=${page}`,
+            `perPage=${perPage}`,
+            ];
+
+            // ※必要があれば filters をここに追加（例：ステータスで絞る）
+            // if (status) qs.push(`filters=${encodeURIComponent(`status==${status}`)}`);
+            // if (type)   qs.push(`filters=${encodeURIComponent(`type==${type}`)}`);
+
+            return `${baseUrl}/licenses/licenses?${qs.join("&")}`;
+        }
+
+        // ② name がない通常検索は従来どおり（必要に応じて filters 方式に変更してOK）
+        const params = new URLSearchParams();
+        params.set("stats", "true");
+        params.set("page", String(page));
+        params.set("perPage", String(perPage));
+        if (status) params.set("status", status);
+        if (type) params.set("type", type);
+        if (updatedFrom) params.set("dateUpdatedFrom", updatedFrom);
+        return `${baseUrl}/licenses/licenses?${params.toString()}`;
         },
         // ライセンス単体取得（最新完全ペイロード）
         getLicense: ({ baseUrl, id }) => `${baseUrl}/licenses/licenses/${id}`,
@@ -452,44 +473,60 @@
         }
       }
 
-      async function searchLicenses(page = 1) {
+      // すべてのページを繰り返し取得して集約する版
+        async function searchLicenses(pageStart = 1) {
         if (!state.token) await login();
         const baseUrl = el("baseUrl").value.trim();
         const headers = {
-          "x-okapi-tenant": state.tenant,
-          "x-okapi-token": state.token,
+            "x-okapi-tenant": state.tenant,
+            "x-okapi-token": state.token,
         };
         const name = el("s_name").value.trim();
-        const status = el("onlyActive").checked
-          ? "Active"
-          : el("s_status").value;
+        const status = el("onlyActive").checked ? "Active" : el("s_status").value;
         const type = el("s_type").value;
         const updatedFrom = el("s_updated_from").value;
 
         setStatus("検索中…", "info");
-        const url = API.searchLicenses({
-          baseUrl,
-          name,
-          status,
-          type,
-          updatedFrom,
-          page,
-          perPage: state.perPage,
-        });
-        const res = await fetch(url, { headers });
-        if (!res.ok) {
-          setStatus(`検索失敗: ${res.status} ${res.statusText}`, "err");
-          return;
-        }
-        const data = await res.json();
-        state.licenses = data.results || [];
-        state.licensesTotalPages = data.totalPages || 1;
+
+        const results = [];
+        let page = pageStart;
+        let totalPages = 1;
+        const perPage = 100;  // サーバ上限に合わせて大きめに（必要に応じて調整）
+
+        do {
+            const url = API.searchLicenses({
+            baseUrl,
+            name,
+            status,
+            type,
+            updatedFrom,
+            page,
+            perPage,
+            });
+            const res = await fetch(url, { headers });
+            if (!res.ok) {
+            setStatus(`検索失敗: ${res.status} ${res.statusText}`, "err");
+            return;
+            }
+            const data = await res.json();
+            const pageItems = data.results || [];
+            totalPages = data.totalPages || 1;
+
+            results.push(...pageItems);
+            page += 1;
+        } while (page <= totalPages);
+
+        state.licenses = results;
+        state.licensesTotalPages = totalPages;
+
+        // 件数表示を更新（テンプレに #licenseCount があるため）
+        const cnt = el("licenseCount");
+        if (cnt) cnt.textContent = String(state.licenses.length);
+
         renderLicenseList();
-        setStatus(
-          `検索完了: ${state.licenses.length}件 (ページ ${page}/${state.licensesTotalPages})`,
-          "ok"
-        );
-      }
+        setStatus(`検索完了: ${state.licenses.length}件（全ページ集約）`, "ok");
+        }
+
 
       function renderLicenseList() {
         const wrap = el("licenseList");
