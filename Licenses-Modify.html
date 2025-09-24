@@ -1514,19 +1514,33 @@
         return [{ _delete: false, value: mapped }];
       }
 
-      function parseCustomInputToPayloadScalarSmart(key, val, currentArr) {
-        const trimmed = (val || "").trim();
-        if (!trimmed) {
-          if (Array.isArray(currentArr) && currentArr.length > 0) {
-            const base = { ...currentArr[0] };
-            base._delete = true;
-            if ("value" in base) base.value = "";
-            return [base];
-          }
-          return [{ _delete: true }];
+    function parseCustomInputToPayloadScalarSmart(key, val, currentArr) {
+      const trimmed = (val || "").trim();
+
+      // 削除（空文字）のときは既存要素があればそれをベースに _delete:true
+      if (!trimmed) {
+        if (Array.isArray(currentArr) && currentArr.length > 0) {
+          const base = { ...currentArr[0] };
+          base._delete = true;
+          // value を空に（フィールドがあるなら）
+          if ("value" in base) base.value = "";
+          return [base];
         }
-        return [{ _delete: false, value: trimmed }];
+        return [{ _delete: true }];
       }
+
+      // 既存要素がある場合は **それを流用して value だけ更新**
+      if (Array.isArray(currentArr) && currentArr.length > 0) {
+        const base = { ...currentArr[0] };
+        base._delete = false;
+        // ここで value を日付などの新しい値に置き換える
+        base.value = trimmed;
+        return [base];
+      }
+
+      // 既存要素が無い場合のみ軽量オブジェクトで作成
+      return [{ _delete: false, value: trimmed }];
+    }
 
       async function saveChanges() {
         const baseUrl = el("baseUrl").value.trim();
