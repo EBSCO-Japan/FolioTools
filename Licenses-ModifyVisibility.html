@@ -188,8 +188,14 @@
       .spacer {
         flex: 1;
       }
+      .license-row td { position: relative; }
+      .license-row.selected td { background: #eaf2ff; } /* やや濃い背景 */
+      .license-row.selected td:first-child {
+        border-left: 4px solid var(--brand);
+      }
+      /* 行全体を少し浮かせる */
       .license-row.selected {
-        background-color: #e0f3ff;
+        box-shadow: 0 0 0 2px rgba(37,99,235,.12) inset;
       }
     </style>
   </head>
