@@ -220,7 +220,7 @@
           >名称(部分一致)<input
             id="s_name"
             type="text"
-            placeholder="例: Springer"
+            placeholder=""
         /></label>
         <label
           >ステータス<select id="s_status">
@@ -232,9 +232,6 @@
             <option value="">(すべて)</option>
           </select></label
         >
-        <label
-          >更新日(yyyy-mm-dd 以降)<input id="s_updated_from" type="date"
-        /></label>
       </div>
       <div class="toolbar">
         <button id="loginBtn" class="btn ghost">ログイン</button>
@@ -333,7 +330,6 @@
         name,
         status,
         type,
-        updatedFrom,
         page = 1,
         perPage = 100,
         }) => {
@@ -364,7 +360,6 @@
         params.set("perPage", String(perPage));
         if (status) params.set("status", status);
         if (type) params.set("type", type);
-        if (updatedFrom) params.set("dateUpdatedFrom", updatedFrom);
         return `${baseUrl}/licenses/licenses?${params.toString()}`;
         },
         // ライセンス単体取得（最新完全ペイロード）
@@ -436,20 +431,18 @@
           "x-okapi-token": state.token,
         };
         try {
-          const res = await fetch(`${baseUrl}/licenses/refdata`, { headers });
-          if (!res.ok) return;
-          const data = await res.json();
-          const byDesc = Object.fromEntries(
-            (data || []).map((entry) => [
-              entry.desc,
-              entry.values?.map((v) => ({
-                label: v.label ?? v.value,
-                value: v.value ?? v.label,
-              })) || [],
-            ])
-          );
-          state.refdata.status = byDesc["License.Status"] || [];
-          state.refdata.type = byDesc["License.Type"] || [];
+           const [statusRes, typeRes] = await Promise.all([
+             fetch(`${baseUrl}/licenses/refdata?filters=desc%3D%3DLicense.Status&sort=desc%3Basc&max=100`, { headers }),
+             fetch(`${baseUrl}/licenses/refdata?filters=desc%3D%3DLicense.Type&sort=desc%3Basc&max=100`, { headers }),
+           ]);
+           const statusData = statusRes.ok ? await statusRes.json() : [];
+           const typeData = typeRes.ok ? await typeRes.json() : [];
+           state.refdata.status = (statusData?.[0]?.values || []).map(v => ({
+             label: v.label ?? v.value, value: v.value ?? v.label,
+           }));
+           state.refdata.type = (typeData?.[0]?.values || []).map(v => ({
+             label: v.label ?? v.value, value: v.value ?? v.label,
+           }));
           // ドロップダウン反映
           const s_status = el("s_status");
           const s_type = el("s_type");
@@ -484,7 +477,6 @@
         const name = el("s_name").value.trim();
         const status = el("onlyActive").checked ? "Active" : el("s_status").value;
         const type = el("s_type").value;
-        const updatedFrom = el("s_updated_from").value;
 
         setStatus("検索中…", "info");
 
@@ -499,7 +491,6 @@
             name,
             status,
             type,
-            updatedFrom,
             page,
             perPage,
             });
