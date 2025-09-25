@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FOLIO ERM: Agreement Import & Entitlement POST Tool</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+      :root {
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --text: #222;
+        --muted: #6b7280;
+        --brand: #2563eb;
+        --brand-600: #1d4ed8;
+        --ok: #16a34a;
+        --warn: #f59e0b;
+        --err: #dc2626;
+        --border: #e5e7eb;
+      }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; padding:24px; color:var(--text); background:var(--bg); }
+      h1 { font-size:22px; margin: 0 0 8px; }
+      .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
+      .card { background:var(--card); border:1px solid var(--border); border-radius:12px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+      .form { display:grid; gap:10px; grid-template-columns: repeat(4, minmax(140px, 1fr)); padding:16px; }
+      .form label { font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:6px; }
+      .form input, .form select { padding:10px 12px; border:1px solid var(--border); border-radius:8px; }
+      .toolbar { display:flex; gap:8px; align-items:center; padding:12px 16px; border-top:1px solid var(--border); flex-wrap:wrap; }
+      .btn { appearance:none; border:none; background:var(--brand); color:#fff; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
+      .btn:disabled { opacity:.5; cursor:not-allowed; }
+      .btn.ghost { background:transparent; color:var(--brand); border:1px solid var(--brand); }
+      .btn.ok { background: var(--ok); }
+      .btn.warn { background: var(--warn); color:#111; }
+      .btn.err { background: var(--err); }
+      .status { margin: 12px 16px; padding:10px 12px; border-radius:8px; display:none; white-space:pre-line; }
+      .status.info { background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; display:block; }
+      .status.ok { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; display:block; }
+      .status.warn { background:#fffbeb; color:#92400e; border:1px solid #fde68a; display:block; }
+      .status.err { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; display:block; }
+      .section { padding:16px; border-top:1px dashed var(--border); }
+      .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+      .list { border:1px solid var(--border); border-radius:8px; background:#fff; overflow:auto; max-height:50vh; }
+      .list table { width:100%; border-collapse:collapse; }
+      .list th, .list td { padding:8px 10px; border-bottom:1px solid var(--border); font-size:13px; }
+      .list tr:hover { background:#f9fafb; }
+      .list th { position:sticky; top:0; background:#fafafa; text-align:left; }
+      .row { display:flex; align-items:center; gap:8px; }
+      .pill { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); background:#fff; }
+      .muted { color:var(--muted); }
+      .hl { background:#fff7ed; }
+      .spacer { flex:1; }
+      .agr-row td { position:relative; }
+      .agr-row.selected td { background:#eaf2ff; }
+      .agr-row.selected td:first-child { border-left: 4px solid var(--brand); }
+      .agr-row.selected { box-shadow:0 0 0 2px rgba(37,99,235,.12) inset; }
+      .footer-log { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; white-space: pre-wrap; }
+      .filebox { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+      .kx { background:#eef2ff; border:1px dashed #c7d2fe; padding:8px 10px; border-radius:8px; }
+      .small { font-size:12px; }
+    </style>
+  </head>
+  <body>
+    <h1>FOLIO ERM: Agreement 検索 → ファイル読込 → Entitlement 追加(POST)</h1>
+    <div class="sub">①Agreement検索 → ②Agreement選択 → ③CSV/XLSXをアップロード → ④中身プレビュー（KBID/Title/PackageName/URL/VendorName）→ ⑤保存(行ごとに /erm/entitlements にPOST) → ⑥結果ログ表示</div>
+
+    <div class="card">
+      <div class="form">
+        <label>Base URL<input id="baseUrl" type="text" value="https://folio-snapshot-2-okapi.dev.folio.org" /></label>
+        <label>Tenant<input id="tenant" type="text" value="diku" /></label>
+        <label>Username<input id="username" type="text" value="diku_admin" /></label>
+        <label>Password<input id="password" type="password" value="admin" /></label>
+
+        <label>Agreement 名称(部分一致)<input id="s_name" type="text" placeholder="" /></label>
+        <label>ステータス
+          <select id="s_status">
+            <option value="">(すべて)</option>
+            <option value="draft">Draft</option>
+            <option value="in_negotiation">In negotiation</option>
+            <option value="requested">Requested</option>
+            <option value="active">Active</option>
+            <option value="closed">Closed</option>
+          </select>
+        </label>
+        <label class="small">1ページ件数<input id="perPage" type="number" min="10" max="200" value="100" /></label>
+      </div>
+
+      <div class="toolbar">
+        <button id="loginBtn" class="btn ghost">ログイン</button>
+        <button id="searchBtn" class="btn">Agreement検索</button>
+        <span class="muted">結果をクリックすると選択状態になり、右側でファイルを読み込めます。</span>
+        <div class="spacer"></div>
+        <input id="q" type="text" placeholder="結果内フィルタ(名称/ステータス)" style="padding:8px 10px; border:1px solid var(--border); border-radius:8px; width:240px;" />
+      </div>
+
+      <div id="status" class="status info" style="display:none"></div>
+
+      <div class="section grid">
+        <div>
+          <div class="row" style="margin-bottom:6px">
+            <span class="pill">検索結果: <span id="agrCount">0</span> 件</span>
+          </div>
+          <div class="list" id="agrList"></div>
+        </div>
+        <div>
+          <div class="row" style="margin-bottom:6px">
+            <span class="pill">選択中 Agreement: <span id="selectedAgreementName">—</span></span>
+          </div>
+
+          <div class="section" style="padding:8px 0 8px 0">
+            <div class="filebox">
+              <input id="fileInput" type="file" accept=".csv, .xlsx, .xls" />
+              <span class="muted small">CSV: ヘッダに <b>KBID, Title, PackageName, URL, VendorName, VendorID, PackageID</b> を含めてください。（<b>reference</b> は <code>VendorID-PackageID-KBID</code> で自動生成）</span>
+            </div>
+          </div>
+
+          <div class="list" id="filePreview"></div>
+
+          <div class="toolbar">
+            <div class="row" style="gap:6px">
+              <button id="saveBtn" class="btn ok" disabled>保存(PUT)</button>
+              <button id="clearBtn" class="btn ghost" disabled>プレビューをクリア</button>
+            </div>
+            <div class="spacer"></div>
+            <span class="pill kx">PUT: <code>/erm/entitlements</code>（全行を対象）</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" style="font-size:12px; color:var(--muted)">
+        <div class="row" style="gap:12px; flex-wrap:wrap">
+          <span class="pill">凡例</span>
+          <span>CSV 1行 = Entitlement 1件 PUT</span>
+          <span>reference は <code>VendorID-PackageID-KBID</code>（ファイルから自動生成）</span>
+        </div>
+      </div>
+
+      <div id="resultLog" class="section footer-log"></div>
+    </div>
+
+    <script>
+      // ====== 設定 / API ======
+      const API = {
+        login: (baseUrl) => `${baseUrl}/authn/login`,
+        // Agreements (ERM): /erm/sas
+        searchAgreements: ({ baseUrl, statusValues = [], name = "", page = 1, perPage = 100 }) => {
+          const clauses = [];
+          if (statusValues.length) {
+            clauses.push(statusValues.map(v => `agreementStatus.value==${encodeURIComponent(v)}`).join("||"));
+          }
+          const qs = new URLSearchParams();
+          if (clauses.length) qs.set("filters", clauses.join("&&"));
+          if (name && name.trim()) qs.append("filters", `name==*${encodeURIComponent(name.trim())}*`); // contains
+          qs.set("sort", "name;asc");
+          qs.set("stats", "true");
+          qs.set("page", String(page));
+          qs.set("perPage", String(perPage));
+          return `${baseUrl}/erm/sas?${qs.toString()}`;
+        },
+        getAgreement: ({ baseUrl, id }) => `${baseUrl}/erm/sas/${id}`,
+        putEntitlement: ({ baseUrl }) => `${baseUrl}/erm/entitlements`,
+      };
+
+      // ====== 状態 ======
+      const el = (id) => document.getElementById(id);
+      const state = {
+        token: null,
+        tenant: null,
+        agreements: [],
+        agreementsTotalPages: 1,
+        selectedAgreement: null, // full agreement
+        fileRows: [], // parsed rows
+        selectedRowIdx: new Set(), // 未使用（常に全行保存）
+      };
+
+      // ====== UI Utils ======
+      function setStatus(msg, kind = "info") { const s = el("status"); s.textContent = msg; s.className = `status ${kind}`; s.style.display = "block"; }
+      function clearStatus() { const s = el("status"); s.style.display = "none"; s.textContent = ""; }
+      function escapeHtml(s){return (s??"").toString().replace(/[&<>"']/g,(m)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
+      function log(msg){ const box = el('resultLog'); const now = new Date().toISOString(); box.textContent += `[${now}] ${msg}\n`; box.scrollTop = box.scrollHeight; }
+
+      // ====== 認証 ======
+      async function login(){
+        const baseUrl = el('baseUrl').value.trim();
+        const tenant = el('tenant').value.trim();
+        const username = el('username').value.trim();
+        const password = el('password').value;
+        setStatus('認証中…', 'info');
+        const res = await fetch(API.login(baseUrl), { method:'POST', headers: { 'Content-Type':'application/json', 'x-okapi-tenant': tenant }, body: JSON.stringify({ username, password }) });
+        if(!res.ok) throw new Error('認証に失敗しました');
+        state.token = res.headers.get('x-okapi-token');
+        state.tenant = tenant;
+        setStatus('ログイン成功','ok');
+      }
+
+      // ====== Agreement 検索（全ページ集約） ======
+      async function searchAgreements(pageStart=1){
+        if(!state.token) await login();
+        const baseUrl = el('baseUrl').value.trim();
+        const headers = { 'x-okapi-tenant': state.tenant, 'x-okapi-token': state.token };
+        const perPage = Number(el('perPage').value) || 100;
+        const name = el('s_name').value.trim();
+        const status = el('s_status').value; // "" or value
+        const statusValues = []; if(status) statusValues.push(status);
+        setStatus('Agreement検索中…','info');
+
+        const results = [];
+        let page = pageStart; let totalPages = 1;
+        do{
+          const url = API.searchAgreements({ baseUrl, statusValues, name, page, perPage });
+          const res = await fetch(url,{ headers });
+          if(!res.ok){ setStatus(`検索失敗: ${res.status} ${res.statusText}`, 'err'); return; }
+          const data = await res.json();
+          const items = data.results || data.items || data || [];
+          totalPages = data.totalPages || data.pageCount || 1;
+          if(Array.isArray(items)) results.push(...items);
+          page += 1;
+        } while(page <= totalPages);
+
+        state.agreements = results;
+        state.agreementsTotalPages = totalPages;
+        el('agrCount').textContent = String(state.agreements.length);
+        renderAgreementList();
+        setStatus(`検索完了: ${state.agreements.length}件（全ページ集約）`, 'ok');
+      }
+
+      function renderAgreementList(){
+        const wrap = el('agrList');
+        const q = el('q').value.trim().toLowerCase();
+        const list = (state.agreements||[]).filter(a=>{
+          const nm = (a.name||'').toLowerCase();
+          const st = (a.agreementStatus?.label || a.agreementStatus?.value || '').toLowerCase();
+          return !q || nm.includes(q) || st.includes(q);
+        });
+        const rows = list.map(a=>{
+          const s = a.agreementStatus?.label || a.agreementStatus?.value || '';
+          const start = a.startDate || a.periods?.[0]?.startDate || '';
+          const end = a.endDate || a.periods?.[0]?.endDate || '';
+          return `<tr data-id="${a.id}" class="agr-row ${ state.selectedAgreement && state.selectedAgreement.id===a.id ? 'selected':'' }"><td>${escapeHtml(a.name||'')}</td><td>${escapeHtml(s)}</td><td>${escapeHtml(start)}</td><td>${escapeHtml(end)}</td></tr>`
+        }).join('');
+        wrap.innerHTML = `<table><thead><tr><th>Name</th><th>Status</th><th>Start</th><th>End</th></tr></thead><tbody>${ rows || '<tr><td colspan="4" class="muted">Agreement が見つかりません</td></tr>' }</tbody></table>`;
+        wrap.querySelectorAll('tr.agr-row').forEach(tr=>{
+          tr.addEventListener('click', async ()=>{
+            const id = tr.dataset.id; await onSelectAgreement(id);
+          });
+        });
+      }
+
+      async function onSelectAgreement(id){
+        const baseUrl = el('baseUrl').value.trim();
+        const headers = { 'x-okapi-tenant': state.tenant, 'x-okapi-token': state.token };
+        setStatus('Agreement 取得中…','info');
+        const res = await fetch(API.getAgreement({ baseUrl, id }), { headers });
+        if(!res.ok){ setStatus(`取得失敗: ${res.status} ${res.statusText}`, 'err'); return; }
+        const agr = await res.json();
+        state.selectedAgreement = agr;
+        el('selectedAgreementName').textContent = agr.name || '—';
+        renderAgreementList();
+        setStatus('Agreement を選択しました。','ok');
+        validateSaveButton();
+      }
+
+      // ====== ファイル読込（CSV / XLSX） ======
+      el('fileInput').addEventListener('change', async (e)=>{
+        const f = e.target.files?.[0];
+        if(!f){ return; }
+        try{
+          const buf = await f.arrayBuffer();
+          let rows = [];
+          if(f.name.toLowerCase().endsWith('.csv')){
+            // Simple CSV parse using XLSX for robustness
+            const wb = XLSX.read(buf, { type:'array', codepage: 65001 });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+          } else {
+            const wb = XLSX.read(buf, { type:'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+          }
+          // Normalize expected headers
+          const norm = rows.map((r, idx)=>({
+            __idx: idx,
+            KBID: r.KBID ?? r.kbid ?? r.Reference ?? r.reference ?? '',
+            Title: r.Title ?? r.title ?? '',
+            PackageName: r.PackageName ?? r.package ?? r.Package ?? '',
+            URL: r.URL ?? r.Url ?? r.url ?? '',
+            VendorName: r.VendorName ?? r.ProviderName ?? r.vendor ?? r.provider ?? '',
+            VendorID: r.VendorID ?? r.vendorId ?? r.vendorID ?? r.vendor_id ?? '',
+            PackageID: r.PackageID ?? r.packageId ?? r.packageID ?? r.package_id ?? ''
+          })).map(o=>({
+            ...o,
+            Reference: [o.VendorID, o.PackageID, o.KBID].filter(Boolean).join('-')
+          }));
+          state.fileRows = norm;
+          state.selectedRowIdx = new Set(norm.map((_,i)=>i)); // default all selected
+          renderFilePreview();
+          el('clearBtn').disabled = false;
+          validateSaveButton();
+          setStatus(`ファイル読込: ${norm.length} 行`, 'ok');
+        }catch(err){
+          console.error(err);
+          setStatus(`ファイル読込に失敗: ${err.message || err}`, 'err');
+        }
+      });
+
+      function renderFilePreview(){
+        const wrap = el('filePreview');
+        const rows = (state.fileRows||[]).map((r)=>`
+          <tr>
+            <td>${escapeHtml(r.KBID)}</td>
+            <td>${escapeHtml(r.Title)}</td>
+            <td>${escapeHtml(r.PackageName)}</td>
+            <td><a href="${escapeHtml(r.URL)}" target="_blank" rel="noopener">${escapeHtml(r.URL)}</a></td>
+            <td>${escapeHtml(r.VendorName)}</td>
+            <td><code>${escapeHtml(r.Reference)}</code></td>
+          </tr>`).join('');
+        wrap.innerHTML = `<table>
+          <thead><tr>
+            <th>KBID</th><th>Title</th><th>PackageName</th><th>URL</th><th>VendorName</th><th>Reference</th>
+          </tr></thead>
+          <tbody>${ rows || '<tr><td colspan="6" class="muted">ファイル未読込</td></tr>' }</tbody>
+        </table>`;
+      }
+
+      // 選択ロジックは削除（常に全行）
+
+      el('clearBtn').addEventListener('change', (e)=>{
+        if(!state.fileRows) return;
+        state.selectedRowIdx = new Set(e.target.checked ? state.fileRows.map((_,i)=>i) : []);
+        renderFilePreview();
+        validateSaveButton();
+      });
+
+      el('clearBtn').addEventListener('click', ()=>{
+        state.fileRows = []; state.selectedRowIdx = new Set(); renderFilePreview(); validateSaveButton(); el('fileInput').value = ''; setStatus('プレビューをクリアしました。','ok');
+      });
+
+      function validateSaveButton(){
+        const ok = !!(state.selectedAgreement && state.fileRows.length);
+        el('saveBtn').disabled = !ok;
+      }
+
+      // ====== Entitlement PUT（全行） ======
+      el('saveBtn').addEventListener('click', async ()=>{
+        if(!state.selectedAgreement){ setStatus('Agreementが選択されていません','warn'); return; }
+        const baseUrl = el('baseUrl').value.trim();
+        const headers = { 'Content-Type':'application/json', 'x-okapi-tenant': state.tenant, 'x-okapi-token': state.token };
+
+        const rows = state.fileRows || [];
+        if(!rows.length){ setStatus('保存対象行がありません','warn'); return; }
+
+        // 入力検証: Reference 欠落行
+        const invalid = rows.map((r,idx)=>({idx, r})).filter(x=>!(x.r.Reference && String(x.r.Reference).trim().length));
+        if(invalid.length){ setStatus(`Reference 欠落行があります: ${invalid.map(x=>x.idx+1).join(', ')}`,'err'); return; }
+
+        setStatus(`PUT 開始: ${rows.length} 行`, 'info');
+        log(`PUT /erm/entitlements x ${rows.length}`);
+
+        let okCnt = 0, ngCnt = 0; let n = 0;
+        for(const row of rows){
+          n++;
+          const payload = {
+            type: 'external',
+            authority: 'ekb-title',
+            reference: String(row.Reference),
+            owner: String(state.selectedAgreement.id)
+          };
+          try{
+            const res = await fetch(API.putEntitlement({ baseUrl }), { method:'PUT', headers, body: JSON.stringify(payload) });
+            if(!res.ok){
+              const t = await res.text().catch(()=>res.statusText);
+              log(`NG [row ${n}] ${row.Reference} :: ${res.status} ${res.statusText} ${t}`);
+              ngCnt++;
+            }else{
+              log(`OK [row ${n}] ${row.Reference} :: ${res.status} ${res.statusText}`);
+              okCnt++;
+            }
+          }catch(e){
+            log(`NG [row ${n}] ${row.Reference} :: ${e.message || e}`);
+            ngCnt++;
+          }
+        }
+        setStatus(`PUT 完了: 成功 ${okCnt} / 失敗 ${ngCnt}` , ngCnt? 'warn':'ok');
+      });
+
+      // ====== イベント結線 ======
+      el('loginBtn').addEventListener('click', async ()=>{ try{ await login(); }catch(e){ setStatus(e.message || 'ログイン失敗','err'); } });
+      el('searchBtn').addEventListener('click', async ()=>{ try{ if(!state.token) await login(); await searchAgreements(1); }catch(e){ setStatus(e.message || 'エラー','err'); } });
+      el('q').addEventListener('input', renderAgreementList);
+
+      // 初期: 何もしない
+    </script>
+  </body>
+</html>
