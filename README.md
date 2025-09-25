@@ -7,8 +7,11 @@
 
 ## リスト
 ### ライセンス系
-* Licenses-BulkCreate: ライセンスの一括登録
+* Licenses-Modify: ライセンスの一括変更
+* Licenses-BulkDelete.html：ライセンスの一括削除
 * Licenses-Download: ライセンスのダウンロード
+* Licenses-ModifyVisibility.html: Visibilityの一括変更
+* Agreements-UploadTitles.html：Agreementのタイトル（Agreement Line）アップロード
 
 ## 使い方
 * ファイルをダウンロードしてご利用ください。
