@@ -325,51 +325,46 @@
         // ライセンス検索: ページング対応
         // デフォルトは mod-licenses の /licenses/licenses を想定
         // ライセンス検索: 名前検索時は match/term を使う
-        searchLicenses: ({
-        baseUrl,
-        name,
-        status,
-        type,
-        page = 1,
-        perPage = 100,
-        }) => {
-        // ① name が指定されている場合は、match=name & match=alternateNames.name & term=... を使う
-        if (name && name.trim()) {
-            // 基本の並びは name;asc、stats=true を付与
+        // （API オブジェクト内）searchLicenses をこの定義に差し替え
+        searchLicenses: ({ baseUrl, name, statusValues = [], typeValue = "", page = 1, perPage = 100 }) => {
+          // フィルタ句を構築
+          const clauses = [];
+          if (statusValues.length > 0) {
+            const orClause = statusValues.map(v => `status.value==${encodeURIComponent(v)}`).join("||");
+            clauses.push(orClause);               // ステータスは OR まとめ
+          }
+          if (typeValue) {
+            clauses.push(`type.value==${encodeURIComponent(typeValue)}`); // Type は単一
+          }
+          const filtersClause = clauses.join("&&"); // フィールド違いは AND
+
+          // 名前検索あり
+          if (name && name.trim()) {
             const qs = [
-            "match=name",
-            "match=alternateNames.name",
-            `term=${encodeURIComponent(name.trim())}`,
-            "sort=name%3Basc",
-            "stats=true",
-            `page=${page}`,
-            `perPage=${perPage}`,
+              "match=name",
+              "match=alternateNames.name",
+              `term=${encodeURIComponent(name.trim())}`,
+              "sort=name%3Basc",
+              "stats=true",
+              `page=${page}`,
+              `perPage=${perPage}`,
             ];
-
-            // ※必要があれば filters をここに追加（例：ステータスで絞る）
-            // if (status) qs.push(`filters=${encodeURIComponent(`status==${status}`)}`);
-            // if (type)   qs.push(`filters=${encodeURIComponent(`type==${type}`)}`);
-
+            if (filtersClause) qs.push(`filters=${filtersClause}`);
             return `${baseUrl}/licenses/licenses?${qs.join("&")}`;
-        }
+          }
 
-        // ② name がない通常検索は従来どおり（必要に応じて filters 方式に変更してOK）
-        const params = new URLSearchParams();
-        params.set("stats", "true");
-        params.set("page", String(page));
-        params.set("perPage", String(perPage));
-        if (status) params.set("status", status);
-        if (type) params.set("type", type);
-        return `${baseUrl}/licenses/licenses?${params.toString()}`;
+          // 通常検索
+          const params = new URLSearchParams();
+          params.set("stats", "true");
+          params.set("sort", "name;asc");
+          params.set("page", String(page));
+          params.set("perPage", String(perPage));
+          if (filtersClause) params.set("filters", filtersClause);
+
+          return `${baseUrl}/licenses/licenses?${params.toString()}`;
         },
         // ライセンス単体取得（最新完全ペイロード）
         getLicense: ({ baseUrl, id }) => `${baseUrl}/licenses/licenses/${id}`,
-        // ターム取得（ツール用）: ライセンス詳細 payload 内 or 専用エンドポイントを想定
-        // 既定では GET /licenses/licenses/{id} の結果から terms 相当を抽出します。
-        // もし専用 API がある場合は下記を置き換え:
-        // getTerms: ({ baseUrl, id }) => `${baseUrl}/licenses/licenses/${id}/terms`
-        // ターム更新（visibility変更）: 既定ではライセンス全体 PUT を採用
-        // サーバに PATCH/個別更新がある場合は applyTermVisibility を差し替えてください。
       };
 
       // ====== 状態 ======
@@ -449,15 +444,15 @@
           [s_status, s_type].forEach((sel) => {
             while (sel.options.length > 1) sel.remove(1);
           });
-          state.refdata.status.forEach((o) => {
+          state.refdata.status.forEach(o => {
             const opt = document.createElement("option");
-            opt.value = o.label;
-            opt.textContent = o.label;
+            opt.value = o.value ?? o.label;   // machine value
+            opt.textContent = o.label;        // 表示ラベル
             s_status.appendChild(opt);
           });
           state.refdata.type.forEach((o) => {
             const opt = document.createElement("option");
-            opt.value = o.label;
+            opt.value = o.value ?? o.label
             opt.textContent = o.label;
             s_type.appendChild(opt);
           });
@@ -475,7 +470,11 @@
             "x-okapi-token": state.token,
         };
         const name = el("s_name").value.trim();
-        const status = el("onlyActive").checked ? "Active" : el("s_status").value;
+        const selectedStatus = el("s_status").value;   // "" or "active" など
+        const statusValues = [];
+        if (el("onlyActive").checked) statusValues.push("active");
+        if (selectedStatus) statusValues.push(selectedStatus);
+        const typeValue = el("s_type").value; 
         const type = el("s_type").value;
 
         setStatus("検索中…", "info");
@@ -489,8 +488,8 @@
             const url = API.searchLicenses({
             baseUrl,
             name,
-            status,
-            type,
+            statusValues,
+            typeValue,
             page,
             perPage,
             });
