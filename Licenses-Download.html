@@ -110,7 +110,7 @@
       <label>Password:
         <input type="password" id="password" value="admin" />
       </label>
-      <button onclick="fetchLicenses()">ライセンスを取得</button>
+      <button id="fetchBtn" onclick="fetchLicenses()">ライセンスを取得</button>
       <button id="downloadBtn" onclick="downloadCSV()" disabled>CSVダウンロード</button>
     </div>
 
@@ -133,177 +133,199 @@
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/fixedcolumns/4.2.2/js/dataTables.fixedColumns.min.js"></script>
     <script>
+      const DEFAULT_HEADERS = [
+        'ID',
+        'Created',
+        'Name',
+        'Alternate Names',
+        'Type',
+        'Status',
+        'Description'
+      ];
+
+      let isLoading = false;
+      let currentLicenseRows = [];
+      let currentCustomPropsMeta = [];
+
       function getCommonHeaders(tenant) {
         return {
           'x-okapi-tenant': tenant
         };
       }
 
-      // Custom Properties のメタ情報を取得 (key, ctx)
-      async function fetchCustomProps(baseUrl, tenant) {
-        const customPropsMeta = [];
-        let page = 1;
-        let totalPages = 1;
+      function resetTableShell() {
+        if ($.fn.DataTable.isDataTable('#licensesTable')) {
+          $('#licensesTable').DataTable().destroy();
+        }
 
-        do {
-          const res = await fetch(
-            `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=100&stats=true&filters=retired%3D%3Dfalse&page=${page}`,
-            {
-              credentials: 'include',
-              headers: getCommonHeaders(tenant)
-            }
-          );
+        document.querySelector('.table-wrapper').innerHTML = `
+          <table id="licensesTable">
+            <thead>
+              <tr></tr>
+              <tr></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        `;
+      }
+
+      function escapeCsvCell(value) {
+        const text = value == null ? '' : String(value);
+        return /[",\n]/.test(text)
+          ? `"${text.replace(/"/g, '""')}"`
+          : text;
+      }
+
+      function normalizeCustomPropertyValue(value) {
+        if (Array.isArray(value)) {
+          return value
+            .map(item => {
+              if (item && typeof item === 'object') {
+                return item.label || item.value || '';
+              }
+              return item == null ? '' : String(item);
+            })
+            .filter(Boolean)
+            .join('; ');
+        }
+
+        if (value && typeof value === 'object') {
+          return value.label || value.value || '';
+        }
+
+        return value == null ? '' : String(value);
+      }
+
+      async function fetchAllPages({ urlBuilder, tenant, pageSize = 100 }) {
+        const allResults = [];
+        let page = 1;
+        let totalPages = null;
+
+        while (true) {
+          const res = await fetch(urlBuilder(page, pageSize), {
+            credentials: 'include',
+            headers: getCommonHeaders(tenant)
+          });
+
           if (!res.ok) {
             const errText = await res.text();
-            throw new Error(`custprops取得失敗: ${res.status} ${errText}。Cookie が送信されていない場合は credentials: 'include' とサーバー側の Access-Control-Allow-Credentials / Access-Control-Allow-Origin を確認してください。`);
+            throw new Error(`${res.status} ${errText}`);
           }
+
           const data = await res.json();
-          totalPages = data.totalPages || 1;
-          data.results.forEach(prop => {
-            if (prop.name) {
-              customPropsMeta.push({
-                key: prop.name,
-                ctx: prop.ctx     // API から返ってくる context (ctx) フィールド
-              });
-            }
+          const results = Array.isArray(data.results) ? data.results : [];
+          allResults.push(...results);
+
+          const parsedTotalPages = Number(data.totalPages);
+          if (Number.isFinite(parsedTotalPages) && parsedTotalPages > 0) {
+            totalPages = parsedTotalPages;
+          }
+
+          if (totalPages !== null && page >= totalPages) {
+            break;
+          }
+
+          if (results.length < pageSize) {
+            break;
+          }
+
+          page += 1;
+        }
+
+        return allResults;
+      }
+
+      async function fetchCustomProps(baseUrl, tenant) {
+        const results = await fetchAllPages({
+          tenant,
+          pageSize: 100,
+          urlBuilder: (page, pageSize) =>
+            `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=${pageSize}&stats=true&filters=retired%3D%3Dfalse&page=${page}`
+        });
+
+        const seen = new Set();
+        const customPropsMeta = [];
+
+        results.forEach(prop => {
+          if (!prop?.name) return;
+          if (seen.has(prop.name)) return;
+          seen.add(prop.name);
+          customPropsMeta.push({
+            key: prop.name,
+            ctx: prop.ctx || ''
           });
-          page++;
-        } while (page <= totalPages);
+        });
 
         return customPropsMeta;
       }
 
-      async function fetchLicenses() {
-        const baseUrl = document.getElementById('baseUrl').value.trim().replace(/\/$/, '');
-        const tenant = document.getElementById('tenant').value.trim();
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
-        const messageEl = document.getElementById('message');
-        const downloadBtn = document.getElementById('downloadBtn');
-
-        messageEl.innerHTML = '<div class="info">取得中…</div>';
-        downloadBtn.disabled = true;
-
-        try {
-        // 認証リクエスト
-        const loginResponse = await fetch(`${baseUrl}/authn/login`, {
-          method: "POST",
-          credentials: 'include',
-          headers: {
-            "Content-Type": "application/json",
-            "x-okapi-tenant": tenant,
-          },
-          body: JSON.stringify({ username, password }),
-        });
-        if (!loginResponse.ok) {
-          const errText = await loginResponse.text();
-          messageEl.innerHTML = `<div class="error">認証に失敗しました: ${loginResponse.status} ${errText}</div>`;
-          return;
-        }
-
-        console.log('login response:', loginResponse);
-        console.log('visible response headers:', [...loginResponse.headers.entries()]);
-        messageEl.innerHTML = '<div class="info">認証成功。Cookie セッションでライセンスを取得しています…</div>';
-
-        let customPropsMeta;
-        try {
-          customPropsMeta = await fetchCustomProps(baseUrl, tenant);
-        } catch (e) {
-          messageEl.innerHTML = `<div class="error">${e.message}</div>`;
-          return;
-        }
-
-        // テーブルリセット
-        if ($.fn.DataTable.isDataTable("#licensesTable")) {
-          $("#licensesTable").DataTable().destroy();
-        }
-        $(".table-wrapper").html(
-          '<table id="licensesTable"><thead><tr></tr><tr></tr></thead><tbody></tbody></table>'
-        );
-
-        const table = document.getElementById("licensesTable");
-        const thead = table.querySelector("thead");
-        const topRow = thead.rows[0];
-        const botRow = thead.rows[1];
-
-        // １行目（デフォルト列）を rowspan=2 でまとめる
-        const defaultHeaders = [
-          'ID','Created','Name','Alternate Names','Type','Status','Description'
+      function buildLicenseRow(lic) {
+        const baseCells = [
+          lic.id || '',
+          lic.dateCreated?.slice(0, 10) || '',
+          lic.name || '',
+          (lic.alternateNames || []).map(a => a?.name || '').filter(Boolean).join('; '),
+          lic.type?.value || '',
+          lic.status?.label || '',
+          lic.description || ''
         ];
-        defaultHeaders.forEach(label => {
-          const th = document.createElement("th");
+
+        const customProps = {};
+        Object.entries(lic.customProperties || {}).forEach(([key, items]) => {
+          if (!Array.isArray(items) || items.length === 0) return;
+
+          const joined = items
+            .map(item => normalizeCustomPropertyValue(item?.value))
+            .filter(Boolean)
+            .join(' | ');
+
+          customProps[key] = joined;
+        });
+
+        return { baseCells, customProps };
+      }
+
+      function renderTable(customPropsMeta, licenseRows) {
+        resetTableShell();
+
+        const table = document.getElementById('licensesTable');
+        const thead = table.querySelector('thead');
+        const topRow = thead.rows[0];
+        const bottomRow = thead.rows[1];
+        const tbody = table.querySelector('tbody');
+        // １行目（デフォルト列）を rowspan=2 でまとめる
+
+        DEFAULT_HEADERS.forEach(label => {
+          const th = document.createElement('th');
           th.rowSpan = 2;
           th.textContent = label;
           topRow.appendChild(th);
         });
 
-        // １行目：Custom Props の ctx を表示
         customPropsMeta.forEach(({ ctx }) => {
-          const th = document.createElement("th");
+          const th = document.createElement('th');
           th.textContent = ctx;
           topRow.appendChild(th);
         });
 
-        // ２行目：Custom Props のキー（name）を表示
         customPropsMeta.forEach(({ key }) => {
-          const th = document.createElement("th");
+          const th = document.createElement('th');
           th.textContent = key;
-          botRow.appendChild(th);
+          bottomRow.appendChild(th);
         });
 
-        // ライセンス取得
-        const licenseRows = [];
-        let page = 1, totalPages = 1, perPage = 100;
-        do {
-          const res = await fetch(
-            `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
-            {
-              credentials: 'include',
-              headers: getCommonHeaders(tenant)
-            }
-          );
-          if (!res.ok) {
-            const errText = await res.text();
-            messageEl.innerHTML = `<div class="error">licenses取得失敗: ${res.status} ${errText}<br>Cookie が送信されていない場合は、Network タブで Request Headers の Cookie とレスポンスの CORS 設定を確認してください。</div>`;
-            return;
-          }
-          const data = await res.json();
-          totalPages = data.totalPages || 1;
-          data.results.forEach(lic => {
-            const baseCells = [
-              lic.id,
-              lic.dateCreated?.slice(0, 10) || "",
-              lic.name,
-              (lic.alternateNames||[]).map(a=>a.name).join('; '),
-              lic.type?.value||"",
-              lic.status?.label||"",
-              lic.description
-            ];
-            const customProps = {};
-            Object.entries(lic.customProperties||{}).forEach(([k, items]) => {
-              if (!Array.isArray(items)||!items.length) return;
-              const v = items[0].value;
-              customProps[k] = Array.isArray(v)
-                ? v.map(x=>x.label||"").join('; ')
-                : (v&&typeof v==='object' ? v.label : String(v));
-            });
-            licenseRows.push({ baseCells, customProps });
-          });
-          page++;
-        } while (page <= totalPages);
-
-        // 行描画
-        const tbody = table.querySelector("tbody");
         licenseRows.forEach(({ baseCells, customProps }) => {
           const tr = tbody.insertRow();
-          baseCells.forEach(txt => {
-            const td = document.createElement("td");
-            td.textContent = txt;
+
+          baseCells.forEach(text => {
+            const td = document.createElement('td');
+            td.textContent = text;
             tr.appendChild(td);
           });
+
           customPropsMeta.forEach(({ key }) => {
-            const td = document.createElement("td");
-            td.textContent = customProps[key]||"";
+            const td = document.createElement('td');
+            td.textContent = customProps[key] || '';
             tr.appendChild(td);
           });
         });
@@ -318,83 +340,125 @@
             scrollX: true,
             autoWidth: false,
             fixedColumns: { leftColumns: 3 },
-            scrollY: "300px",
+            scrollY: '300px'
           });
           dt.columns.adjust();
-          messageEl.innerHTML = '<div class="success">ライセンスの取得が完了しました！</div>';
-          downloadBtn.disabled = false;
-        } else {
-          messageEl.innerHTML = '<div class="error">ライセンスが見つかりませんでした。</div>';
-        }
-        } catch (e) {
-          console.error(e);
-          messageEl.innerHTML = `<div class="error">処理中にエラーが発生しました: ${e.message}</div>`;
         }
       }
 
-function downloadCSV() {
-  // 1. デフォルトヘッダー定義（fetchLicenses 側と同じ順序で）
-  const defaultHeaders = [
-    'ID','Created','Name','Alternate Names','Type','Status','Description'
-  ];
+      async function fetchLicenses() {
+        if (isLoading) {
+          return;
+        }
 
-  const table = document.getElementById("licensesTable");
-  const theadRows = table.querySelectorAll("thead tr");
+        const baseUrl = document.getElementById('baseUrl').value.trim().replace(/\/$/, '');
+        const tenant = document.getElementById('tenant').value.trim();
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const messageEl = document.getElementById('message');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const fetchBtn = document.getElementById('fetchBtn');
 
-  // 2. 1行目: 空セル*defaultHeaders.length + ctxセル
-  const row0Ths = Array.from(theadRows[0].cells);
-  // ctxセル は row0Ths のうち、最初の defaultHeaders.length 個を除いた残り
-  const ctxCells = row0Ths
-    .slice(defaultHeaders.length)
-    .map(th => `"${th.innerText.replace(/"/g, '""')}"`);
-  const header1 = [
-    ...Array(defaultHeaders.length).fill('""'),
-    ...ctxCells
-  ].join(",");
+        isLoading = true;
+        fetchBtn.disabled = true;
+        downloadBtn.disabled = true;
+        currentLicenseRows = [];
+        currentCustomPropsMeta = [];
+        resetTableShell();
+        messageEl.innerHTML = '<div class="info">取得中…</div>';
 
-  // 3. 2行目: デフォルトヘッダー + property keyセル
-  const keyCells = Array.from(theadRows[1].cells)
-    .map(th => `"${th.innerText.replace(/"/g, '""')}"`);
-  const header2 = [
-    ...defaultHeaders.map(h => `"${h}"`),
-    ...keyCells
-  ].join(",");
+        try {
+          const loginResponse = await fetch(`${baseUrl}/authn/login`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-okapi-tenant': tenant
+            },
+            body: JSON.stringify({ username, password })
+          });
 
-  // 4. データ行（変わらず）
-  const dataRows = Array.from(
-    table.querySelectorAll("tbody tr")
-  ).map(tr =>
-    Array.from(tr.cells)
-      .map(td => {
-        let t = td.innerText;
-        if (/[",\n]/.test(t)) t = `"${t.replace(/"/g,'""')}"`;
-        return t;
-      })
-      .join(",")
-  );
+          if (!loginResponse.ok) {
+            const errText = await loginResponse.text();
+            messageEl.innerHTML = `<div class="error">認証に失敗しました: ${loginResponse.status} ${errText}</div>`;
+            return;
+          }
 
-  if (!dataRows.length) {
-    alert("CSVに出力するデータがありません。");
-    return;
-  }
+          messageEl.innerHTML = '<div class="info">認証成功。Custom Properties とライセンスを取得しています…</div>';
 
-  // 5. BOM を付けて出力
-  const body = [header1, header2, ...dataRows].join("\n");
-  const csvContent = "\uFEFF" + body;
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const now = new Date(), pad = n => String(n).padStart(2, "0");
-  const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-  a.href = url;
-  a.download = `licenses_${ts}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+          currentCustomPropsMeta = await fetchCustomProps(baseUrl, tenant);
 
+          const licenseResults = await fetchAllPages({
+            tenant,
+            pageSize: 100,
+            urlBuilder: (page, pageSize) =>
+              `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${pageSize}`
+          });
 
+          const licenseMap = new Map();
+          licenseResults.forEach(lic => {
+            if (!lic?.id) return;
+            if (licenseMap.has(lic.id)) return;
+            licenseMap.set(lic.id, buildLicenseRow(lic));
+          });
+
+          currentLicenseRows = Array.from(licenseMap.values());
+          renderTable(currentCustomPropsMeta, currentLicenseRows);
+
+          if (currentLicenseRows.length > 0) {
+            messageEl.innerHTML = `<div class="success">ライセンスの取得が完了しました。${currentLicenseRows.length} 件を表示しています。</div>`;
+            downloadBtn.disabled = false;
+          } else {
+            messageEl.innerHTML = '<div class="error">ライセンスが見つかりませんでした。</div>';
+          }
+        } catch (e) {
+          console.error(e);
+          messageEl.innerHTML = `<div class="error">処理中にエラーが発生しました: ${e.message}</div>`;
+        } finally {
+          isLoading = false;
+          fetchBtn.disabled = false;
+        }
+      }
+
+      function downloadCSV() {
+        if (!currentLicenseRows.length) {
+          alert('CSVに出力するデータがありません。');
+          return;
+        }
+
+        const header1 = [
+          ...Array(DEFAULT_HEADERS.length).fill('""'),
+          ...currentCustomPropsMeta.map(({ ctx }) => `"${String(ctx || '').replace(/"/g, '""')}"`)
+        ].join(',');
+
+        const header2 = [
+          ...DEFAULT_HEADERS.map(h => `"${String(h).replace(/"/g, '""')}"`),
+          ...currentCustomPropsMeta.map(({ key }) => `"${String(key || '').replace(/"/g, '""')}"`)
+        ].join(',');
+
+        const dataRows = currentLicenseRows.map(({ baseCells, customProps }) => {
+          const row = [
+            ...baseCells,
+            ...currentCustomPropsMeta.map(({ key }) => customProps[key] || '')
+          ];
+          return row.map(escapeCsvCell).join(',');
+        });
+
+        const csvContent = '\uFEFF' + [header1, header2, ...dataRows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const ts = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+        a.href = url;
+        a.download = `licenses_${ts}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
     </script>
   </body>
 </html>
