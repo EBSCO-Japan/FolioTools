@@ -153,6 +153,10 @@
         };
       }
 
+      function showMessage(type, text) {
+        document.getElementById('message').innerHTML = `<div class="${type}">${text}</div>`;
+      }
+
       function resetTableShell() {
         if ($.fn.DataTable.isDataTable('#licensesTable')) {
           $('#licensesTable').DataTable().destroy();
@@ -196,12 +200,21 @@
         return value == null ? '' : String(value);
       }
 
-      async function fetchAllPages({ urlBuilder, tenant, pageSize = 100 }) {
+      async function fetchAllPages({ urlBuilder, tenant, pageSize = 100, onProgress }) {
         const allResults = [];
         let page = 1;
         let totalPages = null;
 
         while (true) {
+          if (typeof onProgress === 'function') {
+            onProgress({
+              page,
+              totalPages,
+              loadedCount: allResults.length,
+              isComplete: false
+            });
+          }
+
           const res = await fetch(urlBuilder(page, pageSize), {
             credentials: 'include',
             headers: getCommonHeaders(tenant)
@@ -221,6 +234,15 @@
             totalPages = parsedTotalPages;
           }
 
+          if (typeof onProgress === 'function') {
+            onProgress({
+              page,
+              totalPages,
+              loadedCount: allResults.length,
+              isComplete: true
+            });
+          }
+
           if (totalPages !== null && page >= totalPages) {
             break;
           }
@@ -235,10 +257,11 @@
         return allResults;
       }
 
-      async function fetchCustomProps(baseUrl, tenant) {
+      async function fetchCustomProps(baseUrl, tenant, onProgress) {
         const results = await fetchAllPages({
           tenant,
           pageSize: 100,
+          onProgress,
           urlBuilder: (page, pageSize) =>
             `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=${pageSize}&stats=true&filters=retired%3D%3Dfalse&page=${page}`
         });
@@ -365,7 +388,7 @@
         currentLicenseRows = [];
         currentCustomPropsMeta = [];
         resetTableShell();
-        messageEl.innerHTML = '<div class="info">取得中…</div>';
+        showMessage('info', '認証中…');
 
         try {
           const loginResponse = await fetch(`${baseUrl}/authn/login`, {
@@ -380,19 +403,40 @@
 
           if (!loginResponse.ok) {
             const errText = await loginResponse.text();
-            messageEl.innerHTML = `<div class="error">認証に失敗しました: ${loginResponse.status} ${errText}</div>`;
+            showMessage('error', `認証に失敗しました: ${loginResponse.status} ${errText}`);
             return;
           }
 
-          messageEl.innerHTML = '<div class="info">認証成功。Custom Properties とライセンスを取得しています…</div>';
+          showMessage('info', '認証成功。Custom Properties を取得しています…');
 
-          currentCustomPropsMeta = await fetchCustomProps(baseUrl, tenant);
+          currentCustomPropsMeta = await fetchCustomProps(baseUrl, tenant, ({ page, totalPages, isComplete }) => {
+            if (!isComplete) {
+              if (totalPages == null) {
+                showMessage('info', 'Custom Properties を取得中… 1ページ目を取得しています…');
+              } else {
+                showMessage('info', `Custom Properties を取得中… ${page} / ${totalPages} ページ`);
+              }
+            } else {
+              showMessage('info', `Custom Properties を取得中… ${page} / ${totalPages || page} ページ完了`);
+            }
+          });
 
           const licenseResults = await fetchAllPages({
             tenant,
             pageSize: 100,
+            onProgress: ({ page, totalPages, loadedCount, isComplete }) => {
+              if (!isComplete) {
+                if (totalPages == null) {
+                  showMessage('info', 'ライセンスを取得中… 1ページ目を取得しています…');
+                } else {
+                  showMessage('info', `ライセンスを取得中… ${page} / ${totalPages} ページ`);
+                }
+              } else {
+                showMessage('info', `ライセンスを取得中… ${page} / ${totalPages || page} ページ完了（累計 ${loadedCount} 件）`);
+              }
+            },
             urlBuilder: (page, pageSize) =>
-              `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${pageSize}`
+              `${baseUrl}/licenses/licenses?sort=id%3Basc&stats=true&page=${page}&perPage=${pageSize}`
           });
 
           const licenseMap = new Map();
@@ -406,14 +450,14 @@
           renderTable(currentCustomPropsMeta, currentLicenseRows);
 
           if (currentLicenseRows.length > 0) {
-            messageEl.innerHTML = `<div class="success">ライセンスの取得が完了しました。${currentLicenseRows.length} 件を表示しています。</div>`;
+            showMessage('success', `ライセンスの取得が完了しました。${currentLicenseRows.length} 件を表示しています。`);
             downloadBtn.disabled = false;
           } else {
-            messageEl.innerHTML = '<div class="error">ライセンスが見つかりませんでした。</div>';
+            showMessage('error', 'ライセンスが見つかりませんでした。');
           }
         } catch (e) {
           console.error(e);
-          messageEl.innerHTML = `<div class="error">処理中にエラーが発生しました: ${e.message}</div>`;
+          showMessage('error', `処理中にエラーが発生しました: ${e.message}`);
         } finally {
           isLoading = false;
           fetchBtn.disabled = false;
