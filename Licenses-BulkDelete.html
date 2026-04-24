@@ -133,8 +133,14 @@
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/fixedcolumns/4.2.2/js/dataTables.fixedColumns.min.js"></script>
     <script>
+      function getCommonHeaders(tenant) {
+        return {
+          'x-okapi-tenant': tenant
+        };
+      }
+
       // Custom Properties のメタ情報を取得
-      async function fetchCustomProps(baseUrl, tenant, token) {
+      async function fetchCustomProps(baseUrl, tenant) {
         const customPropsMeta = [];
         let page = 1;
         let totalPages = 1;
@@ -142,7 +148,10 @@
         do {
           const res = await fetch(
             `${baseUrl}/licenses/custprops?sort=ctx%3Basc&sort=weight%3Basc&max=100&stats=true&filters=retired%3D%3Dfalse&page=${page}`,
-            { headers: { 'x-okapi-tenant': tenant, 'x-okapi-token': token } }
+            {
+              credentials: 'include',
+              headers: getCommonHeaders(tenant)
+            }
           );
           if (!res.ok) break;
           const data = await res.json();
@@ -159,9 +168,9 @@
       }
 
       async function fetchLicenses() {
-        const baseUrl = document.getElementById('baseUrl').value;
-        const tenant = document.getElementById('tenant').value;
-        const username = document.getElementById('username').value;
+        const baseUrl = document.getElementById('baseUrl').value.trim().replace(/\/$/, '');
+        const tenant = document.getElementById('tenant').value.trim();
+        const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
         const messageEl = document.getElementById('message');
         const downloadBtn = document.getElementById('downloadBtn');
@@ -174,6 +183,7 @@
         // 認証リクエスト
         const loginResponse = await fetch(`${baseUrl}/authn/login`, {
           method: "POST",
+          credentials: 'include',
           headers: {
             "Content-Type": "application/json",
             "x-okapi-tenant": tenant,
@@ -181,18 +191,17 @@
           body: JSON.stringify({ username, password }),
         });
         if (!loginResponse.ok) {
-          messageEl.innerHTML = '<div class="error">認証に失敗しました</div>';
+          const errText = await loginResponse.text();
+          messageEl.innerHTML = `<div class="error">認証に失敗しました: ${loginResponse.status} ${errText}</div>`;
           return;
         }
-        const token = loginResponse.headers.get('x-okapi-token');
 
         // グローバルに保持
         window.okapiBaseUrl = baseUrl;
         window.okapiTenant = tenant;
-        window.okapiToken = token;
 
         // メタ情報取得
-        const customPropsMeta = await fetchCustomProps(baseUrl, tenant, token);
+        const customPropsMeta = await fetchCustomProps(baseUrl, tenant);
 
         // テーブルリセット
         if ($.fn.DataTable.isDataTable("#licensesTable")) {
@@ -242,8 +251,11 @@
         let page = 1, totalPages = 1, perPage = 100;
         do {
           const res = await fetch(
-            `${baseUrl}/licenses/licenses?stats=true&page=${page}&perPage=${perPage}`,
-            { headers: { "x-okapi-token": token } }
+            `${baseUrl}/licenses/licenses?sort=id%3Basc&stats=true&page=${page}&perPage=${perPage}`,
+            {
+              credentials: 'include',
+              headers: getCommonHeaders(tenant)
+            }
           );
           if (!res.ok) break;
           const data = await res.json();
@@ -330,14 +342,15 @@
         if (count === 0) return;
         if (!confirm(`${count}件のライセンスを削除します。よろしいですか？`)) return;
 
-        const { okapiBaseUrl: baseUrl, okapiTenant: tenant, okapiToken: token } = window;
+        const { okapiBaseUrl: baseUrl, okapiTenant: tenant } = window;
         const errors = [];
         for (const cb of checkboxes) {
           const id = cb.getAttribute('data-id');
           try {
             const res = await fetch(`${baseUrl}/licenses/licenses/${id}`, {
               method: 'DELETE',
-              headers: { 'x-okapi-tenant': tenant, 'x-okapi-token': token }
+              credentials: 'include',
+              headers: getCommonHeaders(tenant)
             });
             if (!res.ok) {
               errors.push(id);
