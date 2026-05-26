@@ -133,10 +133,15 @@
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/fixedcolumns/4.2.2/js/dataTables.fixedColumns.min.js"></script>
     <script>
-      function getCommonHeaders(tenant) {
-        return {
-          'x-okapi-tenant': tenant
+      function getCommonHeaders(tenant, token = window.okapiToken) {
+        const headers = {
+          "Accept": "application/json",
+          "x-okapi-tenant": tenant
         };
+        if (token) {
+          headers["x-okapi-token"] = token;
+        }
+        return headers;
       }
 
       // Custom Properties のメタ情報を取得
@@ -193,6 +198,22 @@
         if (!loginResponse.ok) {
           const errText = await loginResponse.text();
           messageEl.innerHTML = `<div class="error">認証に失敗しました: ${loginResponse.status} ${errText}</div>`;
+          return;
+        }
+        let loginData = {};
+        try {
+          loginData = await loginResponse.clone().json();
+        } catch (e) {
+          // レスポンスボディがJSONでない場合は無視
+        }
+
+        window.okapiToken =
+          loginResponse.headers.get('x-okapi-token') ||
+          loginData.okapiToken ||
+          loginData.token;
+
+        if (!window.okapiToken) {
+          messageEl.innerHTML = '<div class="error">認証は成功しましたが、Okapi Token を取得できませんでした。</div>';
           return;
         }
 
