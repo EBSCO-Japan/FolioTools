@@ -270,41 +270,66 @@
 
         // ライセンス取得
         const licenseRows = [];
-        let page = 1, totalPages = 1, perPage = 100;
-        do {
-          const res = await fetch(
-            `${baseUrl}/licenses/licenses?sort=id%3Basc&stats=true&page=${page}&perPage=${perPage}`,
-            {
-              credentials: 'include',
-              headers: getCommonHeaders(tenant)
-            }
-          );
-          if (!res.ok) break;
-          const data = await res.json();
-          totalPages = data.totalPages || 1;
-          data.results.forEach(lic => {
+        const perPage = 100;
+        function addLicenseRows(results) {
+          results.forEach(lic => {
             const baseCells = [
               lic.id,
               lic.dateCreated?.slice(0, 10) || "",
               lic.name,
-              (lic.alternateNames||[]).map(a=>a.name).join('; '),
-              lic.type?.value||"",
-              lic.status?.label||"",
-              lic.description
+              (lic.alternateNames || []).map(a => a.name).join('; '),
+              lic.type?.value || "",
+              lic.status?.label || "",
+              lic.description || ""
             ];
-            // const customProps = {};
-            // Object.entries(lic.customProperties||{}).forEach(([k, items]) => {
-            //   if (!Array.isArray(items)||!items.length) return;
-            //   const v = items[0].value;
-            //   customProps[k] = Array.isArray(v)
-            //     ? v.map(x=>x.label||"").join('; ')
-            //     : (v&&typeof v==='object' ? v.label : String(v));
-            // });
-            // licenseRows.push({ id: lic.id, baseCells, customProps });
             licenseRows.push({ id: lic.id, baseCells, customProps: {} });
           });
-          page++;
-        } while (page <= totalPages);
+        }
+
+        // まず1ページ目を取得
+        const firstRes = await fetch(
+          `${baseUrl}/licenses/licenses?sort=id%3Basc&stats=true&page=1&perPage=${perPage}`,
+          {
+            credentials: 'include',
+            headers: getCommonHeaders(tenant)
+          }
+        );
+
+        if (!firstRes.ok) {
+          const errText = await firstRes.text();
+          messageEl.innerHTML = `<div class="error">ライセンス取得に失敗しました: ${firstRes.status} ${errText}</div>`;
+          return;
+        }
+
+        const firstData = await firstRes.json();
+        const totalPages = firstData.totalPages || 1;
+        addLicenseRows(firstData.results || []);
+
+        // 2ページ目以降を並列取得
+        if (totalPages > 1) {
+          const requests = [];
+
+          for (let p = 2; p <= totalPages; p++) {
+            requests.push(
+              fetch(
+                `${baseUrl}/licenses/licenses?sort=id%3Basc&stats=true&page=${p}&perPage=${perPage}`,
+                {
+                  credentials: 'include',
+                  headers: getCommonHeaders(tenant)
+                }
+              ).then(async res => {
+                if (!res.ok) {
+                  const errText = await res.text();
+                  throw new Error(`page ${p}: ${res.status} ${errText}`);
+                }
+                return res.json();
+              })
+            );
+          }
+
+          const pages = await Promise.all(requests);
+          pages.forEach(data => addLicenseRows(data.results || []));
+        }
 
         // 行描画
         const tbody = table.querySelector("tbody");
@@ -327,7 +352,6 @@
             tr.appendChild(td);
           });
         });
-
         // DataTable 初期化
         if (licenseRows.length) {
           const dt = $("#licensesTable").DataTable({
@@ -337,11 +361,14 @@
             info: false,
             scrollX: true,
             autoWidth: false,
-            fixedColumns: { leftColumns: 4 },
+            // fixedColumns: { leftColumns: 4 },
             scrollY: "300px",
           });
           dt.columns.adjust();
-          messageEl.innerHTML = `<div class="success">ライセンスの取得が完了しました！ 合計 ${licenseRows.length} 件です。</div>`;          downloadBtn.disabled = false;
+
+          messageEl.innerHTML = `<div class="success">ライセンスの取得が完了しました！ 合計 ${licenseRows.length} 件です。</div>`;
+          downloadBtn.disabled = false;
+          
           // チェックボックス変更で削除ボタンの切替
           document.querySelectorAll('.delete-checkbox').forEach(cb => {
             cb.addEventListener('change', () => {
@@ -399,23 +426,27 @@
         const table = document.getElementById("licensesTable");
         const theadRows = table.querySelectorAll("thead tr");
 
-        // 1行目（checkbox列スキップ）
-        const row0Ths = Array.from(theadRows[0].cells).slice(1);
-        const ctxCells = row0Ths
-          .slice(defaultHeaders.length)
-          .map(th => `"${th.innerText.replace(/"/g, '""')}"`);
-        const header1 = [
-          ...Array(defaultHeaders.length).fill('""'),
-          ...ctxCells
-        ].join(",");
+        // // 1行目（checkbox列スキップ）
+        // const row0Ths = Array.from(theadRows[0].cells).slice(1);
+        // const ctxCells = row0Ths
+        //   .slice(defaultHeaders.length)
+        //   .map(th => `"${th.innerText.replace(/"/g, '""')}"`);
+        // const header1 = [
+        //   ...Array(defaultHeaders.length).fill('""'),
+        //   ...ctxCells
+        // ].join(",");
 
-        // 2行目（checkbox列スキップ）
-        const keyCells = Array.from(theadRows[1].cells).slice(1)
-          .map(th => `"${th.innerText.replace(/"/g, '""')}"`);
-        const header2 = [
-          ...defaultHeaders.map(h => `"${h}"`),
-          ...keyCells
-        ].join(",");
+        // // 2行目（checkbox列スキップ）
+        // const keyCells = Array.from(theadRows[1].cells).slice(1)
+        //   .map(th => `"${th.innerText.replace(/"/g, '""')}"`);
+        // const header2 = [
+        //   ...defaultHeaders.map(h => `"${h}"`),
+        //   ...keyCells
+        // ].join(",");
+        const header = Array.from(theadRows[0].cells)
+        .slice(1)
+        .map(th => `"${th.innerText.replace(/"/g, '""')}"`)
+        .join(",");
 
         // データ行（checkbox列スキップ）
         const dataRows = Array.from(
@@ -433,7 +464,8 @@
           return;
         }
 
-        const body = [header1, header2, ...dataRows].join("\n");
+        // const body = [header1, header2, ...dataRows].join("\n");
+        const body = [header, ...dataRows].join("\n");
         const csvContent = "\uFEFF" + body;
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
