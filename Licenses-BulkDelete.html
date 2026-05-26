@@ -222,24 +222,25 @@
         window.okapiTenant = tenant;
 
         // メタ情報取得
-        const customPropsMeta = await fetchCustomProps(baseUrl, tenant);
+        // const customPropsMeta = await fetchCustomProps(baseUrl, tenant);
+        const customPropsMeta = [];
 
         // テーブルリセット
         if ($.fn.DataTable.isDataTable("#licensesTable")) {
           $("#licensesTable").DataTable().destroy();
         }
         $(".table-wrapper").html(
-          '<table id="licensesTable"><thead><tr></tr><tr></tr></thead><tbody></tbody></table>'
+            '<table id="licensesTable"><thead><tr></tr></thead><tbody></tbody></table>'
         );
 
         const table = document.getElementById("licensesTable");
         const thead = table.querySelector("thead");
         const topRow = thead.rows[0];
-        const botRow = thead.rows[1];
+        // const botRow = thead.rows[1];
 
         // 選択用チェックボックス列
         const selectTh = document.createElement("th");
-        selectTh.rowSpan = 2;
+        // selectTh.rowSpan = 2;
         selectTh.textContent = "選択";
         topRow.appendChild(selectTh);
 
@@ -249,23 +250,23 @@
         ];
         defaultHeaders.forEach(label => {
           const th = document.createElement("th");
-          th.rowSpan = 2;
+          // th.rowSpan = 2;
           th.textContent = label;
           topRow.appendChild(th);
         });
 
-        // 1行目：Custom Props の ctx
-        customPropsMeta.forEach(({ ctx }) => {
-          const th = document.createElement("th");
-          th.textContent = ctx;
-          topRow.appendChild(th);
-        });
-        // 2行目：キー
-        customPropsMeta.forEach(({ key }) => {
-          const th = document.createElement("th");
-          th.textContent = key;
-          botRow.appendChild(th);
-        });
+        // // 1行目：Custom Props の ctx
+        // customPropsMeta.forEach(({ ctx }) => {
+        //   const th = document.createElement("th");
+        //   th.textContent = ctx;
+        //   topRow.appendChild(th);
+        // });
+        // // 2行目：キー
+        // customPropsMeta.forEach(({ key }) => {
+        //   const th = document.createElement("th");
+        //   th.textContent = key;
+        //   botRow.appendChild(th);
+        // });
 
         // ライセンス取得
         const licenseRows = [];
@@ -291,15 +292,16 @@
               lic.status?.label||"",
               lic.description
             ];
-            const customProps = {};
-            Object.entries(lic.customProperties||{}).forEach(([k, items]) => {
-              if (!Array.isArray(items)||!items.length) return;
-              const v = items[0].value;
-              customProps[k] = Array.isArray(v)
-                ? v.map(x=>x.label||"").join('; ')
-                : (v&&typeof v==='object' ? v.label : String(v));
-            });
-            licenseRows.push({ id: lic.id, baseCells, customProps });
+            // const customProps = {};
+            // Object.entries(lic.customProperties||{}).forEach(([k, items]) => {
+            //   if (!Array.isArray(items)||!items.length) return;
+            //   const v = items[0].value;
+            //   customProps[k] = Array.isArray(v)
+            //     ? v.map(x=>x.label||"").join('; ')
+            //     : (v&&typeof v==='object' ? v.label : String(v));
+            // });
+            // licenseRows.push({ id: lic.id, baseCells, customProps });
+            licenseRows.push({ id: lic.id, baseCells, customProps: {} });
           });
           page++;
         } while (page <= totalPages);
@@ -339,8 +341,7 @@
             scrollY: "300px",
           });
           dt.columns.adjust();
-          messageEl.innerHTML = '<div class="success">ライセンスの取得が完了しました！</div>';
-          downloadBtn.disabled = false;
+          messageEl.innerHTML = `<div class="success">ライセンスの取得が完了しました！ 合計 ${licenseRows.length} 件です。</div>`;          downloadBtn.disabled = false;
           // チェックボックス変更で削除ボタンの切替
           document.querySelectorAll('.delete-checkbox').forEach(cb => {
             cb.addEventListener('change', () => {
