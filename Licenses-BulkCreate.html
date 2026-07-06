@@ -167,26 +167,70 @@
         const msgEl   = document.getElementById('authMessage');
         msgEl.innerHTML = '';
 
-        const res = await fetch(`${baseUrl}/authn/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-okapi-tenant': tenant
-          },
-          body: JSON.stringify({ username, password })
-        });
-        if (!res.ok) {
-          msgEl.innerHTML = '<div class="error">認証に失敗しました</div>';
-          return;
+        try {
+          const res = await fetch(`${baseUrl}/authn/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-okapi-tenant': tenant
+            },
+            // tenant をボディにも含める（環境により要求される）
+            body: JSON.stringify({ username, password, tenant })
+          });
+
+          // レスポンスボディを一度だけ読み、JSON として解釈を試みる
+          const text = await res.text();
+          let data = {};
+          try {
+            data = text ? JSON.parse(text) : {};
+          } catch {
+            data = {};
+          }
+
+          if (!res.ok) {
+            const detail = (data && data.errors && data.errors[0] && data.errors[0].message)
+              || text || res.statusText;
+            msgEl.innerHTML = `<div class="error">認証に失敗しました (${res.status}): ${detail}</div>`;
+            return;
+          }
+
+          // トークンはヘッダー、無ければレスポンスボディから取得（環境差異に対応）
+          okapiToken =
+            res.headers.get('x-okapi-token') ||
+            res.headers.get('X-Okapi-Token') ||
+            data.okapiToken ||
+            data.accessToken ||
+            data.token ||
+            null;
+
+          if (!okapiToken) {
+            msgEl.innerHTML =
+              '<div class="error">認証は成功しましたが、トークンを取得できませんでした。'
+              + 'この環境は Cookie 方式（RTR）の可能性があります。ヘッダー／レスポンスボディをご確認ください。</div>';
+            return;
+          }
+
+          // カスタムプロパティ定義をまとめて取得（失敗してもログイン自体は成立させる）
+          let custpropsWarning = '';
+          try {
+            await fetchCustpropsMeta(baseUrl, tenant);
+          } catch (err) {
+            custpropsWarning =
+              '<div class="error">※ カスタムプロパティ定義の取得に失敗しました（'
+              + (err && err.message ? err.message : err)
+              + '）。標準フィールドのテンプレート／登録は利用できます。</div>';
+          }
+
+          msgEl.innerHTML =
+            '<div class="success">ログイン成功！CSV アップロード & テンプレートダウンロードが可能です。</div>'
+            + custpropsWarning;
+          document.getElementById('uploadBtn').disabled = false;
+          document.getElementById('downloadTemplateBtn').disabled = false;
+        } catch (err) {
+          msgEl.innerHTML =
+            '<div class="error">通信エラー: ' + (err && err.message ? err.message : err)
+            + '（CORS またはネットワークをご確認ください）</div>';
         }
-        okapiToken = res.headers.get('x-okapi-token');
-
-        // 追加：カスタムプロパティ定義をまとめて取得
-        await fetchCustpropsMeta(baseUrl, tenant);
-
-        msgEl.innerHTML = '<div class="success">ログイン成功！CSV アップロード & テンプレートダウンロードが可能です。</div>';
-        document.getElementById('uploadBtn').disabled = false;
-        document.getElementById('downloadTemplateBtn').disabled = false;
       });
 
       // ——— カスタムプロパティ定義取得 ———
@@ -203,9 +247,12 @@
               }
             }
           );
+          if (!res.ok) {
+            throw new Error(`custprops 取得エラー (${res.status})`);
+          }
           const data = await res.json();
           totalPages = data.totalPages || 1;
-          data.results.forEach(item => {
+          (data.results || []).forEach(item => {
             custpropsDefinitions[item.name] = item;
           });
           page++;
@@ -313,8 +360,75 @@
       }
 
       // ——— テンプレート CSV ダウンロード ———
-      async function downloadTemplate() {
-        /* （既存の downloadTemplate 関数は変更なし） */
+      function downloadTemplate() {
+        // CSV セルのエスケープ（カンマ・改行・引用符を含む場合は "" で囲む）
+        const escapeCsv = (value) => {
+          const s = String(value == null ? '' : value);
+          if (/[",\r\n]/.test(s)) {
+            return '"' + s.replace(/"/g, '""') + '"';
+          }
+          return s;
+        };
+
+        // 標準フィールド（ヘッダーとヒントのペア）
+        // ※ openEnded は processCsv 側で常に false に上書きされるため列に含めない
+        const standardFields = [
+          { header: 'name',        hint: 'ライセンス名（必須）' },
+          { header: 'description', hint: '説明（任意）' },
+          { header: 'type',        hint: '種別 例: local / consortial / national / alliance' },
+          { header: 'status',      hint: 'ステータス 例: active / expired / rejected / not_yet_active' },
+          { header: 'startDate',   hint: '開始日 YYYY-MM-DD' },
+          { header: 'endDate',     hint: '終了日 YYYY-MM-DD（任意）' },
+        ];
+
+        const headers = [];
+        const hints = [];
+
+        standardFields.forEach((f) => {
+          headers.push(f.header);
+          hints.push(f.hint);
+        });
+
+        // カスタムプロパティ列を動的生成
+        Object.keys(custpropsDefinitions).forEach((propName) => {
+          const meta = custpropsDefinitions[propName];
+          headers.push('customProperties.' + propName);
+
+          let hint;
+          if (meta && meta.type && meta.type.endsWith('CustomPropertyMultiRefdata')) {
+            // 選択肢定義は values または category.values のどちらか
+            const opts = meta.values || (meta.category && meta.category.values) || [];
+            const labels = opts.map((o) => o.label || o.value).filter((v) => v);
+            if (labels.length > 0) {
+              hint = '次のいずれかを;区切りで入力: ' + labels.join(' / ');
+            } else {
+              hint = '選択肢を;区切りで入力';
+            }
+          } else {
+            const typeLabel = (meta && meta.label) ? meta.label : (meta && meta.type ? meta.type : '');
+            hint = typeLabel ? ('値を入力（' + typeLabel + '）') : '値を入力';
+          }
+          hints.push(hint);
+        });
+
+        // ヒント行・ヘッダー行の2行を組み立て（データ行は空）
+        const csvLines = [
+          hints.map(escapeCsv).join(','),
+          headers.map(escapeCsv).join(','),
+        ];
+        const csv = csvLines.join('\r\n') + '\r\n';
+
+        // Excel での文字化け対策として UTF-8 BOM を付与
+        const bom = '﻿';
+        const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'licenses_template.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
     </script>
   </body>
